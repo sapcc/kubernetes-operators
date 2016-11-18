@@ -10,4 +10,6 @@ This operator automates the backup process of (Openstack) databases.
  * Database containers are unmodified and unaware of this Operator
  * Unattended Operations
  * Automated and configurable rotation
- * Supports MySQL and MariaDB
+ * Supports Postgresql and MariaDB
+ * Procedures for validating and restoring a backup 
+ * Handover to "Operations"
