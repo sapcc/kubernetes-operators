@@ -15,7 +15,7 @@ See also: [CoreOS - Introducing Operators](https://coreos.com/blog/introducing-o
 
 ## Example 
 
-As an example, a ThirdPartyResource `BuildingBlock` drives the creation of
+As an example, a [ThirdPartyResource](http://kubernetes.io/docs/user-guide/thirdpartyresources/) `BuildingBlock` drives the creation of
 a set of Nova-Agents through a `DeploymentSpec`. The operator will watch for
 changes on `BuildingBlock` events and create/update the specs for the nova
 agents. Additionally, it could remote control auxiliary systems, like sending a
@@ -35,7 +35,7 @@ talks directly to Kubernetes.
 
 ## Design Principles
 
-Operators are build in Go. They use kubernetes/client-go to interface with the 
+Operators are build in Go. They use [kubernetes/client-go](https://github.com/kubernetes/client-go) to interface with the 
 Kubernetes API. They follow the Kubernetes controller best practices and
 programatically manage resources. 
 
@@ -44,7 +44,7 @@ Operators have one job and do that job well. They are easy to reason about.
 
 ## Prior Art
 
-kube-parrot
-etcd-operator
-prometheus-operator
-kubernetes-certificate-manager
+  * [sapcc/kube-parrot](https://github.com/sapcc/kube-parrot)
+  * [coreos/etcd-operator](https://github.com/coreos/etcd-operator)
+  * [coreps/prometheus-operator](https://github.com/coreos/prometheus-operator)
+  * [kelseyhightower/kubernetes-certificate-manager](https://github.com/kelseyhightower/kube-cert-manager)
