@@ -46,5 +46,5 @@ Operators have one job and do that job well. They are easy to reason about.
 
   * [sapcc/kube-parrot](https://github.com/sapcc/kube-parrot)
   * [coreos/etcd-operator](https://github.com/coreos/etcd-operator)
-  * [coreps/prometheus-operator](https://github.com/coreos/prometheus-operator)
+  * [coreos/prometheus-operator](https://github.com/coreos/prometheus-operator)
   * [kelseyhightower/kubernetes-certificate-manager](https://github.com/kelseyhightower/kube-cert-manager)
