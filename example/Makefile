@@ -2,24 +2,24 @@ DATE    = $(shell date +%Y%m%d%H%M)
 IMAGE   ?= sapcc/example-operator
 VERSION = v$(DATE)
 GOOS    ?= darwin
+BINARY  := example
 
 LDFLAGS := -X github.com/sapcc/kubernetes-operators/example/pkg/example.VERSION=$(VERSION)
 GOFLAGS := -ldflags "$(LDFLAGS)"
 
-CMDDIR   := cmd
-PKGDIR   := pkg
-PACKAGES := $(shell find $(CMDDIR) $(PKGDIR) -type d)
+SRCDIRS  := cmd pkg
+PACKAGES := $(shell find $(SRCDIRS) -type d)
 GOFILES  := $(addsuffix /*.go,$(PACKAGES))
 GOFILES  := $(wildcard $(GOFILES))
 
 .PHONY: all clean
 
-all: bin/$(GOOS)/example
+all: bin/$(GOOS)/$(BINARY)
 
-bin/%/example: $(GOFILES) Makefile
-	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/example ./cmd
+bin/%/$(BINARY): $(GOFILES) Makefile
+	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd
 
-build: bin/linux/example
+build: bin/linux/$(BINARY)
 	docker build -t $(IMAGE):$(VERSION) .
 
 push:
