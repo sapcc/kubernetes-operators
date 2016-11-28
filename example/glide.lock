@@ -1,0 +1,12 @@
+hash: d148c4f90c4a54512cffd1198ed0f2f54393d97c4a9d6ade8c53b088dd5a3384
+updated: 2016-11-28T15:41:59.584322449+01:00
+imports:
+- name: github.com/spf13/pflag
+  version: b83537d79690b75cac5e021b036ae16792bf0f20
+- name: k8s.io/client-go
+  version: f8e519fcc08881bcfe82d8755046df62ea30fda0
+  subpackages:
+  - 1.5/kubernetes
+  - 1.5/pkg/api
+  - 1.5/tools/clientcmd
+testImports: []
