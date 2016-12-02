@@ -1,7 +1,7 @@
 DATE    = $(shell date +%Y%m%d%H%M)
 IMAGE   ?= sapcc/example-operator
 VERSION = v$(DATE)
-GOOS    ?= darwin
+GOOS    ?= $(shell go env | grep GOOS | cut -d'"' -f2)
 BINARY  := example
 
 LDFLAGS := -X github.com/sapcc/kubernetes-operators/example/pkg/example.VERSION=$(VERSION)
