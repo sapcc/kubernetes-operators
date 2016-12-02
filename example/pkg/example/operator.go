@@ -6,11 +6,7 @@ import (
 	"time"
 
 	"k8s.io/client-go/1.5/kubernetes"
-	"k8s.io/client-go/1.5/pkg/api"
-	"k8s.io/client-go/1.5/pkg/api/v1"
-	"k8s.io/client-go/1.5/pkg/runtime"
-	"k8s.io/client-go/1.5/pkg/watch"
-	"k8s.io/client-go/1.5/tools/cache"
+	"k8s.io/client-go/1.5/rest"
 	"k8s.io/client-go/1.5/tools/clientcmd"
 )
 
@@ -26,42 +22,50 @@ type Options struct {
 type Example struct {
 	Options
 
-	client      *kubernetes.Clientset
-	podInformer cache.SharedIndexInformer
-	debugger    *Debugger
+	clientset     *kubernetes.Clientset
+	critterClient *rest.RESTClient
+
+	debugger  *Debugger
+	zooKeeper *ZooKeeper
 }
 
 func New(options Options) *Example {
-	example := &Example{
-		Options: options,
-		client:  newClient(options.KubeConfig),
+	config := newClientConfig(options)
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("Couldn't create Kubernetes client: %s", err)
 	}
 
-	example.podInformer = cache.NewSharedIndexInformer(
-		&cache.ListWatch{
-			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
-				return example.client.Core().Pods(v1.NamespaceAll).List(options)
-			},
-			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
-				return example.client.Core().Pods(v1.NamespaceAll).Watch(options)
-			},
-		},
-		&v1.Pod{},
-		resyncPeriod,
-		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-	)
+	critterClient, err := NewCritterClientForConfig(config)
+	if err != nil {
+		log.Fatalf("Couldn't create Critter client: %s", err)
+	}
 
-	example.debugger = newDebugger(example.podInformer)
+	example := &Example{
+		Options:       options,
+		clientset:     clientset,
+		critterClient: critterClient,
+		zooKeeper:     newZookeeper(critterClient, clientset),
+		debugger:      newDebugger(clientset),
+	}
 
 	return example
 }
 
-func newClient(kubeConfig string) *kubernetes.Clientset {
+func (example *Example) Run(stopCh <-chan struct{}, wg *sync.WaitGroup) {
+	log.Printf("Welcome to Example %v\n", VERSION)
+
+	go example.zooKeeper.Run(stopCh, wg)
+	go example.debugger.Run(stopCh, wg)
+}
+
+func newClientConfig(options Options) *rest.Config {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{}
 
-	if kubeConfig != "" {
-		rules.ExplicitPath = kubeConfig
+	if options.KubeConfig != "" {
+		rules.ExplicitPath = options.KubeConfig
 	}
 
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
@@ -69,24 +73,5 @@ func newClient(kubeConfig string) *kubernetes.Clientset {
 		log.Fatalf("Couldn't get Kubernetes default config: %s", err)
 	}
 
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Fatalf("Couldn't create Kubernetes client: %s", err)
-	}
-
-	log.Printf("Using Kubernetes Api at %s", config.Host)
-	return client
-}
-
-func (example *Example) Run(stopCh <-chan struct{}, wg *sync.WaitGroup) {
-	log.Printf("Welcome to Example %v\n", VERSION)
-
-	go example.podInformer.Run(stopCh)
-
-	cache.WaitForCacheSync(
-		stopCh,
-		example.podInformer.HasSynced,
-	)
-
-	go example.debugger.Run(stopCh, wg)
+	return config
 }
