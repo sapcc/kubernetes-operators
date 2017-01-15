@@ -12,7 +12,7 @@ import (
 
 var (
 	VERSION      = "0.0.0.dev"
-	resyncPeriod = 5 * time.Minute
+	resyncPeriod = 10 * time.Minute
 )
 
 type Options struct {

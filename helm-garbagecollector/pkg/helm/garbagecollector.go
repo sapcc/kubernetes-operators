@@ -17,7 +17,7 @@ import (
 )
 
 const REVISION_HISTORY_LIMIT = 5
-const GARBAGE_COLLECTION_INTERVAL = 5 * time.Minute
+const GARBAGE_COLLECTION_INTERVAL = 60 * time.Minute
 
 type GarbageCollector struct {
 	clientset *kubernetes.Clientset
