@@ -58,12 +58,6 @@ func newGarbageCollector(clientset *kubernetes.Clientset) *GarbageCollector {
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 	)
 
-	releaseInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    garbageCollector.releaseAdd,
-		UpdateFunc: garbageCollector.releaseUpdate,
-		DeleteFunc: garbageCollector.releaseDelete,
-	})
-
 	garbageCollector.informer = releaseInformer
 
 	return garbageCollector
@@ -93,8 +87,6 @@ func (gc *GarbageCollector) Run(stopCh <-chan struct{}, wg *sync.WaitGroup) {
 }
 
 func (gc *GarbageCollector) collectGarbage() {
-	log.Printf("Collecting Garbage:")
-
 	releases := make(map[string][]*v1.ConfigMap)
 
 	for _, o := range gc.informer.GetStore().List() {
