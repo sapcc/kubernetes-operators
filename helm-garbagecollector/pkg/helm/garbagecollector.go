@@ -68,8 +68,10 @@ func (gc *GarbageCollector) Run(stopCh <-chan struct{}, wg *sync.WaitGroup) {
 	wg.Add(1)
 
 	go gc.informer.Run(stopCh)
+
 	log.Printf("Waiting for cache to sync. For a lot of Helm releases this might take minutes...")
 	cache.WaitForCacheSync(stopCh, gc.informer.HasSynced)
+	log.Printf("Cache primed. Ready for operations. Next cleanup in %v", GARBAGE_COLLECTION_INTERVAL)
 
 	ticker := time.NewTicker(GARBAGE_COLLECTION_INTERVAL)
 	go func() {
