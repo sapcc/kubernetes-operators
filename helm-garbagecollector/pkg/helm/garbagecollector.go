@@ -98,6 +98,10 @@ func (gc *GarbageCollector) collectGarbage() {
 			continue
 		}
 
+		if cm.Labels["VERSION"] == "1" {
+			continue
+		}
+
 		name := cm.Labels["NAME"]
 
 		if releases[name] == nil {
