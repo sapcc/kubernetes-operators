@@ -3,9 +3,7 @@ MAINTAINER Rudolf Vriend <rudolf.vriend@sap.com>
 
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
-RUN export http_proxy=http://proxy.wdf.sap.corp:8080 && \
-    export https_proxy=http://proxy.wdf.sap.corp:8080 && \
-    echo 'precedence ::ffff:0:0/96  100' >> /etc/gai.conf && \
+RUN echo 'precedence ::ffff:0:0/96  100' >> /etc/gai.conf && \
     apt-get update && \
     apt-get install -y --no-install-recommends apt-transport-https ca-certificates curl wget build-essential libpython2.7-dev libssl-dev openssl && \
     apt-get clean && \
@@ -23,9 +21,7 @@ RUN curl -sLo /usr/local/bin/kubernetes-entrypoint https://github.wdf.sap.corp/d
 
 WORKDIR /keystone-seeder
 COPY python/* /keystone-seeder/
-RUN export http_proxy=http://proxy.wdf.sap.corp:8080 && \
-    export https_proxy=http://proxy.wdf.sap.corp:8080 && \
-    python setup.py install
+RUN python setup.py install
 
 WORKDIR /
 ADD bin/linux/keystone-operator keystone-operator
