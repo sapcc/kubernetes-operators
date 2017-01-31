@@ -1,0 +1,43 @@
+apiVersion: "openstack.stable.sap.cc/v1"
+kind: "OpenstackSeed"
+metadata:
+  name: identity-project-seed
+spec:
+  requires:
+    - identity-base-seed
+
+  regions:
+    - id: eu
+      description: Europe
+    - id: ap
+      description: Asia/Pacific
+    - id: na
+      description: North America
+
+  domains:
+    - name: Default
+      projects:
+        - name: shared_service
+          description: Cloud Shared Services Project
+      groups:
+        - name: administrators
+          roles:
+            - project: shared_service
+              role: admin
+
+    - name: customer
+      description: "Customer Domain"
+      projects:
+        - name: customer_admin
+          description: Admin project
+      users:
+        - name: customer_admin
+          description: "Customer Administrator"
+          enabled: true
+      groups:
+        - name: customer_administrators
+          roles:
+            - domain: customer
+              role: admin
+            - project: customer_admin
+              role: admin

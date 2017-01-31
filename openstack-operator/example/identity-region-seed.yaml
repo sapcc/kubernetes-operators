@@ -1,0 +1,69 @@
+apiVersion: "openstack.stable.sap.cc/v1"
+kind: "OpenstackSeed"
+metadata:
+  name: identity-eu-dc-1-seed
+spec:
+  requires:
+    - identity-project-seed
+
+  regions:
+    - id: eu-dc-1
+      parent_region_id: eu
+      description: Europe DC1
+
+  services:
+    - name: keystone
+      endpoints:
+        - interface: admin
+          region: eu-dc-1
+          url: http://192.168.1.100:35357/v3
+        - interface: public
+          region: eu-dc-1
+          url: http://192.168.1.100:5000/v3
+        - interface: internal
+          region: eu-dc-1
+          url: http://keystone.monsoon3.svc.kubernetes.cluster.local:5000/v3
+  domains:
+    - name: customer
+      config:
+        identity:
+          driver: ldap
+        ldap:
+          auth_pool_connection_lifetime: 60
+          auth_pool_size: 100
+          group_allow_create: true
+          group_allow_delete: false
+          group_allow_update: true
+          group_desc_attribute: description
+          group_id_attribute: cn
+          group_member_attribute: member
+          group_name_attribute: name
+          group_objectclass: group
+          group_tree_dn: 'OU=MONSOON3,OU=OSDomains,OU=CCloud,DC=ad,DC=staging,DC=cloud,DC=sap'
+          page_size: 1000
+          password: F40abK1avD4S!Gs
+          pool_connection_lifetime: 60
+          pool_size: 10
+          query_scope: sub
+          suffix: 'DC=ad,DC=staging,DC=cloud,DC=sap'
+          tls_req_cert: allow
+          url: 'ldaps://ldap.staging.cloud.sap:636'
+          use_auth_pool: true
+          use_dumb_member: false
+          use_pool: true
+          use_tls: false
+          user: 'CN=monsoon-service,CN=Users,DC=ad,DC=staging,DC=cloud,DC=sap'
+          user_allow_create: true
+          user_allow_delete: false
+          user_allow_update: true
+          user_attribute_ignore: default_project_id
+          user_description_attribute: displayName
+          user_enabled_attribute: userAccountControl
+          user_enabled_default: 512
+          user_enabled_mask: 2
+          user_id_attribute: cn
+          user_mail_attribute: mail
+          user_name_attribute: sAMAccountName
+          user_objectclass: user
+          user_pass_attribute: userPassword
+          user_tree_dn: 'OU=Identities,DC=ad,DC=staging,DC=cloud,DC=sap'
