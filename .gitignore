@@ -29,5 +29,5 @@ _testmain.go
 *.out
 
 
-keystone-operator/bin
+*/bin
 *.pyc
