@@ -55,7 +55,7 @@ func (mgr *OpenstackSeedManager) Run(stopCh <-chan struct{}, wg *sync.WaitGroup)
 	if err := EnsureOpenstackSeedThirdPartyResource(mgr.clientset); err != nil {
 		msg := fmt.Errorf("ERROR: couldn't create OpenstackSeed ThirdPartyResource: %s", err.Error())
 		raven.CaptureErrorAndWait(msg, nil)
-		glog.Fatalf("ERROR: %s", msg.Error())
+		glog.Fatal(msg)
 	}
 
 	go mgr.seedInformer.Run(stopCh)

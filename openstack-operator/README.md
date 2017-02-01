@@ -13,6 +13,15 @@ Seed your openstack content with a kubernetes operator.
   the dependencies of the specs (merges them) and does the seeding of the 
   merged seed
 
+## Current issues
+
+Due to the kubernetes issues [kubectl apply does not update ThirdPartyResource object](https://github.com/kubernetes/kubernetes/issues/29542) and 
+[Helm choking with third party resources](https://github.com/kubernetes/helm/issues/1468), 
+the deployment of openstack seeds is currently somewhat cumbersome.
+
+Because of these issues, the target scenario (templated seed specs contained in helm charts) is currently not yet feasible.
+
+
 ## Supported entities
 
 - regions
@@ -70,4 +79,3 @@ Seed your openstack content with a kubernetes operator.
 
 - testing
 - documentation
-- sentry instrumentation
