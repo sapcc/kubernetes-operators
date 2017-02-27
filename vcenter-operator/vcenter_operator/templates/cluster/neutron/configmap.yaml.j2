@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml2-vmware-{{ name }}-ini
+  labels:
+    system: openstack
+    type: configuration
+    component: neutron
+data:
+  ml2-vmware.ini: |
+    [securitygroup]
+    firewall_driver = networking_dvs.plugins.ml2.drivers.mech_dvs.agent.dvs_firewall.DvsSecurityGroupsDriver
+
+    [ml2_vmware]
+    vsphere_hostname = {{ host }}
+    cluster_name = "{{ cluster_name | replace("$", "$$") | replace('"', '\\"')}}"
+
+    vsphere_login = "{{ username | replace("$", "$$") | replace('"', '\\"')}}"
+    vsphere_password = "{{ password | replace("$", "$$") | replace('"', '\\"')}}"
+
+    network_maps = "{{ physical }}:{{ bridge }}"
