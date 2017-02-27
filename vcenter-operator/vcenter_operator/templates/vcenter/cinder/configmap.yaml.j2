@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: volume-vmware-{{ name }}
+  labels:
+    system: openstack
+    type: configuration
+    component: cinder
+data:
+  volume.conf: |
+    [DEFAULT]
+    enabled_backends = vmware
+    storage_availability_zone={{ availability_zone }}
+
+    [vmware]
+    volume_backend_name = vmware
+    volume_driver = cinder.volume.drivers.vmware.vmdk.VMwareVcVmdkDriver
+    vmware_host_ip = {{ host }}
+    vmware_host_username = "{{ username | replace("$", "$$") | replace('"', '\\"')}}"
+    vmware_host_password = "{{ password | replace("$", "$$") | replace('"', '\\"')}}"
+    vmware_insecure = True
