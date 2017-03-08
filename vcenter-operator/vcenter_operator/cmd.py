@@ -8,9 +8,7 @@ log = logging.getLogger(__name__)
 
 
 def main():
-    global_options = {
-        'namespace': 'monsoon3'
-    }
+    global_options = {}
 
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)-15s %(message)s')
     logging.getLogger('kubernetes').setLevel(logging.WARNING)
@@ -20,18 +18,22 @@ def main():
         _, context = k8s_config.list_kube_config_contexts()
         region = context['context']['cluster']
         domain = 'cc.{}.cloud.sap'.format(region)
+        global_options['own_namespace'] = context['context']['namespace']
     except IOError:
         from os import environ
         environ['KUBERNETES_SERVICE_HOST'] = 'kubernetes.default'
         k8s_config.load_incluster_config()
+        with open('/var/run/secrets/kubernetes.io/serviceaccount/namespace', 'r') as f:
+            global_options['own_namespace'] = f.read()
         with open('/etc/resolv.conf', 'r') as f:
             for l in f:
                 if re.match('^search\s+', l):
                     _, domain = l.rsplit(' ', 1)
                     domain = domain.strip()
 
-    discovery = DnsDiscovery(domain, global_options)
     configurator = Configurator(domain, global_options)
+    configurator.poll_config()
+    discovery = DnsDiscovery(domain, configurator.global_options)
 
     while True:
         discovery.discover(configurator)

@@ -10,6 +10,7 @@ class DnsDiscovery(object):
     VC_MATCH = re.compile(six.b('\Avc-[a-z]+-?\d+\Z'))
 
     def __init__(self, domain, global_options):
+        self.ip = None
         self.namespace = global_options['namespace']
         self.domain = domain
         self.all_vcs = set()

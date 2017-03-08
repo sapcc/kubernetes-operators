@@ -127,7 +127,7 @@ class Configurator(object):
 
     @property
     def namespace(self):
-        return self.global_options['namespace']
+        return self.global_options['own_namespace']
 
     def poll_config(self):
         configmap = client.CoreV1Api().read_namespaced_config_map(namespace=self.namespace,
@@ -141,7 +141,7 @@ class Configurator(object):
 
     def poll(self):
         self.poll_config()
-        self.states.append(DeploymentState(namespace=self.namespace, dry_run=(self.global_options.get('dry_run', 'False') == 'True')))
+        self.states.append(DeploymentState(namespace=self.global_options['namespace'], dry_run=(self.global_options.get('dry_run', 'False') == 'True')))
         self._add_code('global', self.global_options)
 
         for host in six.iterkeys(self.vcenters):
