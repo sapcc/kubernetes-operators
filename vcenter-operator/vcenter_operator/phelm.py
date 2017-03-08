@@ -124,7 +124,7 @@ class DeploymentState(object):
                 try:
                     log.debug("{}: {}/{}".format(action.title(), kind, name))
                     deleter = self.get_method(api, 'delete', 'namespaced', _under_score(kind))
-                    deleter(name, self.namespace, client.V1DeleteOptions(), orphan_dependents=False)
+                    deleter(name, self.namespace, client.V1DeleteOptions(orphan_dependents=False))
                 except client.rest.ApiException as e:
                     if e.status == 404:
                         pass
