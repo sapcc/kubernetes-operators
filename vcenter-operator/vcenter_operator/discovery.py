@@ -1,24 +1,36 @@
-import logging, re, six
+import attr, logging, re, six
 from dns.query import xfr
 from dns.rdatatype import SOA, A, AAAA, CNAME, AXFR, IXFR
 from kubernetes import client
+from collections import defaultdict
+
 
 log = logging.getLogger(__name__)
 
 
-class DnsDiscovery(object):
-    VC_MATCH = re.compile(six.b('\Avc-[a-z]+-?\d+\Z'))
+@attr.s
+class _Callbacks(object):
+    callbacks = attr.ib(default=attr.Factory(list))
+    items = attr.ib(default=attr.Factory(set))
+    accumulator = attr.ib(default=attr.Factory(set))
 
+
+class DnsDiscovery(object):
     def __init__(self, domain, global_options):
-        self.ip = None
-        self.namespace = global_options['namespace']
+        self._patterns = defaultdict(_Callbacks)
+
         self.domain = domain
-        self.all_vcs = set()
-        self.rdtype = AXFR
         self.serial = None
+        self.rdtype = AXFR
+
+        self.namespace = global_options['namespace']
         token = client.configuration.auth_settings().get('BearerToken', None)
         self.cluster_internal = token and token['type'] == 'api_key' and not not token['value']
+        self.ip = None
         self._init_dns()
+
+    def register(self, pattern, callback):
+        self._patterns[pattern].callbacks.append(callback)
 
     def _init_dns(self):
         for item in client.CoreV1Api().list_namespaced_service(namespace=self.namespace,
@@ -41,27 +53,30 @@ class DnsDiscovery(object):
                     return answer[0].serial
         return None
 
-    def discover(self, changes):
-        vcs = set()
-
+    def discover(self):
         new_serial = self.remote_soa_serial()
 
         if self.serial and self.serial == new_serial:
             log.debug("No change of SOA serial")
             return
 
+        for item in six.itervalues(self._patterns):
+            item.accumulator = set()
+
         for message in xfr(self.ip, self.domain, port=self.port, use_udp=False, rdtype=self.rdtype):
             for answer in message.answer:
                 if answer.rdtype in [A, AAAA, CNAME] and answer.name:
-                    if self.VC_MATCH.match(answer.name.labels[0]):
-                        vc = str(answer.name)
-                        if not vc in vcs:
-                            vcs.add(vc)
+                    for pattern, item in six.iteritems(self._patterns):
+                        if pattern.match(answer.name.labels[0]):
+                            item.accumulator.add(str(answer.name))
 
-        log.debug("{}: {}".format(new_serial, vcs))
-        vcs.difference_update(self.all_vcs)
-        gone = self.all_vcs.difference(vcs)
-        changes(vcs, gone)
+        for item in six.itervalues(self._patterns):
+            log.debug("{}: {}".format(new_serial, item.accumulator))
+            item.accumulator.difference_update(item.items)
+            gone = item.items.difference(item.accumulator)
+            for callback in item.callbacks:
+                callback(item.accumulator, gone)
 
-        self.all_vcs.update(vcs)
+            item.items.update(item.accumulator)
+
         self.serial = new_serial

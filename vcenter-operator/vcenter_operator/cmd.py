@@ -1,4 +1,4 @@
-import logging, re
+import logging, re, six
 from time import sleep
 from kubernetes import config as k8s_config
 from .discovery import DnsDiscovery
@@ -18,7 +18,7 @@ def main():
         _, context = k8s_config.list_kube_config_contexts()
         region = context['context']['cluster']
         domain = 'cc.{}.cloud.sap'.format(region)
-        global_options['own_namespace'] = context['context']['namespace']
+        global_options['own_namespace'] = 'kube-system' #context['context']['namespace']
     except IOError:
         from os import environ
         environ['KUBERNETES_SERVICE_HOST'] = 'kubernetes.default'
@@ -34,8 +34,9 @@ def main():
     configurator = Configurator(domain, global_options)
     configurator.poll_config()
     discovery = DnsDiscovery(domain, configurator.global_options)
+    discovery.register(re.compile(six.b('\Avc-[a-z]+-?\d+\Z')), configurator)
 
     while True:
-        discovery.discover(configurator)
+        discovery.discover()
         configurator.poll()
         sleep(10)
