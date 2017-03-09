@@ -1,4 +1,5 @@
-from jinja2 import Environment, PackageLoader
+from jinja2 import ChoiceLoader, Environment, FileSystemLoader, PackageLoader
 
-env = Environment(loader=PackageLoader('vcenter_operator', 'templates'))
+env = Environment(loader=ChoiceLoader([FileSystemLoader('/var/lib/kolla/config_files', followlinks=True), PackageLoader('vcenter_operator', 'templates')]))
+
 
