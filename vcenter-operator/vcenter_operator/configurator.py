@@ -98,7 +98,7 @@ class Configurator(object):
                 config_hash = hash(frozenset(cluster_options.items()))
                 cluster_options['config_hash'] = config_hash + sys.maxsize
                 cluster_state['config_hash'] = config_hash
-                self._add_code('cluster', cluster_options)
+                self._add_code('vcenter_cluster', cluster_options)
 
             match = self.STORAGE_MATCH.match(cluster_name)
             if match:
@@ -109,11 +109,12 @@ class Configurator(object):
                                        cluster_name=cluster_name,
                                        availability_zone=parent.parent.name.lower())
 
-                self._add_code('vcenter/cinder', cluster_options)
+                self._add_code('vcenter_datacenter', cluster_options)
 
     def _add_code(self, scope, options):
-        for template_name in env.list_templates(filter_func=lambda x: x.startswith(scope)):
+        for template_name in env.list_templates(filter_func=lambda x: x.startswith(scope) and x.endswith('.yaml')):
             template = env.get_template(template_name)
+            template.filename
             result = template.render(options)
             self.states[-1].add(result)
 
