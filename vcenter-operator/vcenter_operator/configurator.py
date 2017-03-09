@@ -112,9 +112,8 @@ class Configurator(object):
                 self._add_code('vcenter_datacenter', cluster_options)
 
     def _add_code(self, scope, options):
-        for template_name in env.list_templates(filter_func=lambda x: x.startswith(scope) and x.endswith('.yaml')):
+        for template_name in env.list_templates(filter_func=lambda x: x.startswith(scope) and x.endswith('.yaml.j2')):
             template = env.get_template(template_name)
-            template.filename
             result = template.render(options)
             self.states[-1].add(result)
 

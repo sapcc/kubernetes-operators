@@ -13,13 +13,13 @@ data:
 
     [vmware]
     insecure = True
-    integration_bridge = {{ bridge }}
-    cache_prefix= "{{ name }}-images"
+    integration_bridge = {{ bridge | quote }}
+    cache_prefix= "{{ name | ini_escape }}-images"
     host_ip = {{ host }}
-    host_username = "{{ username | replace("$", "$$") | replace('"', '\\"') }}"
-    host_password = "{{ password | replace("$", "$$") | replace('"', '\\"') }}"
-    cluster_name = "{{ cluster_name | replace("$", "$$") | replace('"', '\\"') }}"
-    datastore_regex = "{{ datastore_regex | replace("$", "$$") | replace('"', '\\"') }}"
+    host_username = {{ username | quote }}
+    host_password = {{ password | quote }}
+    cluster_name = {{ cluster_name | quote }}
+    datastore_regex = {{ datastore_regex | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -36,12 +36,12 @@ data:
 
     [ml2_vmware]
     vsphere_hostname = {{ host }}
-    cluster_name = "{{ cluster_name | replace("$", "$$") | replace('"', '\\"')}}"
+    cluster_name = {{ cluster_name | quote }}
 
-    vsphere_login = "{{ username | replace("$", "$$") | replace('"', '\\"')}}"
-    vsphere_password = "{{ password | replace("$", "$$") | replace('"', '\\"')}}"
+    vsphere_login = {{ username | quote }}
+    vsphere_password = {{ password | quote }}
 
-    network_maps = "{{ physical }}:{{ bridge }}"
+    network_maps = "{{ physical | ini_escape }}:{{ bridge | ini_escape }}"
 ---
 kind: Deployment
 apiVersion: extensions/v1beta1
@@ -77,7 +77,7 @@ spec:
             - /container.init/nova-compute-start
           env:
             - name: DEBUG_CONTAINER
-              value: "true"
+              value: "false"
             - name: SENTRY_DSN
               value: {{ nova_sentry_dsn }}
           volumeMounts:
@@ -96,7 +96,7 @@ spec:
             - /container.init/neutron-dvs-agent-start
           env:
             - name: DEBUG_CONTAINER
-              value: "true"
+              value: "false"
             - name: SENTRY_DSN
               value: {{ neutron_sentry_dsn }}
           volumeMounts:
