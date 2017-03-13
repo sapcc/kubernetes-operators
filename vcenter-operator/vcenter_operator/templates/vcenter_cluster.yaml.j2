@@ -1,0 +1,132 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hypervisor-{{ name }}
+  labels:
+    system: openstack
+    type: configuration
+    component: nova
+data:
+  hypervisor.conf: |
+    [DEFAULT]
+    compute_driver=nova.virt.vmwareapi.VMwareVCDriver
+
+    [vmware]
+    insecure = True
+    integration_bridge = {{ bridge | quote }}
+    cache_prefix= "{{ name | ini_escape }}-images"
+    host_ip = {{ host }}
+    host_username = {{ username | quote }}
+    host_password = {{ password | quote }}
+    cluster_name = {{ cluster_name | quote }}
+    datastore_regex = {{ datastore_regex | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml2-vmware-{{ name }}-ini
+  labels:
+    system: openstack
+    type: configuration
+    component: neutron
+data:
+  ml2-vmware.ini: |
+    [securitygroup]
+    firewall_driver = networking_dvs.plugins.ml2.drivers.mech_dvs.agent.dvs_firewall.DvsSecurityGroupsDriver
+
+    [ml2_vmware]
+    vsphere_hostname = {{ host }}
+    cluster_name = {{ cluster_name | quote }}
+
+    vsphere_login = {{ username | quote }}
+    vsphere_password = {{ password | quote }}
+
+    network_maps = "{{ physical | ini_escape }}:{{ bridge | ini_escape }}"
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: nova-compute-{{ name }}
+  labels:
+    system: openstack
+    type: backend
+    component: nova
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 3
+  selector:
+    matchLabels:
+        name: nova-compute-{{ name }}
+  template:
+    metadata:
+      labels:
+        name: nova-compute-{{ name }}
+      annotations:
+        pod.beta.kubernetes.io/hostname: nova-compute-{{ name }}
+    spec:
+      containers:
+        - name: nova-compute-{{ name }}
+          image: {{nova_agent_image}}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /container.init/nova-compute-start
+          env:
+            - name: DEBUG_CONTAINER
+              value: "false"
+            - name: SENTRY_DSN
+              value: {{ nova_sentry_dsn }}
+          volumeMounts:
+            - mountPath: /hypervisor-config
+              name: hypervisor-config
+            - mountPath: /nova-etc
+              name: nova-etc
+            - mountPath: /nova-patches
+              name: nova-patches
+            - mountPath: /container.init
+              name: nova-container-init
+        - name: neutron-dvs-agent
+          image: {{ neutron_agent_image }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /container.init/neutron-dvs-agent-start
+          env:
+            - name: DEBUG_CONTAINER
+              value: "false"
+            - name: SENTRY_DSN
+              value: {{ neutron_sentry_dsn }}
+          volumeMounts:
+            - mountPath: /neutron-etc
+              name: neutron-etc
+            - mountPath: /ml2-conf-vmware
+              name: ml2-conf-vmware
+            - mountPath: /container.init
+              name: neutron-container-init
+      volumes:
+        - name: nova-etc
+          configMap:
+            name: nova-etc
+        - name: nova-patches
+          configMap:
+            name: nova-patches
+        - name: hypervisor-config
+          configMap:
+            name: hypervisor-{{ name }}
+        - name: nova-container-init
+          configMap:
+            name: nova-bin
+            defaultMode: 0755
+        - name: neutron-etc
+          configMap:
+            name: neutron-etc
+        - name: ml2-conf-vmware
+          configMap:
+            name: ml2-vmware-{{ name }}-ini
+        - name: neutron-container-init
+          configMap:
+            name: neutron-bin-vendor
+            defaultMode: 0755
