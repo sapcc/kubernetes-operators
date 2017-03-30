@@ -424,11 +424,9 @@ func (e *GroupSpec) MergeUsers(group GroupSpec) {
 	}
 	for _, user := range group.Users {
 		found := false
-		for i, v := range e.Users {
+		for _, v := range e.Users {
 			if v == user {
 				glog.V(2).Info("merge group user ", user)
-				MergeSimpleStructFields(&v, user)
-				e.Users[i] = v
 				found = true
 				break
 			}
