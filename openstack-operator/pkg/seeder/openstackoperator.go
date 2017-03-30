@@ -16,6 +16,7 @@ var (
 
 type Options struct {
 	KubeConfig string
+	DryRun	bool
 }
 
 type OpenstackOperator struct {
@@ -44,7 +45,7 @@ func New(options Options) *OpenstackOperator {
 		Options:      options,
 		clientset:    clientset,
 		seederClient: seederClient,
-		seedManager:  newOpenstackSeedManager(seederClient, clientset),
+		seedManager:  newOpenstackSeedManager(seederClient, clientset, &options),
 	}
 
 	return seeder

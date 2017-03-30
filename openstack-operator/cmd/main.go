@@ -19,6 +19,7 @@ var options seeder.Options
 
 func init() {
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
+	pflag.BoolVar(&options.DryRun, "dry-run", false, "Only pretend to seed.")
 	// hack around dodgy TLS rootCA handler in raven.newTransport()
 	// https://github.com/getsentry/raven-go/issues/117
 	t := &raven.HTTPTransport{}
