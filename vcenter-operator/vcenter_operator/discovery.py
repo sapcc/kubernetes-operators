@@ -27,7 +27,7 @@ class DnsDiscovery(object):
         token = client.configuration.auth_settings().get('BearerToken', None)
         self.cluster_internal = token and token['type'] == 'api_key' and not not token['value']
         self.ip = global_options.get('dns_ip', None)
-        self.port = global_options.get('dns_port', 53)
+        self.port = int(global_options.get('dns_port', 53))
         if not self.ip:
             self._discover_dns()
 
