@@ -72,11 +72,16 @@ class Configurator(object):
         filter_spec = create_filter_spec(view_ref=view_ref,
                                          obj_type=obj_type, path_set=['name', 'parent', 'datastore', 'network'])
 
+        storage_node = None
+        availability_zones = None
+
         for cluster in collect_properties(service_instance, [filter_spec]):
             cluster_name = cluster['name']
             match = self.CLUSTER_MATCH.match(cluster_name)
             if match:
                 parent = cluster['parent']
+                availability_zone = parent.parent.name.lower()
+                availability_zones.add(availability_zone)
                 cluster_options = self.global_options.copy()
                 cluster_options.update(vcenter_options)
                 datastores = cluster['datastore']
@@ -85,7 +90,7 @@ class Configurator(object):
 
                 cluster_options.update(name=match.group(1).lower(),
                                        cluster_name=cluster_name,
-                                       availability_zone=parent.parent.name.lower(),
+                                       availability_zone=availability_zone,
                                        datastore_regex="^{}.*".format(eph))
                 for network in cluster['network']:
                     match = self.BR_MATCH.match(network.name)
@@ -102,14 +107,23 @@ class Configurator(object):
 
             match = self.STORAGE_MATCH.match(cluster_name)
             if match:
+                storage_node = True
                 parent = cluster['parent']
+                availability_zone = parent.parent.name.lower()
+                availability_zones.add(availability_zone)
+                datacenter_options = self.global_options.copy()
+                datacenter_options.update(vcenter_options)
+                datacenter_options.update(cluster_name=cluster_name,
+                                       availability_zone=availability_zone)
+                self._add_code('vcenter_datacenter', datacenter_options)
+
+        if not storage_node:
+            for availability_zone in availability_zones:
                 cluster_options = self.global_options.copy()
                 cluster_options.update(vcenter_options)
-                cluster_options.update(name=match.group(1).lower(),
-                                       cluster_name=cluster_name,
-                                       availability_zone=parent.parent.name.lower())
+                cluster_options.update(availability_zone=availability_zone)
 
-                self._add_code('vcenter_datacenter', cluster_options)
+            self._add_code('vcenter_datacenter', cluster_options)
 
     def _add_code(self, scope, options):
         for template_name in env.list_templates(filter_func=lambda x: x.startswith(scope) and x.endswith('.yaml.j2')):
