@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='openstack_seeder',
-    version='0.0.2',
+    version='0.0.3',
     packages='.',
     install_requires=[
         'requests==2.12.5',
