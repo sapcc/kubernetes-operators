@@ -1,5 +1,3 @@
-# Do not use - still under development
-
 # Openstack Operator
 
 Seed your openstack content with a kubernetes operator.
