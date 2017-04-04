@@ -12,15 +12,8 @@ Seed your openstack content with a kubernetes operator.
 - on a lifecycle event (in this case only create/update), the operator resolves 
   the dependencies of the specs (merges them) and does the seeding of the 
   merged seed
-
-## Current issues
-
-Due to the kubernetes issues [kubectl apply does not update ThirdPartyResource object](https://github.com/kubernetes/kubernetes/issues/29542) and 
-[Helm choking with third party resources](https://github.com/kubernetes/helm/issues/1468), 
-the deployment of openstack seeds is currently somewhat cumbersome.
-
-Because of these issues, the target scenario (templated seed specs contained in helm charts) is currently not yet feasible.
-
+  
+Seeding currently only support creating or updating of entities (the operator upserts).  
 
 ## Supported entities
 
@@ -28,7 +21,7 @@ Because of these issues, the target scenario (templated seed specs contained in 
 - roles
 - services
     - endpoints
-- flavors
+- flavors (untested)
 - domains
     - configuration
     - domain-role-assignments
@@ -39,6 +32,101 @@ Because of these issues, the target scenario (templated seed specs contained in 
     - users
         - user-role-assignments
        
+    
+## Spec format
+    
+The seeding content can be provided in the usual kubernets spec yaml format.
+
+The exact specfification of the seed format can be found in the pkg/seeder/openstackseed go doc.    
+    
+Example seed spec:
+    
+    apiVersion: "openstack.stable.sap.cc/v1"
+    kind: "OpenstackSeed"
+    metadata:
+      name: keystone-seed
+      labels:
+        app: {{ template "fullname" . }}
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+        release: "{{ .Release.Name }}"
+        heritage: "{{ .Release.Service }}"
+    spec:
+      roles:
+      - admin
+      - member
+      - service
+    
+      regions:
+      - id: eu
+        description: 'Europe'
+      - id: staging
+        description: 'Staging'
+        parent_region_id: eu
+      - id: qa
+        description: 'QA'
+        parent_region_id: eu
+      - id: local
+        description: 'Local Development'
+    
+      services:
+      - name: keystone
+        type: identity
+        description: Openstack Identity
+        endpoints:
+        - region: local
+          interface: public
+          url: {{ .Value.keystoneUrl }}:5000/v3
+          enabled: true
+        - region: local
+          interface: admin
+          url: {{ .Value.keystoneUrl }}:35357/v3
+          enabled: true
+        - region: local
+          interface: internal
+          url: http://keystone.{{.Release.Namespace}}.svc.kubernetes.{{.Values.region}}.{{.Values.tld}}:5000/v3'
+          enabled: false
+    
+      domains:
+      - name: Default
+        id: default
+        description: Openstack Internal Domain
+        enabled: true
+        users:
+        - name: admin
+          description: Openstack Cloud Administrator
+          enabled: true
+          password: secret123
+          roles:
+          - domain: Default
+            role: admin
+          - project: admin
+            role: admin
+          - project: service
+            role: admin
+    
+        groups:
+        - name: administrators
+          description: Administrators
+          roles:
+          - domain: Default
+            role: admin
+          - project: admin
+            role: admin
+          - project: service
+            role: admin
+          users:
+          - admin
+        - name: members
+          description: Members
+          roles:
+          - domain: Default
+            role: member
+        projects:
+        - name: admin
+          description: Administrator Project
+        - name: service
+          description: Services Project    
+    
     
 ## why not use gophercloud as openstack client?
 

@@ -22,6 +22,131 @@ import (
 	"time"
 )
 
+// The top level openstack seed element.
+//
+// It can have dependencies (that define elements that are refered to in the seed) that will be resolved before seeding the specs content.
+//
+// Cross kubernetes namespace dependencies can be defined by using a fully qualified **requires** notation that includes a namespace: namespace/specname
+type OpenstackSeedSpec struct {
+	Dependencies []string      `json:"requires,omitempty" yaml:"requires,omitempty"` // list of required specs that need to be resolved before the current one
+	Roles        []string      `json:"roles,omitempty" yaml:"roles,omitempty"`       // list of keystone roles
+	Regions      []RegionSpec  `json:"regions,omitempty" yaml:"regions,omitempty"`   // list keystone regions
+	Services     []ServiceSpec `json:"services,omitempty" yaml:"services,omitempty"` // list keystone services and their endpoints
+	Flavors      []FlavorSpec  `json:"flavors,omitempty" yaml:"flavors,omitempty"`   // list of nova flavors
+	Domains      []DomainSpec  `json:"domains,omitempty" yaml:"domains,omitempty"`   // list keystone domains with their configuration, users, groups, projects, etc.
+}
+
+// A keystone region (see https://developer.openstack.org/api-ref/identity/v3/index.html#regions)
+type RegionSpec struct {
+	Region       string `json:"id" yaml:"id"`                                                 // the region id
+	Description  string `json:"description,omitempty" yaml:"description,omitempty"`           // the regions description
+	ParentRegion string `json:"parent_region_id,omitempty" yaml:"parent_region_id,omitempty"` // the (optional) id of the parent region
+}
+
+// A keystone service (see https://developer.openstack.org/api-ref/identity/v3/index.html#service-catalog-and-endpoints)
+type ServiceSpec struct {
+	Name        string         `json:"name" yaml:"name"`                                   // service name
+	Type        string         `json:"type" yaml:"type"`                                   // service type
+	Description string         `json:"description,omitempty" yaml:"description,omitempty"` // description of the service
+	Enabled     *bool          `json:"enabled,omitempty" yaml:"enabled,omitempty"`         // boolean flag to indicate if the service is enabled
+	Endpoints   []EndpointSpec `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`     // list of service endpoints
+}
+
+// A keystone service endpoint (see https://developer.openstack.org/api-ref/identity/v3/index.html#service-catalog-and-endpoints)
+type EndpointSpec struct {
+	Region    string `json:"region" yaml:"region"`                       // region-id
+	Interface string `json:"interface" yaml:"interface"`                 // interface type (usually public, admin, internal)
+	URL       string `json:"url" yaml:"url"`                             // the endpoints URL
+	Enabled   *bool  `json:"enabled,omitempty" yaml:"enabled,omitempty"` // boolean flag to indicate if the endpoint is enabled
+}
+
+// A keystone domain (see https://developer.openstack.org/api-ref/identity/v3/index.html#domains)
+type DomainSpec struct {
+	Name            string               `json:"name" yaml:"name"`                                   // domain name
+	Description     string               `json:"description,omitempty" yaml:"description,omitempty"` // domain description
+	Enabled         *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`         // boolean flag to indicate if the domain is enabled
+	Users           []UserSpec           `json:"users,omitempty" yaml:"users,omitempty"`             // list of domain users
+	Groups          []GroupSpec          `json:"groups,omitempty" yaml:"groups,omitempty"`           // list of domain groups
+	Projects        []ProjectSpec        `json:"projects,omitempty" yaml:"projects,omitempty"`       // list of domain projects
+	RoleAssignments []RoleAssignmentSpec `json:"roles,omitempty" yaml:"roles,omitempty"`             // list of domain-role-assignments
+	Config          DomainConfigSpec     `json:"config,omitempty" yaml:"config,omitempty"`           // optional domain configuration
+}
+
+// A keystone domain configuation (see https://developer.openstack.org/api-ref/identity/v3/index.html#domain-configuration)
+//
+// The cc_ad configuration element refers to the SAP Converged Cloud customer driver extensions
+type DomainConfigSpec struct {
+	IdentityConfig map[string]string      `json:"identity,omitempty" yaml:"identity,omitempty"` // the identity driver configuration settings
+	LdapConfig     map[string]interface{} `json:"ldap,omitempty" yaml:"ldap,omitempty"`         // the ldap driver configuration settings
+	CCAdConfig     map[string]interface{} `json:"cc_ad,omitempty" yaml:"cc_ad,omitempty"`       // the cc_ad driver configuration settings
+}
+
+// A keystone project (see https://developer.openstack.org/api-ref/identity/v3/index.html#projects)
+type ProjectSpec struct {
+	Name            string                `json:"name" yaml:"name"`                                   // project name
+	Description     string                `json:"description,omitempty" yaml:"description,omitempty"` // project description
+	Enabled         *bool                 `json:"enabled,omitempty" yaml:"enabled,omitempty"`         // boolean flag to indicate if the project is enabled
+	ParentId        string                `json:"parent_id,omitempty" yaml:"parent_id,omitempty"`     // (optional) parent project id
+	IsDomain        *bool                 `json:"is_domain,omitempty" yaml:"is_domain,omitempty"`     // is the project actually a domain?
+	Endpoints       []ProjectEndpointSpec `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`     // list of project endpoint filters
+	RoleAssignments []RoleAssignmentSpec  `json:"roles,omitempty" yaml:"roles,omitempty"`             // list of project-role-assignments
+}
+
+// A project endpoint filter (see https://developer.openstack.org/api-ref/identity/v3-ext/#os-ep-filter-api)
+type ProjectEndpointSpec struct {
+	Region  string `json:"region" yaml:"region"`   // region-id
+	Service string `json:"service" yaml:"service"` // service-id
+}
+
+// A keystone role assignment (see https://developer.openstack.org/api-ref/identity/v3/#roles).
+//
+// Role assignments can be assigned to users, groups, domain and projects.
+//
+// A role assignment always links 3 entities: user or group to project or domain with a specified role.
+//
+// To support cross domain entity referals, the user-, group- or project-names support a name@domain notation.
+type RoleAssignmentSpec struct {
+	Role      string `json:"role" yaml:"role"`                               // the role name
+	Domain    string `json:"domain,omitempty" yaml:"domain,omitempty"`       // domain-role-assigment: the domain name
+	Project   string `json:"project,omitempty" yaml:"project,omitempty"`     // project-role-assignment: the project name
+	Group     string `json:"group,omitempty" yaml:"group,omitempty"`         // group name (for project/domain group-role-assignment)
+	User      string `json:"user,omitempty" yaml:"user,omitempty"`           // user name (for project/domain user-role-assignment)
+	Inherited *bool  `json:"inherited,omitempty" yaml:"inherited,omitempty"` // boolean flag to indicate if the role-assignment should be inherited
+}
+
+// A keystone user (see https://developer.openstack.org/api-ref/identity/v3/#users)
+type UserSpec struct {
+	Name            string               `json:"name" yaml:"name"`                                   // username
+	Description     string               `json:"description,omitempty" yaml:"description,omitempty"` // description of the user
+	Password        string               `json:"password,omitempty" yaml:"password,omitempty"`       // password of the user (only evaluated on user creation)
+	Enabled         *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`         // boolean flag to indicate if the user is enabled
+	RoleAssignments []RoleAssignmentSpec `json:"roles,omitempty" yaml:"roles,omitempty"`             // list of the users role-assignments
+}
+
+// A keystone group (see https://developer.openstack.org/api-ref/identity/v3/#groups)
+type GroupSpec struct {
+	Name            string               `json:"name" yaml:"name"`                                   // group name
+	Description     string               `json:"description,omitempty" yaml:"description,omitempty"` // description of the group
+	Users           []string             `json:"users,omitempty" yaml:"users,omitempty"`             // a list of group members (user names)
+	RoleAssignments []RoleAssignmentSpec `json:"roles,omitempty" yaml:"roles,omitempty"`             // list of the groups role-assignments
+}
+
+// A nova flavor (see https://developer.openstack.org/api-ref/compute/#flavors)
+//
+// This has not been tested and should be considered WIP
+type FlavorSpec struct {
+	Name       string  `json:"name" yaml:"name"` // flavor name
+	Id         string  `json:"id,omitempty" yaml:"id,omitempty"`
+	Ram        int     `json:"ram,omitempty" yaml:"ram,omitempty"`
+	Disk       int     `json:"disk,omitempty" yaml:"disk,omitempty"`
+	Vcpus      int     `json:"vcpus,omitempty" yaml:"vcpus,omitempty"`
+	Swap       int     `json:"swap,omitempty" yaml:"swap,omitempty"`
+	RxTxfactor float32 `json:"rxtxfactor,omitempty" yaml:"rxtxfactor,omitempty"`
+	IsPublic   *bool   `json:"is_public,omitempty" yaml:"is_public,omitempty"`
+	Disabled   *bool   `json:"disabled,omitempty" yaml:"disabled,omitempty"`
+	Ephemeral  int     `json:"ephemeral,omitempty" yaml:"ephemeral,omitempty"`
+}
+
 type OpenstackSeed struct {
 	unversioned.TypeMeta `json:",inline"`
 	Metadata             api.ObjectMeta `json:"metadata"`
@@ -34,105 +159,6 @@ type OpenstackSeedList struct {
 	Metadata             unversioned.ListMeta `json:"metadata"`
 
 	Items []OpenstackSeed `json:"items" yaml:"items"`
-}
-
-type OpenstackSeedSpec struct {
-	Dependencies []string      `json:"requires,omitempty" yaml:"requires,omitempty"`
-	Roles        []string      `json:"roles,omitempty" yaml:"roles,omitempty"`
-	Regions      []RegionSpec  `json:"regions,omitempty" yaml:"regions,omitempty"`
-	Services     []ServiceSpec `json:"services,omitempty" yaml:"services,omitempty"`
-	Flavors      []FlavorSpec  `json:"flavors,omitempty" yaml:"flavors,omitempty"`
-	Domains      []DomainSpec  `json:"domains,omitempty" yaml:"domains,omitempty"`
-}
-
-type RegionSpec struct {
-	Region       string `json:"id" yaml:"id"`
-	Description  string `json:"description,omitempty" yaml:"description,omitempty"`
-	ParentRegion string `json:"parent_region_id,omitempty" yaml:"parent_region_id,omitempty"`
-}
-
-type ServiceSpec struct {
-	Name        string         `json:"name" yaml:"name"`
-	Type        string         `json:"type" yaml:"type"`
-	Description string         `json:"description,omitempty" yaml:"description,omitempty"`
-	Enabled     *bool          `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	Endpoints   []EndpointSpec `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`
-}
-
-type EndpointSpec struct {
-	Region    string `json:"region" yaml:"region"`
-	Interface string `json:"interface" yaml:"interface"`
-	URL       string `json:"url" yaml:"url"`
-	Enabled   *bool  `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-}
-
-type DomainSpec struct {
-	Name            string               `json:"name" yaml:"name"`
-	Description     string               `json:"description,omitempty" yaml:"description,omitempty"`
-	Enabled         *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	Users           []UserSpec           `json:"users,omitempty" yaml:"users,omitempty"`
-	Groups          []GroupSpec          `json:"groups,omitempty" yaml:"groups,omitempty"`
-	Projects        []ProjectSpec        `json:"projects,omitempty" yaml:"projects,omitempty"`
-	RoleAssignments []RoleAssignmentSpec `json:"roles,omitempty" yaml:"roles,omitempty"`
-	Config          DomainConfigSpec     `json:"config,omitempty" yaml:"config,omitempty"`
-}
-
-type DomainConfigSpec struct {
-	IdentityConfig map[string]string      `json:"identity,omitempty" yaml:"identity,omitempty"`
-	LdapConfig     map[string]interface{} `json:"ldap,omitempty" yaml:"ldap,omitempty"`
-	CCAdConfig     map[string]interface{} `json:"cc_ad,omitempty" yaml:"cc_ad,omitempty"`
-}
-
-type ProjectSpec struct {
-	Name            string                `json:"name" yaml:"name"`
-	Description     string                `json:"description,omitempty" yaml:"description,omitempty"`
-	Enabled         *bool                 `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	ParentId        string                `json:"parent_id,omitempty" yaml:"parent_id,omitempty"`
-	IsDomain        *bool                 `json:"is_domain,omitempty" yaml:"is_domain,omitempty"`
-	Endpoints       []ProjectEndpointSpec `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`
-	RoleAssignments []RoleAssignmentSpec  `json:"roles,omitempty" yaml:"roles,omitempty"`
-}
-
-type ProjectEndpointSpec struct {
-	Region  string `json:"region" yaml:"region"`
-	Service string `json:"service" yaml:"service"`
-}
-
-type RoleAssignmentSpec struct {
-	Role      string `json:"role" yaml:"role"`
-	Domain    string `json:"domain,omitempty" yaml:"domain,omitempty"`
-	Project   string `json:"project,omitempty" yaml:"project,omitempty"`
-	Group     string `json:"group,omitempty" yaml:"group,omitempty"`
-	User      string `json:"user,omitempty" yaml:"user,omitempty"`
-	Inherited *bool  `json:"inherited,omitempty" yaml:"inherited,omitempty"`
-}
-
-type UserSpec struct {
-	Name            string               `json:"name" yaml:"name"`
-	Description     string               `json:"description,omitempty" yaml:"description,omitempty"`
-	Password        string               `json:"password,omitempty" yaml:"password,omitempty"`
-	Enabled         *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	RoleAssignments []RoleAssignmentSpec `json:"roles,omitempty" yaml:"roles,omitempty"`
-}
-
-type GroupSpec struct {
-	Name            string               `json:"name" yaml:"name"`
-	Description     string               `json:"description,omitempty" yaml:"description,omitempty"`
-	Users           []string             `json:"users,omitempty" yaml:"users,omitempty"`
-	RoleAssignments []RoleAssignmentSpec `json:"roles,omitempty" yaml:"roles,omitempty"`
-}
-
-type FlavorSpec struct {
-	Name       string  `json:"name" yaml:"name"`
-	Id         string  `json:"id,omitempty" yaml:"id,omitempty"`
-	Ram        int     `json:"ram,omitempty" yaml:"ram,omitempty"`
-	Disk       int     `json:"disk,omitempty" yaml:"disk,omitempty"`
-	Vcpus      int     `json:"vcpus,omitempty" yaml:"vcpus,omitempty"`
-	Swap       int     `json:"swap,omitempty" yaml:"swap,omitempty"`
-	RxTxfactor float32 `json:"rxtxfactor,omitempty" yaml:"rxtxfactor,omitempty"`
-	IsPublic   *bool   `json:"is_public,omitempty" yaml:"is_public,omitempty"`
-	Disabled   *bool   `json:"disabled,omitempty" yaml:"disabled,omitempty"`
-	Ephemeral  int     `json:"ephemeral,omitempty" yaml:"ephemeral,omitempty"`
 }
 
 func (e *OpenstackSeedSpec) MergeRole(role string) {
