@@ -106,7 +106,7 @@ func (mgr *OpenstackSeedManager) seedApply(seed *OpenstackSeed) {
 
 	yaml_seed, _ := yaml.Marshal(result.Spec)
 
-	glog.V(1).Infof("Seeding %s/%s:\n%s", seed.Metadata.Namespace, seed.Metadata.Name, string(yaml_seed))
+	glog.V(1).Infof("Seeding %s/%s ..", seed.Metadata.Namespace, seed.Metadata.Name)
 
 	if !mgr.options.DryRun {
 		// spawn a python keystone-seeder as long as there is no functional golang keystone client
