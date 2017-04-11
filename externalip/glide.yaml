@@ -1,0 +1,4 @@
+package: github.com/sapcc/kubernetes-operators/externalip
+import:
+- package: github.com/spf13/pflag
+- package: k8s.io/client-go
