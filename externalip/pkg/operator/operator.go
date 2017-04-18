@@ -11,6 +11,7 @@ import (
 	"github.com/golang/glog"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
@@ -18,14 +19,14 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/kubernetes/pkg/util/wait"
 )
 
-const SERVICE_RECHECK_INTERVAL = 5 * time.Second
+const SERVICE_RECHECK_INTERVAL = 5 * time.Minute
 
 var (
-	resyncPeriod = 10 * time.Minute
-	VERSION      = "0.0.0.dev"
+	resyncPeriod        = 10 * time.Minute
+	VERSION             = "HEAD"
+	IgnoreSvcAnnotation = "externalip.sap.cc/ignore"
 )
 
 type Options struct {
@@ -112,19 +113,19 @@ func (op *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGr
 		go wait.Until(op.runWorker, time.Second, stopCh)
 	}
 
-	//ticker := time.NewTicker(SERVICE_RECHECK_INTERVAL)
-	//go func() {
-	//  for {
-	//    select {
-	//    case <-ticker.C:
-	//      glog.Info("Next check in %v", SERVICE_RECHECK_INTERVAL)
-	//      vp.externalIPs()
-	//    case <-stopCh:
-	//      ticker.Stop()
-	//      return
-	//    }
-	//  }
-	//}()
+	ticker := time.NewTicker(SERVICE_RECHECK_INTERVAL)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				glog.V(2).Infof("Next reconciliation check in %v", SERVICE_RECHECK_INTERVAL)
+				op.queue.Add(nil)
+			case <-stopCh:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 
 	<-stopCh
 }
@@ -163,6 +164,10 @@ func (op *Operator) syncHandler(key interface{}) error {
 	externalIPs := map[string]bool{}
 	for _, obj := range store.List() {
 		svc := obj.(*v1.Service)
+		if _, ok := svc.Annotations[IgnoreSvcAnnotation]; ok {
+			glog.V(2).Info("Skipping explicitly excluded svc %s", svc.Name)
+			continue
+		}
 		for _, ip := range svc.Spec.ExternalIPs {
 			externalIPs[ip] = true
 		}
@@ -177,7 +182,8 @@ func (op *Operator) syncHandler(key interface{}) error {
 			}
 		}
 	}
-	//remove missing ips
+
+	//remove ips
 	for ip, _ := range attachedIPs {
 		if _, ok := externalIPs[ip]; !ok && !op.ignoreAddress(ip) {
 			glog.Infof("Removing %s from interface %s", ip, op.NetworkInterface)
@@ -232,7 +238,7 @@ func (op *Operator) serviceAdd(obj interface{}) {
 	if len(svc.Spec.ExternalIPs) == 0 {
 		return
 	}
-	glog.V(2).Info("Added service with external IPs: ", svc.GetName())
+	glog.Info("Added service with external IPs: ", svc.GetName())
 	op.queue.Add(svc)
 }
 
@@ -241,7 +247,7 @@ func (op *Operator) serviceDelete(obj interface{}) {
 	if len(svc.Spec.ExternalIPs) == 0 {
 		return
 	}
-	glog.V(2).Info("Removed service with external IPs: ", svc.GetName())
+	glog.Info("Removed service with external IPs: ", svc.GetName())
 	op.queue.Add(svc)
 }
 
@@ -252,6 +258,6 @@ func (op *Operator) serviceUpdate(cur, old interface{}) {
 	if reflect.DeepEqual(curSvc.Spec.ExternalIPs, oldSvc.Spec.ExternalIPs) {
 		return
 	}
-	glog.V(2).Info("Changed external IPs of service: ", curSvc.GetName())
+	glog.Info("Eternal IPs changed on service: ", curSvc.GetName())
 	op.queue.Add(curSvc)
 }
