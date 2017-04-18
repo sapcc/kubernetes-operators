@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -17,19 +18,25 @@ import (
 var (
 	options         operator.Options
 	ignoreAddresses []string
+	version         bool
 )
 
 func init() {
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
+	pflag.BoolVar(&version, "version", false, "Show version and exit")
 	pflag.StringVar(&options.NetworkInterface, "interface", "", "Network interface where to attach external ips")
 	pflag.StringSliceVar(&ignoreAddresses, "ignore-address", []string{}, "Don't remove or add specified ip address")
-
 }
 
 func main() {
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
+
+	if version {
+		fmt.Printf("External IP operator, version: %s\n", operator.VERSION)
+		os.Exit(0)
+	}
 
 	if _, err := net.InterfaceByName(options.NetworkInterface); err != nil {
 		glog.Fatal("No network interface specified or the interface doesn't exist")
