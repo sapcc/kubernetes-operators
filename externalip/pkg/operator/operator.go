@@ -254,10 +254,12 @@ func (op *Operator) serviceDelete(obj interface{}) {
 func (op *Operator) serviceUpdate(cur, old interface{}) {
 	curSvc := cur.(*v1.Service)
 	oldSvc := old.(*v1.Service)
+
+	annotationUnchanged := oldSvc.Annotations[IgnoreSvcAnnotation] == curSvc.Annotations[IgnoreSvcAnnotation]
 	// No changes to externalIPs
-	if reflect.DeepEqual(curSvc.Spec.ExternalIPs, oldSvc.Spec.ExternalIPs) {
+	if reflect.DeepEqual(curSvc.Spec.ExternalIPs, oldSvc.Spec.ExternalIPs) && annotationUnchanged {
 		return
 	}
-	glog.Info("Eternal IPs changed on service: ", curSvc.GetName())
+	glog.Info("External IP configuration change detected for service ", curSvc.GetName())
 	op.queue.Add(curSvc)
 }
