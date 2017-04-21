@@ -101,7 +101,7 @@ func (op *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGr
 	defer op.queue.ShutDown()
 	defer wg.Done()
 	wg.Add(1)
-	glog.Info("External IP operator started!  %v\n", VERSION)
+	glog.Infof("External IP operator started!  %v\n", VERSION)
 
 	go op.serviceInformer.Run(stopCh)
 
@@ -165,7 +165,7 @@ func (op *Operator) syncHandler(key interface{}) error {
 	for _, obj := range store.List() {
 		svc := obj.(*v1.Service)
 		if _, ok := svc.Annotations[IgnoreSvcAnnotation]; ok {
-			glog.V(2).Info("Skipping explicitly excluded svc %s", svc.Name)
+			glog.V(2).Infof("Skipping explicitly excluded svc %s", svc.Name)
 			continue
 		}
 		for _, ip := range svc.Spec.ExternalIPs {
