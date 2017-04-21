@@ -21,7 +21,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-const SERVICE_RECHECK_INTERVAL = 5 * time.Minute
+const SERVICE_RECHECK_INTERVAL = 1 * time.Minute
 
 var (
 	resyncPeriod        = 10 * time.Minute
