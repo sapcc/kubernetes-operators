@@ -119,7 +119,7 @@ func (op *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGr
 			select {
 			case <-ticker.C:
 				glog.V(2).Infof("Next reconciliation check in %v", SERVICE_RECHECK_INTERVAL)
-				op.queue.Add(nil)
+				op.queue.Add(true)
 			case <-stopCh:
 				ticker.Stop()
 				return
@@ -239,7 +239,7 @@ func (op *Operator) serviceAdd(obj interface{}) {
 		return
 	}
 	glog.Info("Added service with external IPs: ", svc.GetName())
-	op.queue.Add(svc)
+	op.queue.Add(true)
 }
 
 func (op *Operator) serviceDelete(obj interface{}) {
@@ -248,7 +248,7 @@ func (op *Operator) serviceDelete(obj interface{}) {
 		return
 	}
 	glog.Info("Removed service with external IPs: ", svc.GetName())
-	op.queue.Add(svc)
+	op.queue.Add(true)
 }
 
 func (op *Operator) serviceUpdate(cur, old interface{}) {
@@ -261,5 +261,5 @@ func (op *Operator) serviceUpdate(cur, old interface{}) {
 		return
 	}
 	glog.Info("External IP configuration change detected for service ", curSvc.GetName())
-	op.queue.Add(curSvc)
+	op.queue.Add(true)
 }
