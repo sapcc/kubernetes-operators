@@ -1,6 +1,8 @@
 package operator
 
 import (
+	"bytes"
+	"fmt"
 	"net"
 	"os/exec"
 	"reflect"
@@ -19,9 +21,16 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
+	utildbus "k8s.io/kubernetes/pkg/util/dbus"
+	utilexec "k8s.io/kubernetes/pkg/util/exec"
+	utiliptables "k8s.io/kubernetes/pkg/util/iptables"
 )
 
-const SERVICE_RECHECK_INTERVAL = 1 * time.Minute
+const (
+	SERVICE_RECHECK_INTERVAL = 1 * time.Minute
+	// the external ip chain
+	kubeExternalIPChain utiliptables.Chain = "KUBE-EXTERNAL-IPS"
+)
 
 var (
 	resyncPeriod        = 10 * time.Minute
@@ -41,6 +50,7 @@ type Operator struct {
 	clientset       *kubernetes.Clientset
 	serviceInformer cache.SharedIndexInformer
 	queue           workqueue.RateLimitingInterface
+	iptables        utiliptables.Interface
 }
 
 func New(options Options) *Operator {
@@ -55,6 +65,7 @@ func New(options Options) *Operator {
 		Options:   options,
 		clientset: clientset,
 		queue:     workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		iptables:  utiliptables.New(utilexec.New(), utildbus.New(), utiliptables.ProtocolIpv4),
 	}
 
 	serviceInformer := cache.NewSharedIndexInformer(
@@ -128,6 +139,8 @@ func (op *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGr
 	}()
 
 	<-stopCh
+	glog.V(0).Info("Tearing down iptables proxy rules.")
+	op.cleanupLeftovers()
 }
 
 func (op *Operator) runWorker() {
@@ -155,7 +168,7 @@ func (op *Operator) processNextWorkItem() bool {
 	return true
 }
 
-func (op *Operator) syncHandler(key interface{}) error {
+func (op *Operator) syncHandler(_ interface{}) error {
 	store := op.serviceInformer.GetStore()
 	attachedIPs, err := op.existingIPs()
 	if err != nil {
@@ -172,7 +185,7 @@ func (op *Operator) syncHandler(key interface{}) error {
 			externalIPs[ip] = true
 		}
 	}
-	//add missing ips
+	//add missing external ips to interface
 	for ip, _ := range externalIPs {
 		if _, ok := attachedIPs[ip]; !ok && !op.ignoreAddress(ip) {
 			glog.Infof("Adding %s to interface %s", ip, op.NetworkInterface)
@@ -183,7 +196,7 @@ func (op *Operator) syncHandler(key interface{}) error {
 		}
 	}
 
-	//remove ips
+	//remove unaccounted ips from interface
 	for ip, _ := range attachedIPs {
 		if _, ok := externalIPs[ip]; !ok && !op.ignoreAddress(ip) {
 			glog.Infof("Removing %s from interface %s", ip, op.NetworkInterface)
@@ -194,13 +207,76 @@ func (op *Operator) syncHandler(key interface{}) error {
 		}
 	}
 
+	//iptables Schnass below
+
+	//Create and link external ip chain
+	table := utiliptables.TableFilter
+	if _, err := op.iptables.EnsureChain(table, kubeExternalIPChain); err != nil {
+		glog.Errorf("Failed to ensure that %s chain %s exists: %v", table, kubeExternalIPChain, err)
+		return err
+	}
+	comment := "kubernetes external ip firewall"
+	args := []string{"-m", "comment", "--comment", comment, "-j", string(kubeExternalIPChain)}
+	if _, err := op.iptables.EnsureRule(utiliptables.Append, table, utiliptables.ChainInput, args...); err != nil {
+		glog.Errorf("Failed to ensure that %s chain %s jumps to %s: %v", table, utiliptables.ChainInput, kubeExternalIPChain, err)
+		return err
+	}
+
+	// Get iptables-save output so we can check for existing chains and rules.
+	// This will be a map of chain name to chain with rules as stored in iptables-save/iptables-restore
+	existingFilterChains := make(map[utiliptables.Chain]string)
+	iptablesSaveRaw, err := op.iptables.Save(table)
+	if err != nil { // if we failed to get any rules
+		glog.Errorf("Failed to execute iptables-save, syncing all rules: %v", err)
+	} else { // otherwise parse the output
+		existingFilterChains = utiliptables.GetChainLines(table, iptablesSaveRaw)
+	}
+	filterChains := bytes.NewBuffer(nil)
+	filterRules := bytes.NewBuffer(nil)
+	// Write table headers.
+	writeLine(filterChains, "*filter")
+	// Make sure we keep stats for the top-level chains, if they existed
+	// (which most should have because we created them above).
+	if chain, ok := existingFilterChains[kubeExternalIPChain]; ok {
+		writeLine(filterChains, chain)
+	} else {
+		writeLine(filterChains, utiliptables.MakeChainLine(kubeExternalIPChain))
+	}
+	for ip, _ := range externalIPs {
+		if !op.ignoreAddress(ip) {
+			writeLine(filterRules,
+				"-A", string(kubeExternalIPChain),
+				"-m", "comment", "--comment", fmt.Sprintf(`"external ip %s"`, ip),
+				"-d", ip,
+				"-m", "addrtype", "--dst-type", "LOCAL",
+				"!", "-p", "icmp",
+				"-j", "REJECT",
+			)
+		}
+	}
+	// Write the end-of-table markers.
+	writeLine(filterRules, "COMMIT")
+
+	lines := append(filterChains.Bytes(), filterRules.Bytes()...)
+	glog.V(3).Infof("Restoring iptables rules: %s", lines)
+	err = op.iptables.RestoreAll(lines, utiliptables.NoFlushTables, utiliptables.RestoreCounters)
+	if err != nil {
+		glog.Errorf("Failed to execute iptables-restore: %v\nRules:\n%s", err, lines)
+		return err
+	}
+
 	return nil
 }
 
 func (op *Operator) ignoreAddress(ipstring string) bool {
 	ip := net.ParseIP(ipstring)
+	ip.String()
 	if ip == nil {
 		glog.V(3).Infof("Ignore invalid ip: %s", ipstring)
+		return true
+	}
+	if ip.To4() == nil {
+		glog.V(3).Infof("Ignore IPv6 ip: %s", ipstring)
 		return true
 	}
 	for _, ipnet := range op.Options.IgnoreCIDR {
@@ -210,6 +286,50 @@ func (op *Operator) ignoreAddress(ipstring string) bool {
 		}
 	}
 	return false
+}
+
+func (op *Operator) cleanupLeftovers() (encounteredError bool) {
+	//unlink external ip chain from INPUT
+	args := []string{
+		"-m", "comment", "--comment", "kubernetes external ip firewall",
+		"-j", string(kubeExternalIPChain),
+	}
+	if err := op.iptables.DeleteRule(utiliptables.TableFilter, utiliptables.ChainInput, args...); err != nil {
+		if !utiliptables.IsNotFoundError(err) {
+			glog.Errorf("Error removing pure-iptables proxy rule: %v", err)
+			encounteredError = true
+		}
+	}
+	//delete external ip chain
+	filterBuf := bytes.NewBuffer(nil)
+	writeLine(filterBuf, "*filter")
+	writeLine(filterBuf, fmt.Sprintf(":%s - [0:0]", kubeExternalIPChain))
+	writeLine(filterBuf, fmt.Sprintf("-X %s", kubeExternalIPChain))
+	writeLine(filterBuf, "COMMIT")
+	if err := op.iptables.Restore(utiliptables.TableFilter, filterBuf.Bytes(), utiliptables.NoFlushTables, utiliptables.RestoreCounters); err != nil {
+		glog.Errorf("Failed to execute iptables-restore for %s: %v", utiliptables.TableFilter, err)
+		encounteredError = true
+	}
+
+	//remove ips from dummy ips
+	attachedIPs, err := op.existingIPs()
+	if err != nil {
+		glog.Errorf("Failed to list attached ips: %v ", err)
+		encounteredError = true
+	} else {
+		for ip, _ := range attachedIPs {
+			if !op.ignoreAddress(ip) {
+				glog.Infof("Removing %s from interface %s", ip, op.NetworkInterface)
+				if _, err := exec.Command("ip", "addr", "del", ip, "dev", op.NetworkInterface).CombinedOutput(); err != nil {
+					glog.Errorf("Failed to remove ip %s from interface %s: %v", ip, op.NetworkInterface, err)
+					encounteredError = true
+				}
+			}
+		}
+	}
+
+	return
+
 }
 
 func (op *Operator) existingIPs() (map[string]bool, error) {
@@ -262,4 +382,9 @@ func (op *Operator) serviceUpdate(cur, old interface{}) {
 	}
 	glog.Info("External IP configuration change detected for service ", curSvc.GetName())
 	op.queue.Add(true)
+}
+
+// Join all words with spaces, terminate with newline and write to buf.
+func writeLine(buf *bytes.Buffer, words ...string) {
+	buf.WriteString(strings.Join(words, " ") + "\n")
 }

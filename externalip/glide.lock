@@ -1,5 +1,5 @@
-hash: 20822d8e3444651e8a10f7dc6b8de590f10a2c17107c217272c11972cebb498a
-updated: 2017-04-10T22:18:59.785577766+02:00
+hash: 7b2a3533b49a1abda87fb11460d6c6a1afa9e54cab8dd816034fff4fe5129d66
+updated: 2017-04-21T15:19:47.005330675+02:00
 imports:
 - name: github.com/davecgh/go-spew
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
@@ -25,6 +25,8 @@ imports:
   version: 6aced65f8501fe1217321abf0749d354824ba2ff
 - name: github.com/go-openapi/swag
   version: 1d0bd113de87027671077d3c71eb3ac5d7dbba72
+- name: github.com/godbus/dbus
+  version: c7fdd8b5cd55e87b4e1f4e372cdb1db61dd6c66f
 - name: github.com/gogo/protobuf
   version: e18d7aa8f8c624c915db340349aad4c49b10d173
   subpackages:
@@ -63,8 +65,6 @@ imports:
 - name: golang.org/x/net
   version: e90d6d0afc4c315a0d87a568ae68577cc15149a0
   subpackages:
-  - context
-  - context/ctxhttp
   - http2
   - http2/hpack
   - idna
@@ -93,7 +93,6 @@ imports:
 - name: k8s.io/apimachinery
   version: 28d5d926c7c976d5885f31ace03d4a9b3ad8abd2
   subpackages:
-  - pkg/api/equality
   - pkg/api/errors
   - pkg/api/meta
   - pkg/api/resource
@@ -120,22 +119,18 @@ imports:
   - pkg/util/diff
   - pkg/util/errors
   - pkg/util/framer
-  - pkg/util/httpstream
   - pkg/util/intstr
   - pkg/util/json
-  - pkg/util/mergepatch
   - pkg/util/net
   - pkg/util/rand
   - pkg/util/runtime
   - pkg/util/sets
-  - pkg/util/strategicpatch
   - pkg/util/validation
   - pkg/util/validation/field
   - pkg/util/wait
   - pkg/util/yaml
   - pkg/version
   - pkg/watch
-  - third_party/forked/golang/json
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
   version: 0ec10d4351f32832ab60d381d15e6d9e1f858bd3
@@ -209,6 +204,7 @@ imports:
   - rest
   - rest/watch
   - tools/auth
+  - tools/cache
   - tools/clientcmd
   - tools/clientcmd/api
   - tools/clientcmd/api/latest
@@ -221,4 +217,11 @@ imports:
   - util/homedir
   - util/integer
   - util/workqueue
+- name: k8s.io/kubernetes
+  version: 477efc3cbe6a7effca06bd1452fa356e2201e1ee
+  subpackages:
+  - pkg/util/dbus
+  - pkg/util/exec
+  - pkg/util/iptables
+  - pkg/util/version
 testImports: []

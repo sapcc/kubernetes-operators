@@ -2,3 +2,5 @@ package: github.com/sapcc/kubernetes-operators/externalip
 import:
 - package: github.com/spf13/pflag
 - package: k8s.io/client-go
+- package: k8s.io/kubernetes
+  version: 1.6.2
