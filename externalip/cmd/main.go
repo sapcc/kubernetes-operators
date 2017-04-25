@@ -48,7 +48,7 @@ func main() {
 		}
 		_, cidr, err := net.ParseCIDR(t)
 		if err != nil {
-			glog.Fatalf("Invalid IP or CIDR Range: %s", address, err)
+			glog.Fatalf("Invalid IP or CIDR Range: %s", address)
 		}
 		options.IgnoreCIDR = append(options.IgnoreCIDR, *cidr)
 	}
