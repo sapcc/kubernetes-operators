@@ -42,6 +42,7 @@ type Options struct {
 	KubeConfig       string
 	NetworkInterface string
 	IgnoreCIDR       []net.IPNet
+	SourceAddress    string
 }
 
 type Operator struct {
@@ -193,20 +194,24 @@ func (op *Operator) syncHandler(_ interface{}) error {
 			if err != nil {
 				return err
 			}
+			if op.SourceAddress != "" {
+				glog.Infof("Modifying local route for %s", ip)
+				_, err = exec.Command("ip", "route", "change", "local", ip, "table", "local", "dev", op.NetworkInterface, "proto", "kernel", "scope", "host", "src", op.SourceAddress).CombinedOutput()
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
 	//remove unaccounted ips from interface
 	for ip, _ := range attachedIPs {
 		if _, ok := externalIPs[ip]; !ok && !op.ignoreAddress(ip) {
-			glog.Infof("Removing %s from interface %s", ip, op.NetworkInterface)
-			_, err := exec.Command("ip", "addr", "del", ip, "dev", op.NetworkInterface).CombinedOutput()
-			if err != nil {
+			if err := op.removeIP(ip); err != nil {
 				return err
 			}
 		}
 	}
-
 	//iptables Schnass below
 
 	//Create and link external ip chain
@@ -319,9 +324,7 @@ func (op *Operator) cleanupLeftovers() (encounteredError bool) {
 	} else {
 		for ip, _ := range attachedIPs {
 			if !op.ignoreAddress(ip) {
-				glog.Infof("Removing %s from interface %s", ip, op.NetworkInterface)
-				if _, err := exec.Command("ip", "addr", "del", ip, "dev", op.NetworkInterface).CombinedOutput(); err != nil {
-					glog.Errorf("Failed to remove ip %s from interface %s: %v", ip, op.NetworkInterface, err)
+				if err := op.removeIP(ip); err != nil {
 					encounteredError = true
 				}
 			}
@@ -387,4 +390,21 @@ func (op *Operator) serviceUpdate(cur, old interface{}) {
 // Join all words with spaces, terminate with newline and write to buf.
 func writeLine(buf *bytes.Buffer, words ...string) {
 	buf.WriteString(strings.Join(words, " ") + "\n")
+}
+
+func (op *Operator) removeIP(ip string) error {
+	glog.Infof("Removing %s from interface %s", ip, op.NetworkInterface)
+	out, err := exec.Command("ip", "addr", "del", ip, "dev", op.NetworkInterface).CombinedOutput()
+	if err != nil {
+		glog.Errorf("Error removing ip address %s: %s", ip, string(out))
+		return err
+	}
+	if op.SourceAddress != "" {
+		glog.Infof("Removing custom local route for %s from interface %s", ip, op.NetworkInterface)
+		out, err := exec.Command("ip", "route", "del", "local", ip, "table", "local").CombinedOutput()
+		if err != nil {
+			glog.Warningf("Error deleting modified route: %s", string(out))
+		}
+	}
+	return nil
 }
