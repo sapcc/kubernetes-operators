@@ -25,6 +25,7 @@ func init() {
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
 	pflag.BoolVar(&version, "version", false, "Show version and exit")
 	pflag.StringVar(&options.NetworkInterface, "interface", "", "Network interface where to attach external ips")
+	pflag.StringVar(&options.SourceAddress, "source-address", "", "Override local source address when connecting to external ip")
 	pflag.StringSliceVar(&ignoreAddresses, "ignore-address", []string{}, "Don't remove or add specified ip address")
 }
 
@@ -40,6 +41,11 @@ func main() {
 
 	if _, err := net.InterfaceByName(options.NetworkInterface); err != nil {
 		glog.Fatal("No network interface specified or the interface doesn't exist")
+	}
+	if options.SourceAddress != "" {
+		if net.ParseIP(options.SourceAddress) == nil {
+			glog.Fatalf("Source address %#v is not a valid ip", options.SourceAddress)
+		}
 	}
 	for _, address := range ignoreAddresses {
 		var t = address
