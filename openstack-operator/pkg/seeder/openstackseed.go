@@ -40,7 +40,7 @@ type OpenstackSeedSpec struct {
 type RegionSpec struct {
 	Region       string `json:"id" yaml:"id"`                                                 // the region id
 	Description  string `json:"description,omitempty" yaml:"description,omitempty"`           // the regions description
-	ParentRegion string `json:"parent_region_id,omitempty" yaml:"parent_region_id,omitempty"` // the (optional) id of the parent region
+	ParentRegion string `json:"parent_region,omitempty" yaml:"parent_region,omitempty"` // the (optional) id of the parent region
 }
 
 // A keystone service (see https://developer.openstack.org/api-ref/identity/v3/index.html#service-catalog-and-endpoints)
