@@ -2,12 +2,11 @@ from setuptools import setup
 
 setup(
     name='openstack_seeder',
-    version='0.0.4',
+    version='0.0.5',
     packages='.',
     install_requires=[
-        'requests==2.12.5',
-        'openstacksdk==0.9.14',
-        'python-openstackclient==3.2.1',
+        'openstacksdk==0.9.16',
+        'python-openstackclient==3.11.0',
         'PyYAML==3.12',
     ],
     url='https://github.com/sapcc/kubernetes-operators/openstack-operator',
