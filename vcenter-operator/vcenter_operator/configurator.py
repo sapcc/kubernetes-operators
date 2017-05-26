@@ -73,7 +73,7 @@ class Configurator(object):
                                          obj_type=obj_type, path_set=['name', 'parent', 'datastore', 'network'])
 
         storage_node = None
-        availability_zones = None
+        availability_zones = set()
 
         for cluster in collect_properties(service_instance, [filter_spec]):
             cluster_name = cluster['name']
