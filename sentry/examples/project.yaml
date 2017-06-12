@@ -1,0 +1,7 @@
+apiVersion: "sentry.sap.cc/v1"
+kind: "SentryProject"
+metadata:
+  name: test-project
+spec:
+  name: test
+  team: tut
