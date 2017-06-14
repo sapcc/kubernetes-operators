@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -13,9 +14,14 @@ import (
 )
 
 var options operator.Options
+var showVersion bool
 
 func init() {
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
+	pflag.StringVar(&options.SentryEndpoint, "sentry-endpoint", "https://sentry.io/api/0", "Endpoint for the sentry api")
+	pflag.StringVar(&options.SentryToken, "sentry-token", "", "Auth token for the sentry api")
+	pflag.StringVar(&options.SentryOrganization, "sentry-organization", "", "Slug for the sentry organization where projects are created")
+	pflag.BoolVar(&showVersion, "version", false, "Show version and exit")
 }
 
 func main() {
@@ -24,6 +30,19 @@ func main() {
 	pflag.Parse()
 	//https://github.com/kubernetes/kubernetes/issues/17162
 	flag.CommandLine.Parse([]string{})
+
+	if showVersion {
+		fmt.Printf("sentry operator, version: %s\n", operator.VERSION)
+		os.Exit(0)
+	}
+
+	if options.SentryToken == "" {
+		glog.Fatal("--sentry-token not given")
+	}
+
+	if options.SentryOrganization == "" {
+		glog.Fatal("--sentry-organization not given")
+	}
 
 	sigs := make(chan os.Signal, 1)
 	stop := make(chan struct{})

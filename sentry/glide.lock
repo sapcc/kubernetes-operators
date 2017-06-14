@@ -1,6 +1,11 @@
-hash: c657a5eb903f49e968e5ffa4d473e47d7f81ccf3db05ddb39fe0cfb6a114da24
-updated: 2017-06-12T17:17:56.057575381+02:00
+hash: 741852ea9240d80f582d7cb184ccff4f2012064180d890ca1dfaf00edc90f8a6
+updated: 2017-06-14T12:00:42.482560852+02:00
 imports:
+- name: github.com/atlassian/go-sentry-api
+  version: 81e55a7ef0ce92cd2eb815926e4130a7a97994b4
+  repo: https://github.com/databus23/go-sentry-api
+  subpackages:
+  - datatype
 - name: github.com/davecgh/go-spew
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:

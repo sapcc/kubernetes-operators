@@ -1,5 +1,8 @@
 package operator
 
 type Options struct {
-	KubeConfig string
+	KubeConfig         string
+	SentryEndpoint     string
+	SentryToken        string
+	SentryOrganization string
 }
