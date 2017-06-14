@@ -34,9 +34,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&SentryProject{},
 		&SentryProjectList{},
-		&metav1.ListOptions{},
-		&metav1.DeleteOptions{},
 	)
+	//scheme.AddUnversionedTypes(schema.GroupVersion{Group: "", Version: "v1"}, &metav1.Status{})
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
 }

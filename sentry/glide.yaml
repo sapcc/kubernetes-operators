@@ -3,10 +3,7 @@ import:
 - package: github.com/golang/glog
 - package: github.com/spf13/pflag
 - package: k8s.io/apimachinery
-  subpackages:
-  - pkg/api/errors
 - package: k8s.io/client-go
-  subpackages:
-  - kubernetes
-  - tools/cache
-  - tools/clientcmd
+- package: github.com/atlassian/go-sentry-api
+  repo: https://github.com/databus23/go-sentry-api
+  version: list-keys
