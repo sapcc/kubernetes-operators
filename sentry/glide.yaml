@@ -4,6 +4,9 @@ import:
 - package: github.com/spf13/pflag
 - package: k8s.io/apimachinery
 - package: k8s.io/client-go
+#  version: 36b51953e6efc7779fe27c14258d78573de4e0de
+#- package: github.com/gogo/protobuf
+#  version: efccd33a0c20aa078705571d5ddbfa14c8395a63
 - package: github.com/atlassian/go-sentry-api
   repo: https://github.com/databus23/go-sentry-api
   version: list-keys
