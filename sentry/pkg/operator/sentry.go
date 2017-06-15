@@ -40,7 +40,7 @@ func (op *Operator) ensureProject(team, project string) (sentry.Project, error) 
 		if err != nil {
 			return sentry.Project{}, err
 		}
-		glog.Infof("Creating project %s in team %s in organization %s ", project, team, org.Slug)
+		glog.Infof("Creating project %s in team %s in organization %s", project, *team.Slug, *org.Slug)
 		return op.sentryClient.CreateProject(org, team, project, &project)
 	}
 	return sentry.Project{}, err
@@ -58,6 +58,6 @@ func (op *Operator) ensureClientKey(project, label string) (sentry.Key, error) {
 			return key, nil
 		}
 	}
-	glog.Infof("Create client key %s for %s/%s", label, proj, org)
+	glog.Infof("Create client key %s for %s/%s", label, *proj.Slug, *org.Slug)
 	return op.sentryClient.CreateClientKey(org, proj, label)
 }
