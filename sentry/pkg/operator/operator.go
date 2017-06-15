@@ -1,6 +1,8 @@
 package operator
 
 import (
+	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -22,7 +24,7 @@ import (
 
 const (
 	TPR_RECHECK_INTERVAL = 5 * time.Minute
-	CACHE_RESYNC_PERIOD  = 10 * time.Minute
+	CACHE_RESYNC_PERIOD  = 2 * time.Minute
 )
 
 type Operator struct {
@@ -153,39 +155,60 @@ func (op *Operator) processNextWorkItem() bool {
 
 func (op *Operator) handler(key *tprv1.SentryProject) error {
 	obj, exists, err := op.tprInformer.GetStore().Get(key)
-	tpr := obj.(*tprv1.SentryProject)
 	if err != nil {
 		return err
 	}
 	if !exists {
-		glog.Info("Deleting project (maybe in the future)", tpr.GetName())
+		glog.Infof("Deleting project %s (not really, maybe in the future)", key.GetName())
 	} else {
+		tpr := obj.(*tprv1.SentryProject)
+		if err := tpr.Spec.Validate(); err != nil {
+			op.updateStatus(tpr, tprv1.SentryProjectError, err.Error())
+			return nil
+		}
 		_, err := op.ensureProject(tpr.Spec.Team, tpr.Spec.Name)
 		if err != nil {
+			op.updateStatus(tpr, tprv1.SentryProjectError, err.Error())
 			return err
 		}
 		clientKey, err := op.ensureClientKey(tpr.Spec.Name, "k8s-operator")
 		if err != nil {
+			op.updateStatus(tpr, tprv1.SentryProjectError, err.Error())
 			return err
 		}
-		secretData := map[string]string{tpr.Spec.Name: clientKey.DSN.Secret}
+		secretData := map[string]string{
+			fmt.Sprintf("%s.DSN", tpr.Spec.Name):        clientKey.DSN.Secret,
+			fmt.Sprintf("%s.DSN.public", tpr.Spec.Name): clientKey.DSN.Public,
+		}
 
 		secret, err := op.clientset.Secrets(tpr.Namespace).Get("sentry", metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
 			glog.Infof("Creating secret %s/%s", "sentry", tpr.Namespace)
 			_, err := op.clientset.Secrets(tpr.Namespace).Create(&v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "sentry"}, StringData: secretData})
+			if err != nil {
+				op.updateStatus(tpr, tprv1.SentryProjectError, err.Error())
+			}
 			return err
 		}
 		if err != nil {
+			op.updateStatus(tpr, tprv1.SentryProjectError, err.Error())
 			return err
 		}
-		if b, ok := secret.Data[tpr.Spec.Name]; !ok || string(b) != clientKey.DSN.Secret {
+		updated := false
+		for key, value := range secretData {
+			if b, ok := secret.Data[key]; !ok || string(b) != value {
+				updated = true
+			}
+		}
+		if updated {
 			glog.Infof("Updating key %s in secret %s/%s", tpr.Spec.Name, "sentry", tpr.Namespace)
 			secret.StringData = secretData
 			if _, err := op.clientset.Secrets(tpr.Namespace).Update(secret); err != nil {
+				op.updateStatus(tpr, tprv1.SentryProjectError, err.Error())
 				return err
 			}
 		}
+		op.updateStatus(tpr, tprv1.SentryProjectProcessed, "Project processed")
 	}
 	return nil
 }
@@ -204,8 +227,27 @@ func (op *Operator) sentryProjectDelete(obj interface{}) {
 
 func (op *Operator) sentryProjectUpdate(cur, old interface{}) {
 	curProj := cur.(*tprv1.SentryProject)
-	//oldProj := old.(*tprv1.SentryProject)
+	oldProj := old.(*tprv1.SentryProject)
+	if !reflect.DeepEqual(oldProj.Spec, curProj.Spec) {
+		glog.Infof("Updated sentry project %s/%s", curProj.GetName(), curProj.GetNamespace())
+		op.queue.Add(curProj)
+	}
+}
 
-	glog.Infof("Updated sentry project %s/%s", curProj.GetName(), curProj.GetNamespace())
-	op.queue.Add(curProj)
+func (op *Operator) updateStatus(tpr *tprv1.SentryProject, state tprv1.SentryProjectState, message string) error {
+	r, err := op.tprScheme.Copy(tpr)
+	if err != nil {
+		return err
+	}
+	tpr = r.(*tprv1.SentryProject)
+	tpr.Status.Message = message
+	tpr.Status.State = state
+
+	return op.tprClient.Put().
+		Name(tpr.ObjectMeta.Name).
+		Namespace(tpr.ObjectMeta.Namespace).
+		Resource(tprv1.SentryProjectResourcePlural).
+		Body(tpr).
+		Do().
+		Error()
 }
