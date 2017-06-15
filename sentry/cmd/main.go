@@ -36,12 +36,22 @@ func main() {
 		os.Exit(0)
 	}
 
+	if options.SentryEndpoint == "" {
+		options.SentryEndpoint = os.Getenv("SENTRY_ENDPOINT")
+	}
+
 	if options.SentryToken == "" {
-		glog.Fatal("--sentry-token not given")
+		if os.Getenv("SENTRY_TOKEN") == "" {
+			glog.Fatal("sentry-token not given")
+		}
+		options.SentryToken = os.Getenv("SENTRY_TOKEN")
 	}
 
 	if options.SentryOrganization == "" {
-		glog.Fatal("--sentry-organization not given")
+		if os.Getenv("SENTRY_ORGANIZATION") == "" {
+			glog.Fatal("sentry-organization not given")
+		}
+		options.SentryOrganization = os.Getenv("SENTRY_ORGANIZATION")
 	}
 
 	sigs := make(chan os.Signal, 1)
