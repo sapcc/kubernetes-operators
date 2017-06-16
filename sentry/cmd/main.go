@@ -18,7 +18,7 @@ var showVersion bool
 
 func init() {
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
-	pflag.StringVar(&options.SentryEndpoint, "sentry-endpoint", "https://sentry.io/api/0", "Endpoint for the sentry api")
+	pflag.StringVar(&options.SentryEndpoint, "sentry-endpoint", "", "Endpoint for the sentry api (default: https://sentry.io/api/0/)")
 	pflag.StringVar(&options.SentryToken, "sentry-token", "", "Auth token for the sentry api")
 	pflag.StringVar(&options.SentryOrganization, "sentry-organization", "", "Slug for the sentry organization where projects are created")
 	pflag.BoolVar(&showVersion, "version", false, "Show version and exit")
@@ -37,7 +37,10 @@ func main() {
 	}
 
 	if options.SentryEndpoint == "" {
-		options.SentryEndpoint = os.Getenv("SENTRY_ENDPOINT")
+		options.SentryEndpoint = "https://sentry.io/api/0/"
+		if os.Getenv("SENTRY_ENDPOINT") != "" {
+			options.SentryEndpoint = os.Getenv("SENTRY_ENDPOINT")
+		}
 	}
 
 	if options.SentryToken == "" {
