@@ -4,7 +4,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/pkg/api"
 )
 
 var (
@@ -29,7 +28,7 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&SentryProject{},
 		&SentryProjectList{},
 	)
-	scheme.AddUnversionedTypes(api.Unversioned, &metav1.Status{})
+	//scheme.AddUnversionedTypes(api.Unversioned, &metav1.Status{})
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
 }
