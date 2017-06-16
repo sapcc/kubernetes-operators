@@ -156,25 +156,26 @@ func (op *Operator) processNextWorkItem() bool {
 func (op *Operator) handler(key *tprv1.SentryProject) error {
 	obj, exists, err := op.tprInformer.GetStore().Get(key)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to fetch key %s from cache: %s", key.Name, err)
 	}
 	if !exists {
 		glog.Infof("Deleting project %s (not really, maybe in the future)", key.GetName())
 	} else {
 		tpr := obj.(*tprv1.SentryProject)
 		if err := tpr.Spec.Validate(); err != nil {
+			glog.V(3).Infof("Resource %s has an invalid spec: %s", tpr.Name, err)
 			op.updateStatus(tpr, tprv1.SentryProjectError, err.Error())
 			return nil
 		}
 		_, err := op.ensureProject(tpr.Spec.Team, tpr.Spec.Name)
 		if err != nil {
 			op.updateStatus(tpr, tprv1.SentryProjectError, err.Error())
-			return err
+			return fmt.Errorf("Failed to create project %s/%s: %s", tpr.Spec.Name, tpr.Spec.Team, err)
 		}
 		clientKey, err := op.ensureClientKey(tpr.Spec.Name, "k8s-operator")
 		if err != nil {
 			op.updateStatus(tpr, tprv1.SentryProjectError, err.Error())
-			return err
+			return fmt.Errorf("Failed to create client key for project %s: %s", tpr.Spec.Name, err)
 		}
 		secretData := map[string]string{
 			fmt.Sprintf("%s.DSN", tpr.Spec.Name):        clientKey.DSN.Secret,

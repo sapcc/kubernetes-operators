@@ -1,6 +1,8 @@
 package operator
 
 import (
+	"fmt"
+
 	sentry "github.com/atlassian/go-sentry-api"
 	"github.com/golang/glog"
 )
@@ -18,7 +20,7 @@ func (op *Operator) ensureTeam(team string) (sentry.Team, error) {
 
 	teams, err := op.sentryClient.GetOrganizationTeams(org)
 	if err != nil {
-		return sentry.Team{}, err
+		return sentry.Team{}, fmt.Errorf("Failed to list teams for organization %s: %s", *org.Slug, err)
 	}
 	for _, t := range teams {
 		if *t.Slug == team {
