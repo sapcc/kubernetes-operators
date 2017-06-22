@@ -19,7 +19,7 @@ setup(
     description='Openstack Seeder',
     entry_points = {
         "console_scripts": [
-            'openstack-seeder = python.openstack_seeder:main',
+            'openstack-seeder = openstack_seeder:main',
         ]
         },
 )
