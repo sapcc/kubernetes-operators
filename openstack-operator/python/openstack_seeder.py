@@ -129,6 +129,7 @@ def get_subnetpool_id(project_id, name, neutron):
         logging.error("subnetpool %s/%s not found" % (project_id, name))
     return result
 
+
 def get_network_id(project_id, name, neutron):
     """ get a (cached) network-id for a project-id and network name """
     if project_id not in network_cache:
@@ -843,6 +844,10 @@ def seed_project_routers(project, routers, args, sess):
     neutron = neutronclient.Client(session=sess,
                                    interface=args.interface)
 
+    # grab a keystone client
+    keystone = keystoneclient.Client(session=sess,
+                                   interface=args.interface)
+
     for router in routers:
         interfaces = None
         if 'interfaces' in router:
@@ -860,11 +865,20 @@ def seed_project_routers(project, routers, args, sess):
         if 'external_gateway_info' in router:
             # lookup network-id
             if 'network' in router['external_gateway_info']:
-                network_id = get_network_id(project.id, router['external_gateway_info']['network'], neutron)
+                network_id = None
+                # network@project@domain ?
+                if '@' in router['external_gateway_info']['network']:
+                    parts = router['external_gateway_info']['network'].split('@')
+                    if len(parts) > 2:
+                        project_id = get_project_id(parts[2], parts[1], keystone)
+                        if project_id:
+                            network_id = get_network_id(project_id, parts[0], neutron)
+                else:
+                    network_id = get_network_id(project.id, router['external_gateway_info']['network'], neutron)
                 if not network_id:
                     logging.warn(
-                        "skipping router '%s/%s': external_gateway_info.network not found" % (
-                            project.name, router))
+                        "skipping router '%s/%s': external_gateway_info.network %s not found" % (
+                            project.name, router, router['external_gateway_info']['network']))
                     continue
                 router['external_gateway_info']['network_id'] = network_id
                 router['external_gateway_info'].pop('network')
