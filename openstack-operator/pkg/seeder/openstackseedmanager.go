@@ -3,6 +3,7 @@ package seeder
 import (
 	"flag"
 	"fmt"
+	"github.com/getsentry/raven-go"
 	"github.com/golang/glog"
 	"gopkg.in/yaml.v2"
 	"k8s.io/client-go/1.5/kubernetes"
@@ -14,11 +15,10 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"github.com/getsentry/raven-go"
 )
 
 type OpenstackSeedManager struct {
-	options *Options
+	options      *Options
 	seederClient *rest.RESTClient
 	clientset    *kubernetes.Clientset
 
@@ -27,7 +27,7 @@ type OpenstackSeedManager struct {
 
 func newOpenstackSeedManager(seederClient *rest.RESTClient, clientset *kubernetes.Clientset, options *Options) *OpenstackSeedManager {
 	seedManager := &OpenstackSeedManager{
-		options: options,
+		options:      options,
 		seederClient: seederClient,
 		clientset:    clientset,
 	}
@@ -108,55 +108,55 @@ func (mgr *OpenstackSeedManager) seedApply(seed *OpenstackSeed) {
 
 	glog.V(1).Infof("Seeding %s/%s ..", seed.Metadata.Namespace, seed.Metadata.Name)
 
-	if !mgr.options.DryRun {
-		// spawn a python keystone-seeder as long as there is no functional golang keystone client
+	// spawn a python keystone-seeder as long as there is no functional golang keystone client
+	_, err = exec.LookPath(seeder_name)
+	if err != nil {
+		glog.Errorf("ERROR: python %s not found.", seeder_name)
+		return
+	}
 
-		path, err := exec.LookPath(seeder_name)
-		if err != nil {
-			glog.Errorf("ERROR: python %s not found.", seeder_name)
-			return
-		}
+	level := "ERROR"
+	switch flag.Lookup("v").Value.String() {
+	case "0":
+		level = "WARNING"
+	case "1":
+		level = "INFO"
+	default:
+		level = "DEBUG"
+	}
 
-		level := "ERROR"
-		switch flag.Lookup("v").Value.String() {
-		case "0":
-			level = "WARNING"
-		case "1":
-			level = "INFO"
-		default:
-			level = "DEBUG"
-		}
+	cmd := exec.Command(seeder_name, "--interface", "internal", "-l", level)
+	if mgr.options.DryRun {
+		cmd = exec.Command(seeder_name, "--interface", "internal", "-l", level, "--dry-run")
+	}
 
-		cmd := exec.Command(seeder_name, "--interface", "internal", "-l", level)
+	// inherit the os-environment
+	env := os.Environ()
+	cmd.Env = env
 
-		// inherit the os-environment
-		env := os.Environ()
-		cmd.Env = env
+	glog.V(2).Infof("Spawning %s, args: %s, env: %s", cmd.Path, cmd.Args, cmd.Env)
 
-		glog.V(2).Infof("Spawning %s, env: %s", path, cmd.Env)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		fmt.Println(err)
+	}
 
-		stdin, err := cmd.StdinPipe()
-		if err != nil {
-			fmt.Println(err)
-		}
+	defer stdin.Close()
 
-		defer stdin.Close()
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+	if err = cmd.Start(); err != nil {
+		glog.Errorf("ERROR: could not spawn %s: ", seeder_name, err)
+	}
 
-		if err = cmd.Start(); err != nil {
-			glog.Errorf("ERROR: could not spawn %s: ", seeder_name, err)
-		}
-
-		stdin.Write(yaml_seed)
-		stdin.Close()
-		if err := cmd.Wait(); err != nil {
-			msg := fmt.Errorf("failed to seed '%s/%s': %s", seed.Metadata.Namespace, seed.Metadata.Name, err.Error())
-			raven.CaptureError(msg, nil)
-			glog.Errorf("ERROR: %s", msg.Error())
-			return
-		}
+	stdin.Write(yaml_seed)
+	stdin.Close()
+	if err := cmd.Wait(); err != nil {
+		msg := fmt.Errorf("failed to seed '%s/%s': %s", seed.Metadata.Namespace, seed.Metadata.Name, err.Error())
+		raven.CaptureError(msg, nil)
+		glog.Errorf("ERROR: %s", msg.Error())
+		return
 	}
 	glog.Infof("Seeding %s/%s done.", seed.Metadata.Namespace, seed.Metadata.Name)
 }
