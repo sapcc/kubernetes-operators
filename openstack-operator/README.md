@@ -25,6 +25,16 @@ Seeding currently only support creating or updating of entities (the operator up
     - domain-role-assignments
     - projects
         - project-role-assignments
+        - project-endpoints
+        - network quotas
+        - address scopes
+            - subnet pools
+        - subnet pools
+        - networks
+            - subnets
+        - routers
+            - interfaces
+        
     - groups
         - group-role-assignments
     - users
