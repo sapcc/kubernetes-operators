@@ -214,7 +214,7 @@ def seed_region(region, keystone):
             wtf['parent_region_id'] = wtf.pop('parent_region')
         for attr in wtf.keys():
             if wtf[attr] != result._info.get(attr, ''):
-                logging.info("update region '%s'" % region)
+                logging.info("%s differs. update region '%s'" % (attr, region))
                 keystone.regions.update(result.id, **region)
                 break
 
@@ -264,8 +264,8 @@ def seed_endpoints(service, endpoints, keystone):
             resource = result[0]
             for attr in endpoint.keys():
                 if endpoint[attr] != resource._info.get(attr, ''):
-                    logging.info("update endpoint '%s/%s'" % \
-                                 (service.name, endpoint['interface']))
+                    logging.info("%s differs. update endpoint '%s/%s'" % \
+                                 (attr, service.name, endpoint['interface']))
                     keystone.endpoints.update(resource.id, **endpoint)
                     break
 
@@ -293,8 +293,8 @@ def seed_service(service, keystone):
         resource = result[0]
         for attr in service.keys():
             if service[attr] != resource._info.get(attr, ''):
-                logging.info("update service '%s/%s'" % (
-                    service['name'], service['type']))
+                logging.info("%s differs. update service '%s/%s'" % (
+                    attr, service['name'], service['type']))
                 keystone.services.update(resource.id, **service)
                 break
 
@@ -335,8 +335,8 @@ def seed_users(domain, users, keystone):
                         continue
                     if user[attr] != resource._info.get(attr, ''):
                         logging.info(
-                            "update user '%s/%s' (%s)" % (
-                                domain.name, user['name'], attr))
+                            "%s differs. update user '%s/%s' (%s)" % (
+                                attr, domain.name, user['name'], attr))
                         keystone.users.update(resource.id, **user)
                         break
 
@@ -395,7 +395,7 @@ def seed_groups(domain, groups, keystone):
             for attr in group.keys():
                 if group[attr] != resource._info.get(attr, ''):
                     logging.info(
-                        "update group '%s/%s'" % (domain.name, group['name']))
+                        "%s differs. update group '%s/%s'" % (attr, domain.name, group['name']))
                     keystone.groups.update(resource.id, **group)
                     break
 
@@ -541,8 +541,8 @@ def seed_projects(domain, projects, args, sess):
             for attr in project.keys():
                 if project[attr] != resource._info.get(attr, ''):
                     logging.info(
-                        "update project '%s/%s'" % (
-                            domain.name, project['name']))
+                        "%s differs. update project '%s/%s'" % (
+                            attr, domain.name, project['name']))
                     keystone.projects.update(resource.id, **project)
                     break
 
@@ -626,8 +626,8 @@ def seed_project_network_quota(project, quota, args, sess):
         for attr in quota.keys():
             if quota[attr] != resource.get(attr, ''):
                 logging.info(
-                    "set project %s network quota to '%s'" % (
-                        project.name, quota))
+                    "%s differs. set project %s network quota to '%s'" % (
+                        attr, project.name, quota))
                 neutron.update_quota(project.id, body)
                 break
 
@@ -675,8 +675,8 @@ def seed_project_address_scopes(project, address_scopes, args, sess):
             for attr in scope.keys():
                 if scope[attr] != resource.get(attr, ''):
                     logging.info(
-                        "update address-cope'%s/%s'" % (
-                            project.name, scope['name']))
+                        "%s differs. update address-cope'%s/%s'" % (
+                            attr, project.name, scope['name']))
                     # drop read-only attributes
                     body['address_scope'].pop('tenant_id')
                     body['address_scope'].pop('ip_version')
@@ -749,8 +749,8 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess, **kvargs):
                     # a hacky comparison due to the neutron api not dealing with string/int attributes consistently
                     if str(subnet_pool[attr]) != str(resource.get(attr, '')):
                         logging.info(
-                            "update subnet-pool'%s/%s'" % (
-                                project.name, subnet_pool['name']))
+                            "%s differs. update subnet-pool'%s/%s'" % (
+                                attr, project.name, subnet_pool['name']))
                         # drop read-only attributes
                         body['subnetpool'].pop('tenant_id')
                         body['subnetpool'].pop('shared')
@@ -816,8 +816,8 @@ def seed_project_networks(project, networks, args, sess):
             for attr in network.keys():
                 if network[attr] != resource.get(attr, ''):
                     logging.info(
-                        "update network'%s/%s'" % (
-                            project.name, network['name']))
+                        "%s differs. update network'%s/%s'" % (
+                            attr, project.name, network['name']))
                     # drop read-only attributes
                     body['network'].pop('tenant_id')
                     neutron.update_network(resource['id'], body)
@@ -890,8 +890,8 @@ def seed_project_routers(project, routers, args, sess):
                         else:
                             continue
                     logging.info(
-                        "update router'%s/%s'" % (
-                            project.name, router['name']))
+                        "%s differs. update router'%s/%s'" % (
+                            attr, project.name, router['name']))
                     # drop read-only attributes
                     body['router'].pop('tenant_id')
                     result = neutron.update_router(resource['id'], body)
@@ -1013,8 +1013,8 @@ def seed_network_subnets(network, subnets, args, sess):
             for attr in subnet.keys():
                 if subnet[attr] != resource.get(attr, ''):
                     logging.info(
-                        "update subnet'%s/%s'" % (
-                            network['name'], subnet['name']))
+                        "%s differs. update subnet'%s/%s'" % (
+                            attr, network['name'], subnet['name']))
                     # drop read-only attributes
                     body['subnet'].pop('tenant_id')
                     body['subnet'].pop('network_id')
@@ -1099,7 +1099,7 @@ def seed_domain(domain, args, sess):
         resource = result[0]
         for attr in domain.keys():
             if domain[attr] != resource._info.get(attr, ''):
-                logging.info("update domain '%s'" % domain['name'])
+                logging.info("%s differs. update domain '%s'" % (attr, domain['name']))
                 keystone.domains.update(resource.id, **domain)
                 break
 
@@ -1168,8 +1168,8 @@ def seed_flavor(flavor, args, sess):
         resource = result[0]
         for attr in flavor.keys():
             if flavor[attr] != resource._info.get(attr, ''):
-                logging.info("update flavor '%s'" %
-                             flavor['name'])
+                logging.info("%s differs. update flavor '%s'" %
+                             (attr, flavor['name']))
                 nova.flavors.update(resource.id, **flavor)
                 break
 
