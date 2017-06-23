@@ -125,9 +125,9 @@ func (mgr *OpenstackSeedManager) seedApply(seed *OpenstackSeed) {
 		level = "DEBUG"
 	}
 
-	cmd := exec.Command(seeder_name, "--interface", "internal", "-l", level)
+	cmd := exec.Command(seeder_name, "--interface", mgr.options.InterfaceType, "-l", level)
 	if mgr.options.DryRun {
-		cmd = exec.Command(seeder_name, "--interface", "internal", "-l", level, "--dry-run")
+		cmd = exec.Command(seeder_name, "--interface", mgr.options.InterfaceType, "-l", level, "--dry-run")
 	}
 
 	// inherit the os-environment

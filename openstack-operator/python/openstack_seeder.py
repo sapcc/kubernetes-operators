@@ -625,7 +625,7 @@ def seed_project_network_quota(project, quota, args, sess):
     else:
         resource = result['quota']
         for attr in quota.keys():
-            if quota[attr] != resource.get(attr, ''):
+            if int(quota[attr]) > int(resource.get(attr, '')):
                 logging.info(
                     "%s differs. set project %s network quota to '%s'" % (
                         attr, project.name, quota))

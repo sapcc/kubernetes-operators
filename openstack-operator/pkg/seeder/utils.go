@@ -11,12 +11,15 @@ func MergeSimpleStructFields(dst, src interface{}) {
 	if src == nil || dst == nil {
 		return
 	}
+	if in.Kind() == reflect.Ptr {
+		in = in.Elem()
+	}
 	if out.Kind() == reflect.Ptr {
 		out = out.Elem()
 	}
 	if in.Type() != out.Type() {
 		// Explicit test prior to mergeStruct so that mistyped nils will fail
-		glog.Error("type mismatch")
+		glog.Error("type mismatch in ", in, ", out ", out)
 		return
 	}
 	mergeStructFields(out, in)
