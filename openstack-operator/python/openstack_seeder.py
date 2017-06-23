@@ -497,7 +497,7 @@ def seed_projects(domain, projects, args, sess):
     for project in projects:
         roles = None
         if 'roles' in project:
-            roles = project.pop('roles')
+            roles = project.pop('roles', None)
         endpoints = None
         if 'project_endpoints' in project:
             endpoints = project.pop('project_endpoints', None)
@@ -679,8 +679,8 @@ def seed_project_address_scopes(project, address_scopes, args, sess):
                         "%s differs. update address-cope'%s/%s'" % (
                             attr, project.name, scope['name']))
                     # drop read-only attributes
-                    body['address_scope'].pop('tenant_id')
-                    body['address_scope'].pop('ip_version')
+                    body['address_scope'].pop('tenant_id', None)
+                    body['address_scope'].pop('ip_version', None)
                     neutron.update_address_scope(resource['id'], body)
                     break
 
@@ -742,8 +742,8 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess, **kvargs):
                                 "update subnet-pool prefixes '%s/%s'" % (
                                     project.name, subnet_pool['name']))
                             # drop read-only attributes
-                            body['subnetpool'].pop('tenant_id')
-                            body['subnetpool'].pop('shared')
+                            body['subnetpool'].pop('tenant_id', None)
+                            body['subnetpool'].pop('shared', None)
                             neutron.update_subnetpool(resource['id'], body)
                             break
                 else:
@@ -753,8 +753,8 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess, **kvargs):
                             "%s differs. update subnet-pool'%s/%s'" % (
                                 attr, project.name, subnet_pool['name']))
                         # drop read-only attributes
-                        body['subnetpool'].pop('tenant_id')
-                        body['subnetpool'].pop('shared')
+                        body['subnetpool'].pop('tenant_id', None)
+                        body['subnetpool'].pop('shared', None)
                         neutron.update_subnetpool(resource['id'], body)
                         break
 
@@ -820,7 +820,7 @@ def seed_project_networks(project, networks, args, sess):
                         "%s differs. update network'%s/%s'" % (
                             attr, project.name, network['name']))
                     # drop read-only attributes
-                    body['network'].pop('tenant_id')
+                    body['network'].pop('tenant_id', None)
                     neutron.update_network(resource['id'], body)
                     break
 
@@ -881,7 +881,7 @@ def seed_project_routers(project, routers, args, sess):
                             project.name, router, router['external_gateway_info']['network']))
                     continue
                 router['external_gateway_info']['network_id'] = network_id
-                router['external_gateway_info'].pop('network')
+                router['external_gateway_info'].pop('network', None)
 
         body = {'router': router.copy()}
         body['router']['tenant_id'] = project.id
@@ -907,7 +907,7 @@ def seed_project_routers(project, routers, args, sess):
                         "%s differs. update router'%s/%s'" % (
                             attr, project.name, router['name']))
                     # drop read-only attributes
-                    body['router'].pop('tenant_id')
+                    body['router'].pop('tenant_id', None)
                     result = neutron.update_router(resource['id'], body)
                     resource = result['router']
                     break
@@ -999,7 +999,7 @@ def seed_network_subnets(network, subnets, args, sess):
                     "skipping subnet '%s/%s', since its subnetpool is invalid" % (
                         network['name'], subnet))
                 continue
-            subnet.pop('subnetpool')
+            subnet.pop('subnetpool', None)
 
         subnet = sanitize(subnet, (
             'name', 'enable_dhcp', 'dns_nameservers',
@@ -1030,10 +1030,10 @@ def seed_network_subnets(network, subnets, args, sess):
                         "%s differs. update subnet'%s/%s'" % (
                             attr, network['name'], subnet['name']))
                     # drop read-only attributes
-                    body['subnet'].pop('tenant_id')
-                    body['subnet'].pop('network_id')
-                    body['subnet'].pop('subnetpool_id')
-                    body['subnet'].pop('ip_version')
+                    body['subnet'].pop('tenant_id', None)
+                    body['subnet'].pop('network_id', None)
+                    body['subnet'].pop('subnetpool_id', None)
+                    body['subnet'].pop('ip_version', None)
                     neutron.update_subnet(resource['id'], body)
                     break
 
