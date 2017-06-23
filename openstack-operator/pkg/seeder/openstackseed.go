@@ -92,9 +92,9 @@ type ProjectSpec struct {
 	RoleAssignments []RoleAssignmentSpec  `json:"roles,omitempty" yaml:"roles,omitempty"`                   // list of project-role-assignments
 	AddressScopes   []AddressScopeSpec    `json:"address_scopes,omitempty" yaml:"address_scopes,omitempty"` // list of neutron address-scopes
 	SubnetPools     []SubnetPoolSpec      `json:"subnet_pools,omitempty" yaml:"subnet_pools,omitempty"`     // list of neutron subnet-pools
-	NetworkQuota    NetworkQuotaSpec      `json:"network_quota,omitempty" yaml:"network_quota,omitempty"`   // neutron quota
+	NetworkQuota    *NetworkQuotaSpec     `json:"network_quota,omitempty" yaml:"network_quota,omitempty"`   // neutron quota
 	Networks        []NetworkSpec         `json:"networks,omitempty" yaml:"networks,omitempty"`             // neutron networks
-	Routers         []RouterSpec         `json:"routers,omitempty" yaml:"routers,omitempty"`                // neutron routers
+	Routers         []RouterSpec          `json:"routers,omitempty" yaml:"routers,omitempty"`               // neutron routers
 }
 
 // A project endpoint filter (see https://developer.openstack.org/api-ref/identity/v3-ext/#os-ep-filter-api)
@@ -170,8 +170,8 @@ type SubnetPoolSpec struct {
 	DefaultPrefixLen int      `json:"default_prefixlen,omitempty" yaml:"default_prefixlen,omitempty"` // The size of the prefix to allocate when the cidr or prefixlen attributes are omitted when you create the subnet. Default is min_prefixlen.
 	MaxPrefixLen     int      `json:"max_prefixlen,omitempty" yaml:"max_prefixlen,omitempty"`         // The maximum prefix size that can be allocated from the subnet pool. For IPv4 subnet pools, default is 32. For IPv6 subnet pools, default is 128.
 	AddressScopeId   string   `json:"address_scope_id,omitempty" yaml:"address_scope_id,omitempty"`   // An address scope to assign to the subnet pool.
-	IsDefault        *bool   `json:"is_default,omitempty" yaml:"is_default,omitempty"`
-	Description      string   `json:"description,omitempty" yaml:"description,omitempty"`             // description of the subnet-pool
+	IsDefault        *bool    `json:"is_default,omitempty" yaml:"is_default,omitempty"`
+	Description      string   `json:"description,omitempty" yaml:"description,omitempty"` // description of the subnet-pool
 }
 
 // A neutron project quota (see https://developer.openstack.org/api-ref/networking/v2/index.html#quotas-extension-quotas)
@@ -227,13 +227,13 @@ type SubnetSpec struct {
 
 // A neutron router (see https://developer.openstack.org/api-ref/networking/v2/index.html#routers)
 type RouterSpec struct {
-	Name                string   `json:"name" yaml:"name"`                                         // router name
-	AdminStateUp        *bool    `json:"admin_state_up,omitempty" yaml:"admin_state_up,omitempty"` // The administrative state of the router, which is up (true) or down (false).
-	Description         string   `json:"description,omitempty" yaml:"description,omitempty"`       // description of the router
-	ExternalGatewayInfo ExternalGatewayInfoSpec`json:"external_gateway_info,omitempty" yaml:"external_gateway_info,omitempty"`
-	Distributed         *bool    `json:"distributed,omitempty" yaml:"distributed,omitempty"`       // true indicates a distributed router. It is available when dvr extension is enabled.
-	HA                  *bool    `json:"ha,omitempty" yaml:"ha,omitempty"`                         // true indicates a highly-available router. It is available when l3-ha extension is enabled.
-	RouterPorts         []RouterPortSpec `json:"interfaces,omitempty" yaml:"interfaces,omitempty"` //
+	Name                string                   `json:"name" yaml:"name"`                                         // router name
+	AdminStateUp        *bool                    `json:"admin_state_up,omitempty" yaml:"admin_state_up,omitempty"` // The administrative state of the router, which is up (true) or down (false).
+	Description         string                   `json:"description,omitempty" yaml:"description,omitempty"`       // description of the router
+	ExternalGatewayInfo *ExternalGatewayInfoSpec `json:"external_gateway_info,omitempty" yaml:"external_gateway_info,omitempty"`
+	Distributed         *bool                    `json:"distributed,omitempty" yaml:"distributed,omitempty"` // true indicates a distributed router. It is available when dvr extension is enabled.
+	HA                  *bool                    `json:"ha,omitempty" yaml:"ha,omitempty"`                   // true indicates a highly-available router. It is available when l3-ha extension is enabled.
+	RouterPorts         []RouterPortSpec         `json:"interfaces,omitempty" yaml:"interfaces,omitempty"`   //
 }
 
 type ExternalGatewayInfoSpec struct {
@@ -244,23 +244,23 @@ type ExternalGatewayInfoSpec struct {
 }
 
 type RouterPortSpec struct {
-	PortId   string   `json:"port_id,omitempty" yaml:"port_id,omitempty"`     // port-id
-	Subnet   string   `json:"subnet,omitempty" yaml:"subnet,omitempty"`       // subnet-name within the routers project
-	SubnetId string   `json:"subnet_id,omitempty" yaml:"subnet_id,omitempty"` // subnet-id
+	PortId   string `json:"port_id,omitempty" yaml:"port_id,omitempty"`     // port-id
+	Subnet   string `json:"subnet,omitempty" yaml:"subnet,omitempty"`       // subnet-name within the routers project
+	SubnetId string `json:"subnet_id,omitempty" yaml:"subnet_id,omitempty"` // subnet-id
 }
 
 type OpenstackSeed struct {
 	unversioned.TypeMeta `json:",inline"`
-	Metadata            api.ObjectMeta `json:"metadata"`
-	VisitedDependencies map[string]bool
-	Spec                OpenstackSeedSpec `json:"spec" yaml:"spec"`
+	Metadata             api.ObjectMeta `json:"metadata"`
+	VisitedDependencies  map[string]bool
+	Spec                 OpenstackSeedSpec `json:"spec" yaml:"spec"`
 }
 
 type OpenstackSeedList struct {
 	unversioned.TypeMeta `json:",inline"`
-	Metadata unversioned.ListMeta `json:"metadata"`
+	Metadata             unversioned.ListMeta `json:"metadata"`
 
-	Items    []OpenstackSeed `json:"items" yaml:"items"`
+	Items []OpenstackSeed `json:"items" yaml:"items"`
 }
 
 func (e *OpenstackSeedSpec) MergeRole(role string) {
@@ -388,9 +388,9 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 			if v.Name == project.Name {
 				glog.V(2).Info("merge project ", project)
 				MergeSimpleStructFields(&v, project)
-				if &project.NetworkQuota != nil {
-					v.NetworkQuota = *new(NetworkQuotaSpec)
-					MergeSimpleStructFields(&v.NetworkQuota, project.NetworkQuota)
+				if project.NetworkQuota != nil {
+					v.NetworkQuota = new(NetworkQuotaSpec)
+					MergeSimpleStructFields(v.NetworkQuota, project.NetworkQuota)
 				}
 				if len(project.RoleAssignments) > 0 {
 					v.MergeRoleAssignments(project)
@@ -644,9 +644,9 @@ func (e *ProjectSpec) MergeRouters(project ProjectSpec) {
 			if v.Name == r.Name {
 				glog.V(2).Info("merge project router ", r)
 				MergeSimpleStructFields(&v, r)
-				if &r.ExternalGatewayInfo != nil {
-					v.ExternalGatewayInfo = *new(ExternalGatewayInfoSpec)
-					MergeSimpleStructFields(&v.ExternalGatewayInfo, r.ExternalGatewayInfo)
+				if r.ExternalGatewayInfo != nil {
+					v.ExternalGatewayInfo = new(ExternalGatewayInfoSpec)
+					MergeSimpleStructFields(v.ExternalGatewayInfo, r.ExternalGatewayInfo)
 				}
 				if len(r.RouterPorts) > 0 {
 					v.MergeRouterPorts(r)
@@ -836,7 +836,7 @@ func EnsureOpenstackSeedThirdPartyResource(client *kubernetes.Clientset) error {
 		_, err = client.Extensions().ThirdPartyResources().Create(&newResource)
 
 		// We have to wait for the TPR to be ready. Otherwise the initial watch may fail.
-		wait.Poll(3 * time.Second, 30 * time.Second, func() (bool, error) {
+		wait.Poll(3*time.Second, 30*time.Second, func() (bool, error) {
 			_, err := client.Extensions().ThirdPartyResources().Get(name)
 			if err != nil {
 				// RESTClient returns *errors.StatusError for any status codes < 200 or > 206

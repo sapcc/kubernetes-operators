@@ -7,11 +7,11 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/golang/glog"
-	"github.com/spf13/pflag"
-	"github.com/sapcc/kubernetes-operators/openstack-operator/pkg/seeder"
-	"k8s.io/kubernetes/pkg/util/logs"
 	"github.com/getsentry/raven-go"
+	"github.com/golang/glog"
+	"github.com/sapcc/kubernetes-operators/openstack-operator/pkg/seeder"
+	"github.com/spf13/pflag"
+	"k8s.io/kubernetes/pkg/util/logs"
 	"net/http"
 )
 
@@ -20,6 +20,7 @@ var options seeder.Options
 func init() {
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
 	pflag.BoolVar(&options.DryRun, "dry-run", false, "Only pretend to seed.")
+	pflag.StringVar(&options.InterfaceType, "interface", "internal", "Openstack service interface type to use.")
 	// hack around dodgy TLS rootCA handler in raven.newTransport()
 	// https://github.com/getsentry/raven-go/issues/117
 	t := &raven.HTTPTransport{}
