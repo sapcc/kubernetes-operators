@@ -898,7 +898,7 @@ def seed_project_routers(project, routers, args, sess):
                 if router[attr] != resource.get(attr, ''):
                     # only evaluate external_gateway_info.network_id for now..
                     if attr == 'external_gateway_info':
-                        if 'network_id' in router[attr] and 'network_id' in resource.get(attr, ''):
+                        if 'network_id' in router[attr] and resource.get(attr, ''):
                             if router[attr]['network_id'] == resource[attr]['network_id']:
                                 continue
                         else:

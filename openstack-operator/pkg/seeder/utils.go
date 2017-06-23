@@ -32,17 +32,23 @@ func mergeStructFields(out, in reflect.Value) {
 			continue
 		}
 		switch f.Type.Kind() {
-		case reflect.Bool, reflect.Float32, reflect.Float64, reflect.Int32, reflect.Int64,
-			reflect.String, reflect.Uint32, reflect.Uint64:
+		case reflect.Bool, reflect.Float32, reflect.Float64, reflect.Int, reflect.Int32, reflect.Int64,
+			reflect.String, reflect.Uint, reflect.Uint32, reflect.Uint64:
 			if out.Field(i).CanSet() {
-				glog.V(3).Info("merging field ", f.Name, ", new value ", in.Field(i).String())
+				glog.V(3).Info("merging field ", f.Name, ", new value ", in.Field(i))
 				out.Field(i).Set(in.Field(i))
 			}
 		case reflect.Ptr:
 			if f.Type.Elem().Kind() == reflect.Bool {
-				glog.V(3).Info("merging field ", f.Name, ", new value ", in.Field(i).String())
+				glog.V(3).Info("merging field ", f.Name, ", new value ", in.Field(i))
 				out.Field(i).Set(in.Field(i))
 			}
+		case reflect.Slice:
+			continue
+		case reflect.Struct:
+			continue
+		default:
+			glog.Error("unsupported type encountered in merge of ", f.Name, ": ", f.Type.Kind())
 		}
 	}
 }
