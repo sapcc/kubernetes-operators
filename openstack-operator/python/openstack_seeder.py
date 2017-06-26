@@ -849,71 +849,75 @@ def seed_project_routers(project, routers, args, sess):
                                    interface=args.interface)
 
     for router in routers:
-        interfaces = None
-        if 'interfaces' in router:
-            interfaces = router.pop('interfaces', None)
+        try:
+            interfaces = None
+            if 'interfaces' in router:
+                interfaces = router.pop('interfaces', None)
 
-        router = sanitize(router, (
-            'name', 'admin_state_up', 'description', 'external_gateway_info', 'distributed', 'ha', 'availability_zone_hints'))
+            router = sanitize(router, (
+                'name', 'admin_state_up', 'description', 'external_gateway_info', 'distributed', 'ha', 'availability_zone_hints'))
 
-        if 'name' not in router or not router['name']:
-            logging.warn(
-                "skipping router '%s/%s', since it is misconfigured" % (
-                    project.name, router))
-            continue
+            if 'name' not in router or not router['name']:
+                logging.warn(
+                    "skipping router '%s/%s', since it is misconfigured" % (
+                        project.name, router))
+                continue
 
-        if 'external_gateway_info' in router:
-            # lookup network-id
-            if 'network' in router['external_gateway_info']:
-                network_id = None
-                # network@project@domain ?
-                if '@' in router['external_gateway_info']['network']:
-                    parts = router['external_gateway_info']['network'].split('@')
-                    if len(parts) > 2:
-                        project_id = get_project_id(parts[2], parts[1], keystone)
-                        if project_id:
-                            network_id = get_network_id(project_id, parts[0], neutron)
-                else:
-                    network_id = get_network_id(project.id, router['external_gateway_info']['network'], neutron)
-                if not network_id:
-                    logging.warn(
-                        "skipping router '%s/%s': external_gateway_info.network %s not found" % (
-                            project.name, router, router['external_gateway_info']['network']))
-                    continue
-                router['external_gateway_info']['network_id'] = network_id
-                router['external_gateway_info'].pop('network', None)
+            if 'external_gateway_info' in router:
+                # lookup network-id
+                if 'network' in router['external_gateway_info']:
+                    network_id = None
+                    # network@project@domain ?
+                    if '@' in router['external_gateway_info']['network']:
+                        parts = router['external_gateway_info']['network'].split('@')
+                        if len(parts) > 2:
+                            project_id = get_project_id(parts[2], parts[1], keystone)
+                            if project_id:
+                                network_id = get_network_id(project_id, parts[0], neutron)
+                    else:
+                        network_id = get_network_id(project.id, router['external_gateway_info']['network'], neutron)
+                    if not network_id:
+                        logging.warn(
+                            "skipping router '%s/%s': external_gateway_info.network %s not found" % (
+                                project.name, router, router['external_gateway_info']['network']))
+                        continue
+                    router['external_gateway_info']['network_id'] = network_id
+                    router['external_gateway_info'].pop('network', None)
 
-        body = {'router': router.copy()}
-        body['router']['tenant_id'] = project.id
-        query = {'project_id': project.id, 'name': router['name']}
-        result = neutron.list_routers(retrieve_all=True, **query)
-        if not result or not result['routers']:
-            logging.info(
-                "create router '%s/%s'" % (project.name, router['name']))
-            result = neutron.create_router(body)
-            resource = result['router']
-        else:
-            resource = result['routers'][0]
-            for attr in router.keys():
-                if router[attr] != resource.get(attr, ''):
-                    # only evaluate external_gateway_info.network_id for now..
-                    if attr == 'external_gateway_info':
-                        if 'network_id' in router[attr] and resource.get(attr, ''):
-                            if router[attr]['network_id'] == resource[attr]['network_id']:
+            body = {'router': router.copy()}
+            body['router']['tenant_id'] = project.id
+            query = {'project_id': project.id, 'name': router['name']}
+            result = neutron.list_routers(retrieve_all=True, **query)
+            if not result or not result['routers']:
+                logging.info(
+                    "create router '%s/%s'" % (project.name, router['name']))
+                result = neutron.create_router(body)
+                resource = result['router']
+            else:
+                resource = result['routers'][0]
+                for attr in router.keys():
+                    if router[attr] != resource.get(attr, ''):
+                        # only evaluate external_gateway_info.network_id for now..
+                        if attr == 'external_gateway_info':
+                            if 'network_id' in router[attr] and resource.get(attr, ''):
+                                if router[attr]['network_id'] == resource[attr]['network_id']:
+                                    continue
+                            else:
                                 continue
-                        else:
-                            continue
-                    logging.info(
-                        "%s differs. update router'%s/%s'" % (
-                            attr, project.name, router['name']))
-                    # drop read-only attributes
-                    body['router'].pop('tenant_id', None)
-                    result = neutron.update_router(resource['id'], body)
-                    resource = result['router']
-                    break
+                        logging.info(
+                            "%s differs. update router'%s/%s'" % (
+                                attr, project.name, router['name']))
+                        # drop read-only attributes
+                        body['router'].pop('tenant_id', None)
+                        result = neutron.update_router(resource['id'], body)
+                        resource = result['router']
+                        break
 
-        if interfaces:
-            seed_router_interfaces(resource, interfaces, args, sess)
+            if interfaces:
+                seed_router_interfaces(resource, interfaces, args, sess)
+        except Exception as e:
+            logging.error("could not seed router %s: %s", (router['name'], e))
+
 
 
 def seed_router_interfaces(router, interfaces, args, sess):
