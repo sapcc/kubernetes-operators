@@ -916,8 +916,7 @@ def seed_project_routers(project, routers, args, sess):
             if interfaces:
                 seed_router_interfaces(resource, interfaces, args, sess)
         except Exception as e:
-            logging.error("could not seed router %s: %s", (router['name'], e))
-
+            logging.error("could not seed router %s: %s" % (router['name'], e))
 
 
 def seed_router_interfaces(router, interfaces, args, sess):
