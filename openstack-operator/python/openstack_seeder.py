@@ -14,6 +14,7 @@ from keystoneclient import exceptions
 from keystoneclient.v3 import client as keystoneclient
 from novaclient import client as novaclient
 from neutronclient.v2_0 import client as neutronclient
+from swiftclient import client as swiftclient
 
 # todo: subnet pools, networks
 
@@ -120,7 +121,8 @@ def get_subnetpool_id(project_id, name, neutron):
         query = {'project_id': project_id, 'name': name}
         result = neutron.list_subnetpools(retrieve_all=True, **query)
         if result and result['subnetpools']:
-            result = subnetpool_cache[project_id][name] = result['subnetpools'][0]['id']
+            result = subnetpool_cache[project_id][name] = \
+                result['subnetpools'][0]['id']
         else:
             result = None
     else:
@@ -138,7 +140,8 @@ def get_network_id(project_id, name, neutron):
         query = {'project_id': project_id, 'name': name}
         result = neutron.list_networks(retrieve_all=True, **query)
         if result and result['networks']:
-            result = network_cache[project_id][name] = result['networks'][0]['id']
+            result = network_cache[project_id][name] = result['networks'][0][
+                'id']
         else:
             result = None
     else:
@@ -146,6 +149,7 @@ def get_network_id(project_id, name, neutron):
     if not result:
         logging.error("network %s/%s not found" % (project_id, name))
     return result
+
 
 def get_subnet_id(project_id, name, neutron):
     """ get a (cached) subnet-id for a project-id and subnet name """
@@ -155,7 +159,8 @@ def get_subnet_id(project_id, name, neutron):
         query = {'project_id': project_id, 'name': name}
         result = neutron.list_subnets(retrieve_all=True, **query)
         if result and result['subnets']:
-            result = subnet_cache[project_id][name] = result['subnets'][0]['id']
+            result = subnet_cache[project_id][name] = result['subnets'][0][
+                'id']
         else:
             result = None
     else:
@@ -396,7 +401,8 @@ def seed_groups(domain, groups, keystone):
             for attr in group.keys():
                 if group[attr] != resource._info.get(attr, ''):
                     logging.info(
-                        "%s differs. update group '%s/%s'" % (attr, domain.name, group['name']))
+                        "%s differs. update group '%s/%s'" % (
+                            attr, domain.name, group['name']))
                     keystone.groups.update(resource.id, **group)
                     break
 
@@ -522,6 +528,8 @@ def seed_projects(domain, projects, args, sess):
         if 'routers' in project:
             routers = project.pop('routers', None)
 
+        swift = project.pop('swift', None)
+
         project = sanitize(project,
                            ('name', 'description', 'enabled', 'parent'))
 
@@ -599,6 +607,10 @@ def seed_projects(domain, projects, args, sess):
         if routers:
             seed_project_routers(resource, routers, args, sess)
 
+        # seed swift account
+        if swift:
+            seed_swift(resource, swift, args, sess)
+
 
 def seed_project_network_quota(project, quota, args, sess):
     """
@@ -650,44 +662,49 @@ def seed_project_address_scopes(project, address_scopes, args, sess):
                                    interface=args.interface)
 
     for scope in address_scopes:
-        subnet_pools = None
-        if 'subnet_pools' in scope:
-            subnet_pools = scope.pop('subnet_pools', None)
+        try:
+            subnet_pools = None
+            if 'subnet_pools' in scope:
+                subnet_pools = scope.pop('subnet_pools', None)
 
-        scope = sanitize(scope, ('name', 'ip_version', 'shared'))
+            scope = sanitize(scope, ('name', 'ip_version', 'shared'))
 
-        if 'name' not in scope or not scope['name']:
-            logging.warn(
-                "skipping address-scope '%s/%s', since it is misconfigured" % (
-                    project.name, scope))
-            continue
+            if 'name' not in scope or not scope['name']:
+                logging.warn(
+                    "skipping address-scope '%s/%s', since it is misconfigured" % (
+                        project.name, scope))
+                continue
 
-        body = {'address_scope': scope.copy()}
-        body['address_scope']['tenant_id'] = project.id
-        query = {'project_id': project.id, 'name': scope['name']}
-        result = neutron.list_address_scopes(retrieve_all=True, **query)
-        if not result or not result['address_scopes']:
-            logging.info(
-                "create address-scope '%s/%s'" % (project.name, scope['name']))
-            result = neutron.create_address_scope(body)
-            resource = result['address_scope']
-        else:
-            resource = result['address_scopes'][0]
-            for attr in scope.keys():
-                if scope[attr] != resource.get(attr, ''):
-                    logging.info(
-                        "%s differs. update address-cope'%s/%s'" % (
-                            attr, project.name, scope['name']))
-                    # drop read-only attributes
-                    body['address_scope'].pop('tenant_id', None)
-                    body['address_scope'].pop('ip_version', None)
-                    neutron.update_address_scope(resource['id'], body)
-                    break
+            body = {'address_scope': scope.copy()}
+            body['address_scope']['tenant_id'] = project.id
+            query = {'project_id': project.id, 'name': scope['name']}
+            result = neutron.list_address_scopes(retrieve_all=True, **query)
+            if not result or not result['address_scopes']:
+                logging.info(
+                    "create address-scope '%s/%s'" % (
+                        project.name, scope['name']))
+                result = neutron.create_address_scope(body)
+                resource = result['address_scope']
+            else:
+                resource = result['address_scopes'][0]
+                for attr in scope.keys():
+                    if scope[attr] != resource.get(attr, ''):
+                        logging.info(
+                            "%s differs. update address-cope'%s/%s'" % (
+                                attr, project.name, scope['name']))
+                        # drop read-only attributes
+                        body['address_scope'].pop('tenant_id', None)
+                        body['address_scope'].pop('ip_version', None)
+                        neutron.update_address_scope(resource['id'], body)
+                        break
 
-        if subnet_pools:
-            kvargs = {'address_scope_id': resource['id']}
-            seed_project_subnet_pools(project, subnet_pools, args, sess,
-                                      **kvargs)
+            if subnet_pools:
+                kvargs = {'address_scope_id': resource['id']}
+                seed_project_subnet_pools(project, subnet_pools, args, sess,
+                                          **kvargs)
+        except Exception as e:
+            logging.error("could not seed address scope %s/%s: %s" % (
+                project.name, scope['name'], e))
 
 
 def seed_project_subnet_pools(project, subnet_pools, args, sess, **kvargs):
@@ -699,64 +716,71 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess, **kvargs):
                                    interface=args.interface)
 
     for subnet_pool in subnet_pools:
-        subnet_pool = sanitize(subnet_pool, (
-            'name', 'default_quota', 'prefixes', 'min_prefixlen', 'shared',
-            'default_prefixlen', 'max_prefixlen', 'description',
-            'address_scope_id', 'is_default'))
+        try:
+            subnet_pool = sanitize(subnet_pool, (
+                'name', 'default_quota', 'prefixes', 'min_prefixlen', 'shared',
+                'default_prefixlen', 'max_prefixlen', 'description',
+                'address_scope_id', 'is_default'))
 
-        if 'name' not in subnet_pool or not subnet_pool['name']:
-            logging.warn(
-                "skipping subnet-pool '%s/%s', since it is misconfigured" % (
-                    project.name, subnet_pool))
-            continue
+            if 'name' not in subnet_pool or not subnet_pool['name']:
+                logging.warn(
+                    "skipping subnet-pool '%s/%s', since it is misconfigured" % (
+                        project.name, subnet_pool))
+                continue
 
-        if kvargs:
-            subnet_pool = dict(subnet_pool.items() + kvargs.items())
+            if kvargs:
+                subnet_pool = dict(subnet_pool.items() + kvargs.items())
 
-        body = {'subnetpool': subnet_pool.copy()}
-        body['subnetpool']['tenant_id'] = project.id
+            body = {'subnetpool': subnet_pool.copy()}
+            body['subnetpool']['tenant_id'] = project.id
 
-        query = {'project_id': project.id, 'name': subnet_pool['name']}
-        result = neutron.list_subnetpools(retrieve_all=True, **query)
-        if not result or not result['subnetpools']:
-            logging.info(
-                "create subnet-pool '%s/%s'" % (
-                    project.name, subnet_pool['name']))
-            result = neutron.create_subnetpool(body)
-            # cache the subnetpool-id
-            if project.id not in subnetpool_cache:
-                subnetpool_cache[project.id] = {}
-            subnetpool_cache[project.id][subnet_pool['name']] = result['subnetpool']['id']
-        else:
-            resource = result['subnetpools'][0]
-            # cache the subnetpool-id
-            if project.id not in subnetpool_cache:
-                subnetpool_cache[project.id] = {}
-            subnetpool_cache[project.id][subnet_pool['name']] = resource['id']
+            query = {'project_id': project.id, 'name': subnet_pool['name']}
+            result = neutron.list_subnetpools(retrieve_all=True, **query)
+            if not result or not result['subnetpools']:
+                logging.info(
+                    "create subnet-pool '%s/%s'" % (
+                        project.name, subnet_pool['name']))
+                result = neutron.create_subnetpool(body)
+                # cache the subnetpool-id
+                if project.id not in subnetpool_cache:
+                    subnetpool_cache[project.id] = {}
+                subnetpool_cache[project.id][subnet_pool['name']] = \
+                    result['subnetpool']['id']
+            else:
+                resource = result['subnetpools'][0]
+                # cache the subnetpool-id
+                if project.id not in subnetpool_cache:
+                    subnetpool_cache[project.id] = {}
+                subnetpool_cache[project.id][subnet_pool['name']] = resource[
+                    'id']
 
-            for attr in subnet_pool.keys():
-                if attr == 'prefixes':
-                    for prefix in subnet_pool['prefixes']:
-                        if prefix not in resource.get('prefixes', []):
+                for attr in subnet_pool.keys():
+                    if attr == 'prefixes':
+                        for prefix in subnet_pool['prefixes']:
+                            if prefix not in resource.get('prefixes', []):
+                                logging.info(
+                                    "update subnet-pool prefixes '%s/%s'" % (
+                                        project.name, subnet_pool['name']))
+                                # drop read-only attributes
+                                body['subnetpool'].pop('tenant_id', None)
+                                body['subnetpool'].pop('shared', None)
+                                neutron.update_subnetpool(resource['id'], body)
+                                break
+                    else:
+                        # a hacky comparison due to the neutron api not dealing with string/int attributes consistently
+                        if str(subnet_pool[attr]) != str(
+                                resource.get(attr, '')):
                             logging.info(
-                                "update subnet-pool prefixes '%s/%s'" % (
-                                    project.name, subnet_pool['name']))
+                                "%s differs. update subnet-pool'%s/%s'" % (
+                                    attr, project.name, subnet_pool['name']))
                             # drop read-only attributes
                             body['subnetpool'].pop('tenant_id', None)
                             body['subnetpool'].pop('shared', None)
                             neutron.update_subnetpool(resource['id'], body)
                             break
-                else:
-                    # a hacky comparison due to the neutron api not dealing with string/int attributes consistently
-                    if str(subnet_pool[attr]) != str(resource.get(attr, '')):
-                        logging.info(
-                            "%s differs. update subnet-pool'%s/%s'" % (
-                                attr, project.name, subnet_pool['name']))
-                        # drop read-only attributes
-                        body['subnetpool'].pop('tenant_id', None)
-                        body['subnetpool'].pop('shared', None)
-                        neutron.update_subnetpool(resource['id'], body)
-                        break
+        except Exception as e:
+            logging.error("could not seed subnet pool %s/%s: %s" % (
+                project.name, subnet_pool['name'], e))
 
 
 def seed_project_networks(project, networks, args, sess):
@@ -782,50 +806,54 @@ def seed_project_networks(project, networks, args, sess):
                                    interface=args.interface)
 
     for network in networks:
-        subnets = None
-        if 'subnets' in network:
-            subnets = network.pop('subnets', None)
+        try:
+            subnets = None
+            if 'subnets' in network:
+                subnets = network.pop('subnets', None)
 
-        # rename some yaml unfriendly network attributes
-        for key, value in rename.items():
-            if key in network:
-                network[value] = network.pop(key)
+            # rename some yaml unfriendly network attributes
+            for key, value in rename.items():
+                if key in network:
+                    network[value] = network.pop(key)
 
-        network = sanitize(network, (
-            'name', 'admin_state_up', 'port_security_enabled',
-            'provider:network_type', 'provider:physical_network',
-            'provider:segmentation_id', 'qos_policy_id', 'router:external',
-            'shared', 'vlan_transparent', 'description'))
+            network = sanitize(network, (
+                'name', 'admin_state_up', 'port_security_enabled',
+                'provider:network_type', 'provider:physical_network',
+                'provider:segmentation_id', 'qos_policy_id', 'router:external',
+                'shared', 'vlan_transparent', 'description'))
 
-        if 'name' not in network or not network['name']:
-            logging.warn(
-                "skipping network '%s/%s', since it is misconfigured" % (
-                    project.name, network))
-            continue
+            if 'name' not in network or not network['name']:
+                logging.warn(
+                    "skipping network '%s/%s', since it is misconfigured" % (
+                        project.name, network))
+                continue
 
-        body = {'network': network.copy()}
-        body['network']['tenant_id'] = project.id
-        query = {'project_id': project.id, 'name': network['name']}
-        result = neutron.list_networks(retrieve_all=True, **query)
-        if not result or not result['networks']:
-            logging.info(
-                "create network '%s/%s'" % (project.name, network['name']))
-            result = neutron.create_network(body)
-            resource = result['network']
-        else:
-            resource = result['networks'][0]
-            for attr in network.keys():
-                if network[attr] != resource.get(attr, ''):
-                    logging.info(
-                        "%s differs. update network'%s/%s'" % (
-                            attr, project.name, network['name']))
-                    # drop read-only attributes
-                    body['network'].pop('tenant_id', None)
-                    neutron.update_network(resource['id'], body)
-                    break
+            body = {'network': network.copy()}
+            body['network']['tenant_id'] = project.id
+            query = {'project_id': project.id, 'name': network['name']}
+            result = neutron.list_networks(retrieve_all=True, **query)
+            if not result or not result['networks']:
+                logging.info(
+                    "create network '%s/%s'" % (project.name, network['name']))
+                result = neutron.create_network(body)
+                resource = result['network']
+            else:
+                resource = result['networks'][0]
+                for attr in network.keys():
+                    if network[attr] != resource.get(attr, ''):
+                        logging.info(
+                            "%s differs. update network'%s/%s'" % (
+                                attr, project.name, network['name']))
+                        # drop read-only attributes
+                        body['network'].pop('tenant_id', None)
+                        neutron.update_network(resource['id'], body)
+                        break
 
-        if subnets:
-            seed_network_subnets(resource, subnets, args, sess)
+            if subnets:
+                seed_network_subnets(resource, subnets, args, sess)
+        except Exception as e:
+            logging.error("could not seed network %s/%s: %s" % (
+                project.name, network['name'], e))
 
 
 def seed_project_routers(project, routers, args, sess):
@@ -846,7 +874,7 @@ def seed_project_routers(project, routers, args, sess):
 
     # grab a keystone client
     keystone = keystoneclient.Client(session=sess,
-                                   interface=args.interface)
+                                     interface=args.interface)
 
     for router in routers:
         try:
@@ -855,7 +883,9 @@ def seed_project_routers(project, routers, args, sess):
                 interfaces = router.pop('interfaces', None)
 
             router = sanitize(router, (
-                'name', 'admin_state_up', 'description', 'external_gateway_info', 'distributed', 'ha', 'availability_zone_hints'))
+                'name', 'admin_state_up', 'description',
+                'external_gateway_info', 'distributed', 'ha',
+                'availability_zone_hints'))
 
             if 'name' not in router or not router['name']:
                 logging.warn(
@@ -869,17 +899,22 @@ def seed_project_routers(project, routers, args, sess):
                     network_id = None
                     # network@project@domain ?
                     if '@' in router['external_gateway_info']['network']:
-                        parts = router['external_gateway_info']['network'].split('@')
+                        parts = router['external_gateway_info'][
+                            'network'].split('@')
                         if len(parts) > 2:
-                            project_id = get_project_id(parts[2], parts[1], keystone)
+                            project_id = get_project_id(parts[2], parts[1],
+                                                        keystone)
                             if project_id:
-                                network_id = get_network_id(project_id, parts[0], neutron)
+                                network_id = get_network_id(project_id,
+                                                            parts[0], neutron)
                     else:
-                        network_id = get_network_id(project.id, router['external_gateway_info']['network'], neutron)
+                        network_id = get_network_id(project.id, router[
+                            'external_gateway_info']['network'], neutron)
                     if not network_id:
                         logging.warn(
                             "skipping router '%s/%s': external_gateway_info.network %s not found" % (
-                                project.name, router, router['external_gateway_info']['network']))
+                                project.name, router,
+                                router['external_gateway_info']['network']))
                         continue
                     router['external_gateway_info']['network_id'] = network_id
                     router['external_gateway_info'].pop('network', None)
@@ -899,8 +934,10 @@ def seed_project_routers(project, routers, args, sess):
                     if router[attr] != resource.get(attr, ''):
                         # only evaluate external_gateway_info.network_id for now..
                         if attr == 'external_gateway_info':
-                            if 'network_id' in router[attr] and resource.get(attr, ''):
-                                if router[attr]['network_id'] == resource[attr]['network_id']:
+                            if 'network_id' in router[attr] and resource.get(
+                                    attr, ''):
+                                if router[attr]['network_id'] == \
+                                        resource[attr]['network_id']:
                                     continue
                             else:
                                 continue
@@ -916,7 +953,8 @@ def seed_project_routers(project, routers, args, sess):
             if interfaces:
                 seed_router_interfaces(resource, interfaces, args, sess)
         except Exception as e:
-            logging.error("could not seed router %s: %s" % (router['name'], e))
+            logging.error("could not seed router %s/%s: %s" % (
+                project.name, router['name'], e))
 
 
 def seed_router_interfaces(router, interfaces, args, sess):
@@ -938,7 +976,8 @@ def seed_router_interfaces(router, interfaces, args, sess):
     for interface in interfaces:
         if 'subnet' in interface:
             # lookup subnet-id
-            subnet_id = get_subnet_id(router['tenant_id'], interface['subnet'], neutron)
+            subnet_id = get_subnet_id(router['tenant_id'], interface['subnet'],
+                                      neutron)
             if subnet_id:
                 interface['subnet_id'] = subnet_id
 
@@ -960,7 +999,8 @@ def seed_router_interfaces(router, interfaces, args, sess):
                 break
             elif 'subnet_id' in interface:
                 for ip in port['fixed_ips']:
-                    if 'subnet_id' in ip and ip['subnet_id'] == interface['subnet_id']:
+                    if 'subnet_id' in ip and ip['subnet_id'] == interface[
+                        'subnet_id']:
                         found = True
                         break
             if found:
@@ -973,8 +1013,6 @@ def seed_router_interfaces(router, interfaces, args, sess):
         neutron.add_interface_router(router['id'], interface)
         logging.info(
             "added interface %s to router'%s'" % (interface, router['name']))
-
-
 
 
 def seed_network_subnets(network, subnets, args, sess):
@@ -996,7 +1034,9 @@ def seed_network_subnets(network, subnets, args, sess):
     for subnet in subnets:
         # lookup subnetpool-id
         if 'subnetpool' in subnet:
-            subnet['subnetpool_id'] = get_subnetpool_id(network['tenant_id'], subnet['subnetpool'], neutron)
+            subnet['subnetpool_id'] = get_subnetpool_id(network['tenant_id'],
+                                                        subnet['subnetpool'],
+                                                        neutron)
             if not subnet['subnetpool_id']:
                 logging.warn(
                     "skipping subnet '%s/%s', since its subnetpool is invalid" % (
@@ -1039,6 +1079,92 @@ def seed_network_subnets(network, subnets, args, sess):
                     body['subnet'].pop('ip_version', None)
                     neutron.update_subnet(resource['id'], body)
                     break
+
+
+def seed_swift(project, swift, args, sess):
+    """
+    Seeds swift account and containers for a project
+    :param project:
+    :param swift:
+    :param args:
+    :param sess:
+    :return:
+    """
+
+    if 'enabled' in swift and swift['enabled']:
+        logging.debug("seeding swift account for project %s" % project.name)
+
+        service_token = sess.get_token()
+
+        # poor mans storage-url creation
+        swift_endpoint = sess.get_endpoint(service_type='object-store',
+                                           interface=args.interface)
+        storage_url = swift_endpoint.split('AUTH_')[0] + 'AUTH_' + project.id
+
+        try:
+            # Create swiftclient Connection
+            conn = swiftclient.Connection(session=sess, preauthurl=storage_url,
+                                          preauthtoken=service_token,
+                                          insecure=True)
+            try:
+                # see if the account already exists
+                conn.head_account()
+            except swiftclient.ClientException:
+                # nope, go create it
+                logging.info(
+                    'creating swift account for project %s' % project.name)
+                swiftclient.put_object(storage_url, token=service_token)
+
+            # seed swift containers
+            if 'containers' in swift:
+                seed_swift_containers(project, swift['containers'], args, sess)
+
+        except Exception as e:
+            logging.error(
+                "could not create a swift account for project %s: %s" % (
+                    project.name, e))
+
+
+def seed_swift_containers(project, containers, args, sess):
+    """
+    Creates swift containers for a project
+    :param project:
+    :param containers:
+    :param args:
+    :param sess:
+    :return:
+    """
+
+    logging.debug("seeding swift containers for project %s" % project.name)
+
+    service_token = sess.get_token()
+
+    # poor mans storage-url creation
+    swift_endpoint = sess.get_endpoint(service_type='object-store',
+                                       interface=args.interface)
+    storage_url = swift_endpoint.split('AUTH_')[0] + 'AUTH_' + project.id
+
+    # Create swiftclient Connection
+    conn = swiftclient.Connection(session=sess, preauthurl=storage_url,
+                                  preauthtoken=service_token,
+                                  insecure=True)
+
+    for container in containers:
+        try:
+            try:
+                # see if the container already exists
+                result = conn.head_container(container['name'])
+                print result
+            except swiftclient.ClientException:
+                # nope, go create it
+                logging.info(
+                    'creating swift container %s/%s' % (
+                    project.name, container['name']))
+                conn.put_container(container['name'])
+        except Exception as e:
+            logging.error(
+                "could not create a swift container for project %s: %s" % (
+                    project.name, e))
 
 
 def domain_config_equal(new, current):
@@ -1116,7 +1242,8 @@ def seed_domain(domain, args, sess):
         resource = result[0]
         for attr in domain.keys():
             if domain[attr] != resource._info.get(attr, ''):
-                logging.info("%s differs. update domain '%s'" % (attr, domain['name']))
+                logging.info(
+                    "%s differs. update domain '%s'" % (attr, domain['name']))
                 keystone.domains.update(resource.id, **domain)
                 break
 

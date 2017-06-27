@@ -95,6 +95,7 @@ type ProjectSpec struct {
 	NetworkQuota    *NetworkQuotaSpec     `json:"network_quota,omitempty" yaml:"network_quota,omitempty"`   // neutron quota
 	Networks        []NetworkSpec         `json:"networks,omitempty" yaml:"networks,omitempty"`             // neutron networks
 	Routers         []RouterSpec          `json:"routers,omitempty" yaml:"routers,omitempty"`               // neutron routers
+	Swift           *SwiftAccountSpec     `json:"swift,omitempty" yaml:"swift,omitempty"`                   // swift account
 }
 
 // A project endpoint filter (see https://developer.openstack.org/api-ref/identity/v3-ext/#os-ep-filter-api)
@@ -241,6 +242,17 @@ type ExternalGatewayInfoSpec struct {
 	NetworkId        string   `json:"network_id,omitempty" yaml:"network_id,omitempty"`                 // or network-id
 	EnableSNAT       *bool    `json:"enable_snat,omitempty" yaml:"enable_snat,omitempty"`               // Enable Source NAT (SNAT) attribute. Default is true. To persist this attribute value, set the enable_snat_by_default option in the neutron.conf file. It is available when ext-gw-mode extension is enabled.
 	ExternalFixedIPs []string `json:"external_fixed_ips,omitempty" yaml:"external_fixed_ips,omitempty"` // IP address(es) of the external gateway interface of the router. It is a list of IP addresses you would like to assign to the external gateway interface. Each element of ths list is a dictionary of ip_address and subnet_id.
+}
+
+type SwiftAccountSpec struct {
+	Enabled    *bool                `json:"enabled" yaml:"enabled,omitempty"`                 // Create a swift account
+//	Metadata   map[string]string    `json:"metadata,omitempty" yaml:"metadata,omitempty"`     // Account metadata
+	Containers []SwiftContainerSpec `json:"containers,omitempty" yaml:"containers,omitempty"` // Containers
+}
+
+type SwiftContainerSpec struct {
+	Name     string            `json:"name" yaml:"name"` // Container name
+//	Metadata map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 }
 
 type RouterPortSpec struct {
@@ -409,6 +421,9 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 				}
 				if len(project.Routers) > 0 {
 					v.MergeRouters(project)
+				}
+				if project.Swift != nil {
+					v.MergeSwiftAccount(project)
 				}
 				e.Projects[i] = v
 				found = true
@@ -659,6 +674,30 @@ func (e *ProjectSpec) MergeRouters(project ProjectSpec) {
 		if !found {
 			glog.V(2).Info("append project router ", r)
 			e.Routers = append(e.Routers, r)
+		}
+	}
+}
+
+func (e *ProjectSpec) MergeSwiftAccount(project ProjectSpec) {
+	if e.Swift == nil {
+		e.Swift = new(SwiftAccountSpec)
+	}
+	MergeSimpleStructFields(e.Swift, project.Swift)
+
+	for _, c := range project.Swift.Containers {
+		found := false
+		for i, v := range e.Swift.Containers {
+			if v.Name == c.Name {
+				glog.V(2).Info("merge swift container ", c)
+				MergeSimpleStructFields(&v, c)
+				e.Swift.Containers[i] = v
+				found = true
+				break
+			}
+		}
+		if !found {
+			glog.V(2).Info("append swift container ", c)
+			e.Swift.Containers = append(e.Swift.Containers, c)
 		}
 	}
 }

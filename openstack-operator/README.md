@@ -34,6 +34,9 @@ Seeding currently only support creating or updating of entities (the operator up
             - subnets
         - routers
             - interfaces
+        - swift 
+            - account
+            - containers
         
     - groups
         - group-role-assignments
