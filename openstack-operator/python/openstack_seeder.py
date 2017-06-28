@@ -1094,14 +1094,19 @@ def seed_swift(project, swift, args, sess):
     if 'enabled' in swift and swift['enabled']:
         logging.debug("seeding swift account for project %s" % project.name)
 
-        service_token = sess.get_token()
-
-        # poor mans storage-url creation
-        swift_endpoint = sess.get_endpoint(service_type='object-store',
-                                           interface=args.interface)
-        storage_url = swift_endpoint.split('AUTH_')[0] + 'AUTH_' + project.id
-
         try:
+            service_token = sess.get_token()
+
+            # poor mans storage-url generation
+            try:
+                swift_endpoint = sess.get_endpoint(service_type='object-store',
+                                                   interface=args.interface)
+            except exceptions.EndpointNotFound:
+                swift_endpoint = sess.get_endpoint(service_type='object-store',
+                                                   interface='admin')
+
+            storage_url = swift_endpoint.split('/AUTH_')[0] + '/AUTH_' + project.id
+
             # Create swiftclient Connection
             conn = swiftclient.Connection(session=sess, preauthurl=storage_url,
                                           preauthtoken=service_token,
@@ -1117,7 +1122,7 @@ def seed_swift(project, swift, args, sess):
 
             # seed swift containers
             if 'containers' in swift:
-                seed_swift_containers(project, swift['containers'], args, sess)
+                seed_swift_containers(project, swift['containers'], conn)
 
         except Exception as e:
             logging.error(
@@ -1125,29 +1130,16 @@ def seed_swift(project, swift, args, sess):
                     project.name, e))
 
 
-def seed_swift_containers(project, containers, args, sess):
+def seed_swift_containers(project, containers, conn):
     """
     Creates swift containers for a project
     :param project:
     :param containers:
-    :param args:
-    :param sess:
+    :param conn:
     :return:
     """
 
     logging.debug("seeding swift containers for project %s" % project.name)
-
-    service_token = sess.get_token()
-
-    # poor mans storage-url creation
-    swift_endpoint = sess.get_endpoint(service_type='object-store',
-                                       interface=args.interface)
-    storage_url = swift_endpoint.split('AUTH_')[0] + 'AUTH_' + project.id
-
-    # Create swiftclient Connection
-    conn = swiftclient.Connection(session=sess, preauthurl=storage_url,
-                                  preauthtoken=service_token,
-                                  insecure=True)
 
     for container in containers:
         try:

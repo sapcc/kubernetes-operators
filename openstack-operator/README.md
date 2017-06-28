@@ -37,7 +37,6 @@ Seeding currently only support creating or updating of entities (the operator up
         - swift 
             - account
             - containers
-        
     - groups
         - group-role-assignments
     - users
