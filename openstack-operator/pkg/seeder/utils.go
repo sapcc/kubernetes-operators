@@ -1,3 +1,17 @@
+// Copyright 2017 SAP SE
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package seeder
 
 import (
@@ -5,7 +19,7 @@ import (
 	"reflect"
 )
 
-func MergeSimpleStructFields(dst, src interface{}) {
+func MergeStructFields(dst, src interface{}) {
 	in := reflect.ValueOf(src)
 	out := reflect.ValueOf(dst)
 	if src == nil || dst == nil {
@@ -43,6 +57,12 @@ func mergeStructFields(out, in reflect.Value) {
 				glog.V(3).Info("merging field ", f.Name, ", new value ", in.Field(i))
 				out.Field(i).Set(in.Field(i))
 			}
+		case reflect.Map:
+			if out.Field(i).CanSet() {
+				glog.V(3).Info("merging field ", f.Name, ", new value ", in.Field(i))
+				merged := mergeMaps(out.Field(i).Interface().(map[string]string), in.Field(i).Interface().(map[string]string))
+				out.Field(i).Set(reflect.ValueOf(merged))
+			}
 		case reflect.Slice:
 			continue
 		case reflect.Struct:
@@ -52,6 +72,18 @@ func mergeStructFields(out, in reflect.Value) {
 		}
 	}
 }
+
+// overwriting duplicate keys, you should handle that if there is a need
+func mergeMaps(maps ...map[string]string) map[string]string {
+    result := make(map[string]string)
+    for _, m := range maps {
+        for k, v := range m {
+            result[k] = v
+        }
+    }
+    return result
+}
+
 
 // isZero is mostly stolen from encoding/json package's isEmptyValue function
 // determines if a value has the zero value of its type

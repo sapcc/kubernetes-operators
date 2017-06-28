@@ -1,4 +1,19 @@
 #!/usr/bin/env python
+
+# Copyright 2017 SAP SE
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse
 import sys
 import yaml
@@ -1126,7 +1141,7 @@ def seed_swift(project, swift, args, sess):
 
         except Exception as e:
             logging.error(
-                "could not create a swift account for project %s: %s" % (
+                "could not seed swift account for project %s: %s" % (
                     project.name, e))
 
 
@@ -1143,19 +1158,31 @@ def seed_swift_containers(project, containers, conn):
 
     for container in containers:
         try:
+            # prepare the container metadata
+            headers = {}
+            if 'metadata' in container:
+                for meta in container['metadata'].keys():
+                    header = 'x-container-%s' % meta
+                    headers[header] = str(container['metadata'][meta]).lower()
             try:
                 # see if the container already exists
                 result = conn.head_container(container['name'])
-                print result
+                for header in headers.keys():
+                    if headers[header] != result.get(header, ''):
+                        logging.info(
+                            "%s differs. update container %s/%s" % (
+                            header, project.name, container['name']))
+                        conn.post_container(container['name'], headers)
+                        break
             except swiftclient.ClientException:
                 # nope, go create it
                 logging.info(
                     'creating swift container %s/%s' % (
-                    project.name, container['name']))
-                conn.put_container(container['name'])
+                        project.name, container['name']))
+                conn.put_container(container['name'], headers)
         except Exception as e:
             logging.error(
-                "could not create a swift container for project %s: %s" % (
+                "could not seed swift container for project %s: %s" % (
                     project.name, e))
 
 

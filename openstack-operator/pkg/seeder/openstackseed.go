@@ -1,3 +1,17 @@
+// Copyright 2017 SAP SE
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package seeder
 
 import (
@@ -246,13 +260,12 @@ type ExternalGatewayInfoSpec struct {
 
 type SwiftAccountSpec struct {
 	Enabled    *bool                `json:"enabled" yaml:"enabled,omitempty"`                 // Create a swift account
-//	Metadata   map[string]string    `json:"metadata,omitempty" yaml:"metadata,omitempty"`     // Account metadata
 	Containers []SwiftContainerSpec `json:"containers,omitempty" yaml:"containers,omitempty"` // Containers
 }
 
 type SwiftContainerSpec struct {
-	Name     string            `json:"name" yaml:"name"` // Container name
-//	Metadata map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Name     string            `json:"name" yaml:"name"`                             // Container name
+	Metadata map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"` // Container metadata
 }
 
 type RouterPortSpec struct {
@@ -295,7 +308,7 @@ func (e *OpenstackSeedSpec) MergeRegion(region RegionSpec) {
 	for i, v := range e.Regions {
 		if v.Region == region.Region {
 			glog.V(2).Info("merge region ", region)
-			MergeSimpleStructFields(&v, region)
+			MergeStructFields(&v, region)
 			e.Regions[i] = v
 			return
 		}
@@ -311,7 +324,7 @@ func (e *OpenstackSeedSpec) MergeService(service ServiceSpec) {
 	for i, v := range e.Services {
 		if v.Name == service.Name {
 			glog.V(2).Info("merge service ", service)
-			MergeSimpleStructFields(&v, service)
+			MergeStructFields(&v, service)
 			if len(service.Endpoints) > 0 {
 				v.MergeEndpoints(service)
 			}
@@ -332,7 +345,7 @@ func (e *ServiceSpec) MergeEndpoints(service ServiceSpec) {
 		for _, v := range e.Endpoints {
 			if v.Interface == endpoint.Interface && v.Region == endpoint.Region {
 				glog.V(2).Info("merge endpoint ", endpoint)
-				MergeSimpleStructFields(&v, endpoint)
+				MergeStructFields(&v, endpoint)
 				found = true
 				e.Endpoints[i] = v
 				break
@@ -352,7 +365,7 @@ func (e *OpenstackSeedSpec) MergeFlavor(flavor FlavorSpec) {
 	for i, v := range e.Flavors {
 		if v.Name == flavor.Name {
 			glog.V(2).Info("merge flavor ", flavor)
-			MergeSimpleStructFields(&v, flavor)
+			MergeStructFields(&v, flavor)
 			e.Flavors[i] = v
 			return
 		}
@@ -368,7 +381,7 @@ func (e *OpenstackSeedSpec) MergeDomain(domain DomainSpec) {
 	for i, v := range e.Domains {
 		if v.Name == domain.Name {
 			glog.V(2).Info("merge domain ", domain)
-			MergeSimpleStructFields(&v, domain)
+			MergeStructFields(&v, domain)
 			if len(domain.Users) > 0 {
 				v.MergeUsers(domain)
 			}
@@ -399,10 +412,10 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 		for i, v := range e.Projects {
 			if v.Name == project.Name {
 				glog.V(2).Info("merge project ", project)
-				MergeSimpleStructFields(&v, project)
+				MergeStructFields(&v, project)
 				if project.NetworkQuota != nil {
 					v.NetworkQuota = new(NetworkQuotaSpec)
-					MergeSimpleStructFields(v.NetworkQuota, project.NetworkQuota)
+					MergeStructFields(v.NetworkQuota, project.NetworkQuota)
 				}
 				if len(project.RoleAssignments) > 0 {
 					v.MergeRoleAssignments(project)
@@ -446,7 +459,7 @@ func (e *DomainSpec) MergeUsers(domain DomainSpec) {
 		for i, v := range e.Users {
 			if v.Name == user.Name {
 				glog.V(2).Info("merge user ", user)
-				MergeSimpleStructFields(&v, user)
+				MergeStructFields(&v, user)
 				if len(user.RoleAssignments) > 0 {
 					v.MergeRoleAssignments(user)
 				}
@@ -471,7 +484,7 @@ func (e *DomainSpec) MergeGroups(domain DomainSpec) {
 		for _, v := range e.Groups {
 			if v.Name == group.Name {
 				glog.V(2).Info("merge group ", group)
-				MergeSimpleStructFields(&v, group)
+				MergeStructFields(&v, group)
 				if len(group.Users) > 0 {
 					v.MergeUsers(group)
 				}
@@ -499,7 +512,7 @@ func (e *DomainSpec) MergeRoleAssignments(domain DomainSpec) {
 		for i, v := range e.RoleAssignments {
 			if v.Role == ra.Role && v.User == ra.User && v.Group == ra.Group {
 				glog.V(2).Info("merge domain-role-assignment ", ra)
-				MergeSimpleStructFields(&v, ra)
+				MergeStructFields(&v, ra)
 				e.RoleAssignments[i] = v
 				found = true
 				break
@@ -542,7 +555,7 @@ func (e *ProjectSpec) MergeRoleAssignments(project ProjectSpec) {
 		for i, v := range e.RoleAssignments {
 			if v.Role == ra.Role && v.User == ra.User && v.Group == ra.Group {
 				glog.V(2).Info("merge project-role-assignment ", ra)
-				MergeSimpleStructFields(&v, ra)
+				MergeStructFields(&v, ra)
 				e.RoleAssignments[i] = v
 				found = true
 				break
@@ -564,7 +577,7 @@ func (e *ProjectSpec) MergeEndpoints(project ProjectSpec) {
 		for i, v := range e.Endpoints {
 			if v.Region == ep.Region && v.Service == ep.Service {
 				glog.V(2).Info("merge project endpoint ", ep)
-				MergeSimpleStructFields(&v, ep)
+				MergeStructFields(&v, ep)
 				e.Endpoints[i] = v
 				found = true
 				break
@@ -586,7 +599,7 @@ func (e *ProjectSpec) MergeAddressScopes(project ProjectSpec) {
 		for i, v := range e.AddressScopes {
 			if v.Name == as.Name {
 				glog.V(2).Info("merge project address-scope ", as)
-				MergeSimpleStructFields(&v, as)
+				MergeStructFields(&v, as)
 				if len(as.SubnetPools) > 0 {
 					v.MergeSubnetPools(as)
 				}
@@ -611,7 +624,7 @@ func (e *ProjectSpec) MergeSubnetPools(project ProjectSpec) {
 		for i, v := range e.SubnetPools {
 			if v.Name == snp.Name {
 				glog.V(2).Info("merge project subnet-pool ", snp)
-				MergeSimpleStructFields(&v, snp)
+				MergeStructFields(&v, snp)
 				e.SubnetPools[i] = v
 				found = true
 				break
@@ -633,7 +646,7 @@ func (e *ProjectSpec) MergeNetworks(project ProjectSpec) {
 		for i, v := range e.Networks {
 			if v.Name == n.Name {
 				glog.V(2).Info("merge project network ", n)
-				MergeSimpleStructFields(&v, n)
+				MergeStructFields(&v, n)
 				if len(n.Subnets) > 0 {
 					v.MergeSubnets(n)
 				}
@@ -658,10 +671,10 @@ func (e *ProjectSpec) MergeRouters(project ProjectSpec) {
 		for i, v := range e.Routers {
 			if v.Name == r.Name {
 				glog.V(2).Info("merge project router ", r)
-				MergeSimpleStructFields(&v, r)
+				MergeStructFields(&v, r)
 				if r.ExternalGatewayInfo != nil {
 					v.ExternalGatewayInfo = new(ExternalGatewayInfoSpec)
-					MergeSimpleStructFields(v.ExternalGatewayInfo, r.ExternalGatewayInfo)
+					MergeStructFields(v.ExternalGatewayInfo, r.ExternalGatewayInfo)
 				}
 				if len(r.RouterPorts) > 0 {
 					v.MergeRouterPorts(r)
@@ -682,14 +695,14 @@ func (e *ProjectSpec) MergeSwiftAccount(project ProjectSpec) {
 	if e.Swift == nil {
 		e.Swift = new(SwiftAccountSpec)
 	}
-	MergeSimpleStructFields(e.Swift, project.Swift)
+	MergeStructFields(e.Swift, project.Swift)
 
 	for _, c := range project.Swift.Containers {
 		found := false
 		for i, v := range e.Swift.Containers {
 			if v.Name == c.Name {
 				glog.V(2).Info("merge swift container ", c)
-				MergeSimpleStructFields(&v, c)
+				MergeStructFields(&v, c)
 				e.Swift.Containers[i] = v
 				found = true
 				break
@@ -731,7 +744,7 @@ func (e *GroupSpec) MergeRoleAssignments(group GroupSpec) {
 		for i, v := range e.RoleAssignments {
 			if v.Role == ra.Role && v.Project == ra.Project && v.Domain == ra.Domain {
 				glog.V(2).Info("merge group-role-assignment ", ra)
-				MergeSimpleStructFields(&v, ra)
+				MergeStructFields(&v, ra)
 				e.RoleAssignments[i] = v
 				found = true
 				break
@@ -753,7 +766,7 @@ func (e *UserSpec) MergeRoleAssignments(user UserSpec) {
 		for i, v := range e.RoleAssignments {
 			if v.Role == ra.Role && v.Project == ra.Project && v.Domain == ra.Domain {
 				glog.V(2).Info("merge user-role-assignment ", ra)
-				MergeSimpleStructFields(&v, ra)
+				MergeStructFields(&v, ra)
 				e.RoleAssignments[i] = v
 				found = true
 				break
@@ -775,7 +788,7 @@ func (e *AddressScopeSpec) MergeSubnetPools(scope AddressScopeSpec) {
 		for _, v := range e.SubnetPools {
 			if v.Name == snp.Name {
 				glog.V(2).Info("merge subnet-pool ", snp)
-				MergeSimpleStructFields(&v, snp)
+				MergeStructFields(&v, snp)
 				found = true
 				e.SubnetPools[i] = v
 				break
@@ -797,7 +810,7 @@ func (e *NetworkSpec) MergeSubnets(network NetworkSpec) {
 		for _, v := range e.Subnets {
 			if v.Name == sn.Name {
 				glog.V(2).Info("merge subnet ", sn)
-				MergeSimpleStructFields(&v, sn)
+				MergeStructFields(&v, sn)
 				found = true
 				e.Subnets[i] = v
 				break
@@ -819,7 +832,7 @@ func (e *RouterSpec) MergeRouterPorts(router RouterSpec) {
 		for _, v := range e.RouterPorts {
 			if v == rp {
 				glog.V(2).Info("merge port ", rp)
-				MergeSimpleStructFields(&v, rp)
+				MergeStructFields(&v, rp)
 				found = true
 				e.RouterPorts[i] = v
 				break
