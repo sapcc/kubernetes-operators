@@ -1,0 +1,6 @@
+package: github.com/sapcc/kubernetes-operators/vice-president
+import:
+- package: github.com/spf13/pflag
+- package: k8s.io/client-go
+  version: 2cb68a18c3a2e8e60db9481b95527337ac648379
+- package: github.com/sapcc/go-vice
