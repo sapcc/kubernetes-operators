@@ -2,5 +2,17 @@ package: github.com/sapcc/kubernetes-operators/vice-president
 import:
 - package: github.com/spf13/pflag
 - package: k8s.io/client-go
-  version: 2cb68a18c3a2e8e60db9481b95527337ac648379
+  version: df46f7f13b3da19b90b8b4f0d18b8adc6fbf28dc
 - package: github.com/sapcc/go-vice
+- package: github.com/sirupsen/logrus
+  version: master
+- package: github.com/Sirupsen/logrus
+  version: master
+  repo: git@github.com:/sirupsen/logrus
+  vcs: git
+- package: github.com/prometheus/client_golang
+  version: c5b7fccd204277076155f10851dad72b76a49317
+  subpackages:
+  - prometheus
+- package: github.com/prometheus/prometheus
+  version: 1.7.1
