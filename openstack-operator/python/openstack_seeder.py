@@ -30,6 +30,7 @@ from keystoneclient.v3 import client as keystoneclient
 from novaclient import client as novaclient
 from neutronclient.v2_0 import client as neutronclient
 from swiftclient import client as swiftclient
+from designateclient.v2 import client as designateclient
 
 # todo: subnet pools, networks
 
@@ -545,6 +546,10 @@ def seed_projects(domain, projects, args, sess):
 
         swift = project.pop('swift', None)
 
+        dns_quota = project.pop('dns_quota', None)
+
+        dns_zones = project.pop('dns_zones', None)
+
         project = sanitize(project,
                            ('name', 'description', 'enabled', 'parent'))
 
@@ -626,6 +631,14 @@ def seed_projects(domain, projects, args, sess):
         if swift:
             seed_swift(resource, swift, args, sess)
 
+        # seed designate quota
+        if dns_quota:
+            seed_project_designate_quota(resource, dns_quota, args, sess)
+
+        # seed designate zone
+        if dns_zones:
+            seed_project_dns_zones(resource, dns_zones, args, sess)
+
 
 def seed_project_network_quota(project, quota, args, sess):
     """
@@ -651,13 +664,15 @@ def seed_project_network_quota(project, quota, args, sess):
         neutron.update_quota(project.id, body)
     else:
         resource = result['quota']
+        new_quota = {}
         for attr in quota.keys():
             if int(quota[attr]) > int(resource.get(attr, '')):
                 logging.info(
                     "%s differs. set project %s network quota to '%s'" % (
                         attr, project.name, quota))
-                neutron.update_quota(project.id, body)
-                break
+                new_quota[attr] = quota[attr]
+        if len(new_quota):
+            neutron.update_quota(project.id, {'quota': new_quota})
 
 
 def seed_project_address_scopes(project, address_scopes, args, sess):
@@ -1120,7 +1135,8 @@ def seed_swift(project, swift, args, sess):
                 swift_endpoint = sess.get_endpoint(service_type='object-store',
                                                    interface='admin')
 
-            storage_url = swift_endpoint.split('/AUTH_')[0] + '/AUTH_' + project.id
+            storage_url = swift_endpoint.split('/AUTH_')[
+                              0] + '/AUTH_' + project.id
 
             # Create swiftclient Connection
             conn = swiftclient.Connection(session=sess, preauthurl=storage_url,
@@ -1171,7 +1187,7 @@ def seed_swift_containers(project, containers, conn):
                     if headers[header] != result.get(header, ''):
                         logging.info(
                             "%s differs. update container %s/%s" % (
-                            header, project.name, container['name']))
+                                header, project.name, container['name']))
                         conn.post_container(container['name'], headers)
                         break
             except swiftclient.ClientException:
@@ -1184,6 +1200,161 @@ def seed_swift_containers(project, containers, conn):
             logging.error(
                 "could not seed swift container for project %s: %s" % (
                     project.name, e))
+
+
+def seed_project_designate_quota(project, config, args, sess):
+    """
+    Seeds designate quota for a project
+    :param project:
+    :param config:
+    :param args:
+    :param sess:
+    :return:
+    """
+
+    # seed designate quota
+    logging.debug(
+        "seeding designate quota for project %s" % project.name)
+
+    try:
+        designate = designateclient.Client(session=sess,
+                                           endpoint_type=args.interface + 'URL',
+                                           all_projects=True)
+
+        result = designate.quotas.list(project.id)
+        new_quota = {}
+        for attr in config['quota'].keys():
+            if int(config['quota'][attr]) > int(result.get(attr, '')):
+                logging.info(
+                    "%s differs. set project %s designate quota to '%s'" % (
+                        attr, project.name, config['quota']))
+                new_quota[attr] = config['quota'][attr]
+        if len(new_quota):
+            designate.quotas.update(project.id, new_quota)
+
+    except Exception as e:
+        logging.error(
+            "could not seed designate quota for project %s: %s" % (
+                project.name, e))
+
+
+def seed_project_dns_zones(project, zones, args, sess):
+    """
+    Seed a projects designate zones and dependent objects
+    :param project:
+    :param zones:
+    :param designate:
+    :return:
+    """
+
+    logging.debug("seeding dns zones of project %s" % project.name)
+
+    try:
+        designate = designateclient.Client(session=sess,
+                                           endpoint_type=args.interface + 'URL',
+                                           all_projects=True)
+
+        for zone in zones:
+            recordsets = zone.pop('recordsets', None)
+
+            zone = sanitize(zone, (
+                'name', 'email', 'ttl', 'description', 'masters', 'type'))
+
+            if 'name' not in zone or not zone['name']:
+                logging.warn(
+                    "skipping dns zone '%s/%s', since it is misconfigured" % (
+                        project.name, zone))
+                continue
+
+            resource = designate.zones.get(zone['name'])
+            if not resource:
+                logging.info(
+                    "create dns zone '%s/%s'" % (
+                        project.name, zone['name']))
+                resource = designate.zones.create(zone['name'], **zone)
+            else:
+                for attr in zone.keys():
+                    if zone[attr] != resource.get(attr, ''):
+                        logging.info(
+                            "%s differs. update dns zone'%s/%s'" % (
+                                attr, project.name, zone['name']))
+                        designate.zones.update(resource['id'], zone)
+                        break
+
+            if recordsets:
+                seed_dns_zone_recordsets(resource, recordsets, designate)
+
+    except Exception as e:
+        logging.error("could not seed project dns zones %s: %s" % (
+            project.name, e))
+
+
+def seed_dns_zone_recordsets(zone, recordsets, designate):
+    """
+    seed a designate zones recordsets
+    :param zone:
+    :param recordsets:
+    :param designate:
+    :return:
+    """
+
+    logging.debug("seeding recordsets of dns zones %s" % zone['name'])
+
+    for recordset in recordsets:
+        try:
+            # records = recordset.pop('records', None)
+
+            recordset = sanitize(recordset, (
+            'name', 'ttl', 'description', 'type', 'records'))
+
+            if 'name' not in recordset or not recordset['name']:
+                logging.warn(
+                    "skipping recordset %s of dns zone %s, since it is misconfigured" % (
+                        recordset, zone['name']))
+                continue
+            if 'type' not in recordset or not recordset['type']:
+                logging.warn(
+                    "skipping recordset %s of dns zone %s, since it is misconfigured" % (
+                        recordset, zone['name']))
+                continue
+
+            query = {'name': recordset['name'], 'type': recordset['type']}
+            result = designate.recordsets.list(zone['id'], criterion=query)
+            if not result:
+                logging.info(
+                    "create dns zones %s recordset %s" % (
+                        zone['name'], recordset['name']))
+                designate.recordsets.create(zone['id'], recordset['name'],
+                                            recordset['type'],
+                                            recordset['records'],
+                                            description=recordset.get(
+                                                'description'),
+                                            ttl=recordset.get('ttl'))
+            else:
+                resource = result[0]
+                for attr in recordset.keys():
+                    if attr == 'records':
+                        for record in recordset['records']:
+                            if record not in resource.get('records', []):
+                                logging.info(
+                                    "update dns zone %s recordset %s record %s" % (
+                                        zone['name'], recordset['name'],
+                                        record))
+                                designate.recordsets.update(zone['id'],
+                                                            resource['id'],
+                                                            recordset)
+                                break
+                    elif recordset[attr] != resource.get(attr, ''):
+                        logging.info(
+                            "%s differs. update dns zone'%s recordset %s'" % (
+                                attr, zone['name'], recordset['name']))
+                        designate.recordsets.update(zone['id'], resource['id'],
+                                                    recordset)
+                        break
+
+        except Exception as e:
+            logging.error("could not seed dns zone %s recordsets: %s" % (
+            zone['name'], e))
 
 
 def domain_config_equal(new, current):

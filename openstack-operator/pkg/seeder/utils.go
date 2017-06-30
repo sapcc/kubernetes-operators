@@ -75,15 +75,33 @@ func mergeStructFields(out, in reflect.Value) {
 
 // overwriting duplicate keys, you should handle that if there is a need
 func mergeMaps(maps ...map[string]string) map[string]string {
-    result := make(map[string]string)
-    for _, m := range maps {
-        for k, v := range m {
-            result[k] = v
-        }
-    }
-    return result
+	result := make(map[string]string)
+	for _, m := range maps {
+		for k, v := range m {
+			result[k] = v
+		}
+	}
+	return result
 }
 
+func MergeStringSlices(slices ...[]string) []string {
+	// merge slices
+	set := make(map[string]bool)
+
+	for _, s := range slices {
+		for _, r := range s {
+			set[r] = true
+		}
+	}
+
+	result := make([]string, len(set))
+	j := 0
+	for r := range set {
+		result[j] = r
+		j++
+	}
+	return result
+}
 
 // isZero is mostly stolen from encoding/json package's isEmptyValue function
 // determines if a value has the zero value of its type
