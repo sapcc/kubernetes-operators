@@ -110,6 +110,8 @@ type ProjectSpec struct {
 	Networks        []NetworkSpec         `json:"networks,omitempty" yaml:"networks,omitempty"`             // neutron networks
 	Routers         []RouterSpec          `json:"routers,omitempty" yaml:"routers,omitempty"`               // neutron routers
 	Swift           *SwiftAccountSpec     `json:"swift,omitempty" yaml:"swift,omitempty"`                   // swift account
+	DNSQuota        *DNSQuotaSpec         `json:"dns_quota,omitempty" yaml:"dns_quota,omitempty"`           // designate quota
+	DNSZones        []DNSZoneSpec         `json:"dns_zones,omitempty" yaml:"dns_zones,omitempty"`           // designate zones, recordsets
 }
 
 // A project endpoint filter (see https://developer.openstack.org/api-ref/identity/v3-ext/#os-ep-filter-api)
@@ -258,6 +260,12 @@ type ExternalGatewayInfoSpec struct {
 	ExternalFixedIPs []string `json:"external_fixed_ips,omitempty" yaml:"external_fixed_ips,omitempty"` // IP address(es) of the external gateway interface of the router. It is a list of IP addresses you would like to assign to the external gateway interface. Each element of ths list is a dictionary of ip_address and subnet_id.
 }
 
+type RouterPortSpec struct {
+	PortId   string `json:"port_id,omitempty" yaml:"port_id,omitempty"`     // port-id
+	Subnet   string `json:"subnet,omitempty" yaml:"subnet,omitempty"`       // subnet-name within the routers project
+	SubnetId string `json:"subnet_id,omitempty" yaml:"subnet_id,omitempty"` // subnet-id
+}
+
 type SwiftAccountSpec struct {
 	Enabled    *bool                `json:"enabled" yaml:"enabled,omitempty"`                 // Create a swift account
 	Containers []SwiftContainerSpec `json:"containers,omitempty" yaml:"containers,omitempty"` // Containers
@@ -268,10 +276,32 @@ type SwiftContainerSpec struct {
 	Metadata map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"` // Container metadata
 }
 
-type RouterPortSpec struct {
-	PortId   string `json:"port_id,omitempty" yaml:"port_id,omitempty"`     // port-id
-	Subnet   string `json:"subnet,omitempty" yaml:"subnet,omitempty"`       // subnet-name within the routers project
-	SubnetId string `json:"subnet_id,omitempty" yaml:"subnet_id,omitempty"` // subnet-id
+// A designate project quota (see https://developer.openstack.org/api-ref/dns/?expanded=#quotas)
+type DNSQuotaSpec struct {
+	ApiExportSize    int `json:"api_export_size,omitempty" yaml:"api_export_size,omitempty"`
+	Zones            int `json:"zones,omitempty" yaml:"zones,omitempty"`
+	ZoneRecords      int `json:"zone_records,omitempty" yaml:"zone_records,omitempty"`
+	ZoneRecordSets   int `json:"zone_recordsets,omitempty" yaml:"zone_recordsets,omitempty"`
+	RecordsetRecords int `json:"recordset_records,omitempty" yaml:"recordset_records,omitempty"`
+}
+
+// A designate zone (see https://developer.openstack.org/api-ref/dns/?expanded=#zones)
+type DNSZoneSpec struct {
+	Name          string             `json:"name" yaml:"name"`                                   // DNS Name for the zone
+	Type          string             `json:"type" yaml:"type"`                                   // Type of zone. PRIMARY is controlled by Designate, SECONDARY zones are slaved from another DNS Server. Defaults to PRIMARY
+	Email         string             `json:"email" yaml:"email"`                                 // e-mail for the zone. Used in SOA records for the zone
+	TTL           int                `json:"ttl,omitempty" yaml:"ttl,omitempty"`                 // TTL (Time to Live) for the zone.
+	Description   string             `json:"description,omitempty" yaml:"description,omitempty"` // description of the zone
+	DNSRecordsets []DNSRecordsetSpec `json:"recordsets,omitempty" yaml:"recordsets,omitempty"`   // The zones recordsets
+}
+
+// A designate zone (see https://developer.openstack.org/api-ref/dns/?expanded=#recordsets)
+type DNSRecordsetSpec struct {
+	Name        string   `json:"name" yaml:"name"`                                   // DNS Name for the recordset
+	Type        string   `json:"type" yaml:"type"`                                   // They RRTYPE of the recordset.
+	TTL         int      `json:"ttl,omitempty" yaml:"ttl,omitempty"`                 // TTL (Time to Live) for the recordset.
+	Description string   `json:"description,omitempty" yaml:"description,omitempty"` // Description for this recordset
+	Records     []string `json:"records,omitempty" yaml:"records,omitempty"`         // A list of data for this recordset. Each item will be a separate record in Designate These items should conform to the DNS spec for the record type - e.g. A records must be IPv4 addresses, CNAME records must be a hostname.
 }
 
 type OpenstackSeed struct {
@@ -414,7 +444,6 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 				glog.V(2).Info("merge project ", project)
 				MergeStructFields(&v, project)
 				if project.NetworkQuota != nil {
-					v.NetworkQuota = new(NetworkQuotaSpec)
 					MergeStructFields(v.NetworkQuota, project.NetworkQuota)
 				}
 				if len(project.RoleAssignments) > 0 {
@@ -437,6 +466,12 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 				}
 				if project.Swift != nil {
 					v.MergeSwiftAccount(project)
+				}
+				if project.DNSQuota != nil {
+					MergeStructFields(v.DNSQuota, project.DNSQuota)
+				}
+				if len(project.DNSZones) > 0 {
+					v.MergeDNSZones(project)
 				}
 				e.Projects[i] = v
 				found = true
@@ -625,6 +660,10 @@ func (e *ProjectSpec) MergeSubnetPools(project ProjectSpec) {
 			if v.Name == snp.Name {
 				glog.V(2).Info("merge project subnet-pool ", snp)
 				MergeStructFields(&v, snp)
+
+				if len(snp.Prefixes) > 0 {
+					v.Prefixes = MergeStringSlices(v.Prefixes, snp.Prefixes)
+				}
 				e.SubnetPools[i] = v
 				found = true
 				break
@@ -673,8 +712,10 @@ func (e *ProjectSpec) MergeRouters(project ProjectSpec) {
 				glog.V(2).Info("merge project router ", r)
 				MergeStructFields(&v, r)
 				if r.ExternalGatewayInfo != nil {
-					v.ExternalGatewayInfo = new(ExternalGatewayInfoSpec)
 					MergeStructFields(v.ExternalGatewayInfo, r.ExternalGatewayInfo)
+					if len(r.ExternalGatewayInfo.ExternalFixedIPs) > 0 {
+						v.ExternalGatewayInfo.ExternalFixedIPs = MergeStringSlices(r.ExternalGatewayInfo.ExternalFixedIPs, v.ExternalGatewayInfo.ExternalFixedIPs)
+					}
 				}
 				if len(r.RouterPorts) > 0 {
 					v.MergeRouterPorts(r)
@@ -711,6 +752,38 @@ func (e *ProjectSpec) MergeSwiftAccount(project ProjectSpec) {
 		if !found {
 			glog.V(2).Info("append swift container ", c)
 			e.Swift.Containers = append(e.Swift.Containers, c)
+		}
+	}
+}
+
+func (e *ProjectSpec) MergeDNSZones(project ProjectSpec) {
+	if e.DNSZones == nil {
+		e.DNSZones = make([]DNSZoneSpec, 0)
+	}
+
+	for _, z := range project.DNSZones {
+		if z.Type == "" {
+			z.Type = "PRIMARY"
+		}
+		found := false
+		for i, v := range e.DNSZones {
+			if v.Type == "" {
+				v.Type = "PRIMARY"
+			}
+			if v.Name == z.Name && v.Type == z.Type {
+				glog.V(2).Info("merge project dns zone ", z)
+				MergeStructFields(&v, z)
+				if len(z.DNSRecordsets) > 0 {
+					v.MergeDNSRecordsets(z)
+				}
+				e.DNSZones[i] = v
+				found = true
+				break
+			}
+		}
+		if !found {
+			glog.V(2).Info("append project dns zone", z)
+			e.DNSZones = append(e.DNSZones, z)
 		}
 	}
 }
@@ -789,6 +862,9 @@ func (e *AddressScopeSpec) MergeSubnetPools(scope AddressScopeSpec) {
 			if v.Name == snp.Name {
 				glog.V(2).Info("merge subnet-pool ", snp)
 				MergeStructFields(&v, snp)
+				if len(snp.Prefixes) > 0 {
+					v.Prefixes = MergeStringSlices(v.Prefixes, snp.Prefixes)
+				}
 				found = true
 				e.SubnetPools[i] = v
 				break
@@ -811,6 +887,15 @@ func (e *NetworkSpec) MergeSubnets(network NetworkSpec) {
 			if v.Name == sn.Name {
 				glog.V(2).Info("merge subnet ", sn)
 				MergeStructFields(&v, sn)
+				if len(sn.DNSNameServers) > 0 {
+					v.DNSNameServers = MergeStringSlices(sn.DNSNameServers, v.DNSNameServers)
+				}
+				if len(sn.AllocationPools) > 0 {
+					v.AllocationPools = MergeStringSlices(sn.AllocationPools, v.AllocationPools)
+				}
+				if len(sn.HostRoutes) > 0 {
+					v.HostRoutes = MergeStringSlices(sn.HostRoutes, v.HostRoutes)
+				}
 				found = true
 				e.Subnets[i] = v
 				break
@@ -841,6 +926,33 @@ func (e *RouterSpec) MergeRouterPorts(router RouterSpec) {
 		if !found {
 			glog.V(2).Info("append port ", rp)
 			e.RouterPorts = append(e.RouterPorts, rp)
+		}
+	}
+}
+
+func (e *DNSZoneSpec) MergeDNSRecordsets(zone DNSZoneSpec) {
+	if e.DNSRecordsets == nil {
+		e.DNSRecordsets = make([]DNSRecordsetSpec, 0)
+	}
+	for i, rs := range zone.DNSRecordsets {
+		found := false
+		for _, v := range e.DNSRecordsets {
+			if v.Name == rs.Name && v.Type == rs.Type {
+				glog.V(2).Info("merge recordset ", rs)
+				MergeStructFields(&v, rs)
+
+				if len(rs.Records) > 0 {
+					v.Records = MergeStringSlices(v.Records, rs.Records)
+				}
+
+				found = true
+				e.DNSRecordsets[i] = v
+				break
+			}
+		}
+		if !found {
+			glog.V(2).Info("append recordset ", rs)
+			e.DNSRecordsets = append(e.DNSRecordsets, rs)
 		}
 	}
 }
