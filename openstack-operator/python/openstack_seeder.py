@@ -1223,12 +1223,12 @@ def seed_project_designate_quota(project, config, args, sess):
 
         result = designate.quotas.list(project.id)
         new_quota = {}
-        for attr in config['quota'].keys():
-            if int(config['quota'][attr]) > int(result.get(attr, '')):
+        for attr in config.keys():
+            if int(config[attr]) > int(result.get(attr, '')):
                 logging.info(
                     "%s differs. set project %s designate quota to '%s'" % (
-                        attr, project.name, config['quota']))
-                new_quota[attr] = config['quota'][attr]
+                        attr, project.name, config))
+                new_quota[attr] = config[attr]
         if len(new_quota):
             designate.quotas.update(project.id, new_quota)
 
@@ -1260,19 +1260,15 @@ def seed_project_dns_zones(project, zones, args, sess):
             zone = sanitize(zone, (
                 'name', 'email', 'ttl', 'description', 'masters', 'type'))
 
+
             if 'name' not in zone or not zone['name']:
                 logging.warn(
                     "skipping dns zone '%s/%s', since it is misconfigured" % (
                         project.name, zone))
                 continue
 
-            resource = designate.zones.get(zone['name'])
-            if not resource:
-                logging.info(
-                    "create dns zone '%s/%s'" % (
-                        project.name, zone['name']))
-                resource = designate.zones.create(zone['name'], **zone)
-            else:
+            try:
+                resource = designate.zones.get(zone['name'])
                 for attr in zone.keys():
                     if zone[attr] != resource.get(attr, ''):
                         logging.info(
@@ -1280,6 +1276,14 @@ def seed_project_dns_zones(project, zones, args, sess):
                                 attr, project.name, zone['name']))
                         designate.zones.update(resource['id'], zone)
                         break
+            except designateclient.exceptions.NotFound:
+                logging.info(
+                    "create dns zone '%s/%s'" % (
+                        project.name, zone['name']))
+                # wtf
+                if 'type' in zone:
+                    zone['type_'] = zone.pop('type')
+                resource = designate.zones.create(zone.pop('name'), **zone)
 
             if recordsets:
                 seed_dns_zone_recordsets(resource, recordsets, designate)
