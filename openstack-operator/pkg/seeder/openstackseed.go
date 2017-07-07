@@ -112,6 +112,7 @@ type ProjectSpec struct {
 	Swift           *SwiftAccountSpec     `json:"swift,omitempty" yaml:"swift,omitempty"`                   // swift account
 	DNSQuota        *DNSQuotaSpec         `json:"dns_quota,omitempty" yaml:"dns_quota,omitempty"`           // designate quota
 	DNSZones        []DNSZoneSpec         `json:"dns_zones,omitempty" yaml:"dns_zones,omitempty"`           // designate zones, recordsets
+	DNSTSIGKeys     []DNSTSIGKeySpec      `json:"dns_tsigkeys,omitempty" yaml:"dns_tsigkeys,omitempty"`     // designate tsig keys
 }
 
 // A project endpoint filter (see https://developer.openstack.org/api-ref/identity/v3-ext/#os-ep-filter-api)
@@ -304,6 +305,15 @@ type DNSRecordsetSpec struct {
 	Records     []string `json:"records,omitempty" yaml:"records,omitempty"`         // A list of data for this recordset. Each item will be a separate record in Designate These items should conform to the DNS spec for the record type - e.g. A records must be IPv4 addresses, CNAME records must be a hostname.
 }
 
+// A designate tsig key (see https://developer.openstack.org/api-ref/dns/#tsigkey)
+type DNSTSIGKeySpec struct {
+	Name       string `json:"name" yaml:"name"`                                   // Name for this tsigkey
+	Algorithm  string `json:"algorithm,omitempty" yaml:"algorithm,omitempty"`     // The encryption algorithm for this tsigkey
+	Secret     string `json:"secret,omitempty" yaml:"secret,omitempty"`           // The actual key to be used
+	Scope      string `json:"scope,omitempty" yaml:"scope,omitempty"`             // scope for this tsigkey which can be either ZONE or POOL scope
+	ResourceId string `json:"resource_id,omitempty" yaml:"resource_id,omitempty"` // resource id for this tsigkey which can be either zone or pool id
+}
+
 type OpenstackSeed struct {
 	unversioned.TypeMeta `json:",inline"`
 	Metadata             api.ObjectMeta `json:"metadata"`
@@ -472,6 +482,9 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 				}
 				if len(project.DNSZones) > 0 {
 					v.MergeDNSZones(project)
+				}
+				if len(project.DNSTSIGKeys) > 0 {
+					v.MergeDNSTSIGKeys(project)
 				}
 				e.Projects[i] = v
 				found = true
@@ -784,6 +797,29 @@ func (e *ProjectSpec) MergeDNSZones(project ProjectSpec) {
 		if !found {
 			glog.V(2).Info("append project dns zone", z)
 			e.DNSZones = append(e.DNSZones, z)
+		}
+	}
+}
+
+func (e *ProjectSpec) MergeDNSTSIGKeys(project ProjectSpec) {
+	if e.DNSTSIGKeys == nil {
+		e.DNSTSIGKeys = make([]DNSTSIGKeySpec, 0)
+	}
+
+	for _, z := range project.DNSTSIGKeys {
+		found := false
+		for i, v := range e.DNSTSIGKeys {
+			if v.Name == z.Name {
+				glog.V(2).Info("merge project dns tsig key ", z)
+				MergeStructFields(&v, z)
+				e.DNSTSIGKeys[i] = v
+				found = true
+				break
+			}
+		}
+		if !found {
+			glog.V(2).Info("append project dns tsig key ", z)
+			e.DNSTSIGKeys = append(e.DNSTSIGKeys, z)
 		}
 	}
 }

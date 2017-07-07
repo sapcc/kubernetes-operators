@@ -550,6 +550,8 @@ def seed_projects(domain, projects, args, sess):
 
         dns_zones = project.pop('dns_zones', None)
 
+        dns_tsig_keys = project.pop('dns_tsigkeys', None)
+
         project = sanitize(project,
                            ('name', 'description', 'enabled', 'parent'))
 
@@ -638,6 +640,10 @@ def seed_projects(domain, projects, args, sess):
         # seed designate zone
         if dns_zones:
             seed_project_dns_zones(resource, dns_zones, args, sess)
+
+        # seed designate tsig keys
+        if dns_tsig_keys:
+            seed_project_tsig_keys(resource, dns_tsig_keys, args, sess)
 
 
 def seed_project_network_quota(project, quota, args, sess):
@@ -1360,6 +1366,51 @@ def seed_dns_zone_recordsets(zone, recordsets, designate):
             logging.error("could not seed dns zone %s recordsets: %s" % (
             zone['name'], e))
 
+
+def seed_project_tsig_keys(project, keys, args, sess):
+    """
+    Seed a projects designate tsig keys
+    :param project:
+    :param keys:
+    :param designate:
+    :return:
+    """
+
+    logging.debug("seeding dns tsig keys of project %s" % project.name)
+
+    try:
+        designate = designateclient.Client(session=sess,
+                                           endpoint_type=args.interface + 'URL',
+                                           all_projects=True)
+
+        for key in keys:
+            key = sanitize(key, (
+                'name', 'algorithm', 'secret', 'scope', 'resource_id'))
+
+            if 'name' not in key or not key['name']:
+                logging.warn(
+                    "skipping dns tsig key '%s/%s', since it is misconfigured" % (
+                        project.name, key))
+                continue
+            try:
+                resource = designate.tsigkeys.get(key['name'])
+                for attr in key.keys():
+                    if key[attr] != resource.get(attr, ''):
+                        logging.info(
+                            "%s differs. update dns tsig key '%s/%s'" % (
+                                attr, project.name, key['name']))
+                        designate.tsigkeys.update(resource['id'], key)
+                        break
+            except designateclient.exceptions.NotFound:
+                logging.info(
+                    "create dns tsig key '%s/%s'" % (
+                        project.name, key['name']))
+                designate.tsigkeys.create(key.pop('name'), **key)
+
+
+    except Exception as e:
+        logging.error("could not seed project dns tsig keys %s: %s" % (
+            project.name, e))
 
 def domain_config_equal(new, current):
     """
