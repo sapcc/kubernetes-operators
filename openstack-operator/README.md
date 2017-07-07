@@ -40,6 +40,7 @@ Seeding currently only support creating or updating of entities (the operator up
         - dns_quota
         - dns_zones
             - recordsets
+        - dns_tsigkeys
     - groups
         - group-role-assignments
     - users
