@@ -454,6 +454,9 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 				glog.V(2).Info("merge project ", project)
 				MergeStructFields(&v, project)
 				if project.NetworkQuota != nil {
+					if v.NetworkQuota == nil {
+						v.NetworkQuota = new(NetworkQuotaSpec)
+					}
 					MergeStructFields(v.NetworkQuota, project.NetworkQuota)
 				}
 				if len(project.RoleAssignments) > 0 {
@@ -478,6 +481,9 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 					v.MergeSwiftAccount(project)
 				}
 				if project.DNSQuota != nil {
+					if v.DNSQuota == nil {
+						v.DNSQuota = new(DNSQuotaSpec)
+					}
 					MergeStructFields(v.DNSQuota, project.DNSQuota)
 				}
 				if len(project.DNSZones) > 0 {
@@ -725,6 +731,9 @@ func (e *ProjectSpec) MergeRouters(project ProjectSpec) {
 				glog.V(2).Info("merge project router ", r)
 				MergeStructFields(&v, r)
 				if r.ExternalGatewayInfo != nil {
+					if v.ExternalGatewayInfo == nil {
+						v.ExternalGatewayInfo = new(ExternalGatewayInfoSpec)
+					}
 					MergeStructFields(v.ExternalGatewayInfo, r.ExternalGatewayInfo)
 					if len(r.ExternalGatewayInfo.ExternalFixedIPs) > 0 {
 						v.ExternalGatewayInfo.ExternalFixedIPs = MergeStringSlices(r.ExternalGatewayInfo.ExternalFixedIPs, v.ExternalGatewayInfo.ExternalFixedIPs)
