@@ -1139,10 +1139,10 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 				return fmt.Errorf("domain %s, user %s: a user mame is required", domain.Name, user.Description)
 			}
 			for _, r := range user.RoleAssignments {
-				if r.Project != "" && r.Domain != "" {
+				if (r.Project != "" || r.ProjectID != "") && r.Domain != "" {
 					return fmt.Errorf("user %s/%s: role-assignment should target either project or a domain, not both.", domain.Name, user.Name)
 				}
-				if r.Project == "" && r.Domain == "" {
+				if r.Project == "" && r.ProjectID == "" && r.Domain == "" {
 					return fmt.Errorf("user %s/%s: role-assignment should target a project or a domain.", domain.Name, user.Name)
 				}
 				if r.Role == "" {
@@ -1155,10 +1155,10 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 				return fmt.Errorf("domain %s, group %s: a group mame is required", domain.Name, group.Description)
 			}
 			for _, r := range group.RoleAssignments {
-				if r.Project != "" && r.Domain != "" {
+				if (r.Project != "" || r.ProjectID != "") && r.Domain != "" {
 					return fmt.Errorf("group %s/%s: role-assignment should target either project or a domain, not both.", domain.Name, group.Name)
 				}
-				if r.Project == "" && r.Domain == "" {
+				if r.Project == "" && r.ProjectID == "" && r.Domain == "" {
 					return fmt.Errorf("group %s/%s: role-assignment should target a project or a domain.", domain.Name, group.Name)
 				}
 				if r.Role == "" {
