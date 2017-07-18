@@ -336,7 +336,7 @@ def seed_users(domain, users, keystone):
         if '@' not in user['name']:
             user = sanitize(user, (
                 'name', 'email', 'description', 'password', 'enabled',
-                'default_project_id'))
+                'default_project'))
 
             if 'name' not in user or not user['name']:
                 logging.warn(
