@@ -379,6 +379,8 @@ def seed_users(domain, users, keystone):
                     else:
                         assignment['project'] = '%s@%s' % (
                             role['project'], domain.name)
+                elif 'project_id' in role:
+                    assignment['project_id'] = role['project_id']
                 elif 'domain' in role:
                     assignment['domain'] = role['domain']
                 if 'inherited' in role:
@@ -449,6 +451,8 @@ def seed_groups(domain, groups, keystone):
                     else:
                         assignment['project'] = '%s@%s' % (
                             role['project'], domain.name)
+                elif 'project_id' in role:
+                    assignment['project_id'] = role['project_id']
                 elif 'domain' in role:
                     assignment['domain'] = role['domain']
                 if 'inherited' in role:
@@ -1621,6 +1625,9 @@ def resolve_role_assignments(keystone):
                     assignment['project'])
                 continue
             role_assignment['project'] = id
+        if 'project_id' in assignment:
+            role_assignment['project'] = assignment['project_id']
+            continue
         if 'inherited' in assignment:
             role_assignment['os_inherit_extension_inherited'] = assignment[
                 'inherited']
