@@ -130,12 +130,13 @@ type ProjectEndpointSpec struct {
 //
 // To support cross domain entity referals, the user-, group- or project-names support a name@domain notation.
 type RoleAssignmentSpec struct {
-	Role      string `json:"role" yaml:"role"`                               // the role name
-	Domain    string `json:"domain,omitempty" yaml:"domain,omitempty"`       // domain-role-assigment: the domain name
-	Project   string `json:"project,omitempty" yaml:"project,omitempty"`     // project-role-assignment: the project name
-	Group     string `json:"group,omitempty" yaml:"group,omitempty"`         // group name (for project/domain group-role-assignment)
-	User      string `json:"user,omitempty" yaml:"user,omitempty"`           // user name (for project/domain user-role-assignment)
-	Inherited *bool  `json:"inherited,omitempty" yaml:"inherited,omitempty"` // boolean flag to indicate if the role-assignment should be inherited
+	Role      string `json:"role" yaml:"role"`                                 // the role name
+	Domain    string `json:"domain,omitempty" yaml:"domain,omitempty"`         // domain-role-assigment: the domain name
+	Project   string `json:"project,omitempty" yaml:"project,omitempty"`       // project-role-assignment: project_name@domain_name
+	ProjectID string `json:"project_id,omitempty" yaml:"project_id,omitempty"` // project-role assignment: project id
+	Group     string `json:"group,omitempty" yaml:"group,omitempty"`           // group name (for project/domain group-role-assignment)
+	User      string `json:"user,omitempty" yaml:"user,omitempty"`             // user name (for project/domain user-role-assignment)
+	Inherited *bool  `json:"inherited,omitempty" yaml:"inherited,omitempty"`   // boolean flag to indicate if the role-assignment should be inherited
 }
 
 // A keystone user (see https://developer.openstack.org/api-ref/identity/v3/#users)
