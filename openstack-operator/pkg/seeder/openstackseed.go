@@ -141,12 +141,12 @@ type RoleAssignmentSpec struct {
 
 // A keystone user (see https://developer.openstack.org/api-ref/identity/v3/#users)
 type UserSpec struct {
-	Name             string               `json:"name" yaml:"name"`                                                 // username
-	Description      string               `json:"description,omitempty" yaml:"description,omitempty"`               // description of the user
-	Password         string               `json:"password,omitempty" yaml:"password,omitempty"`                     // password of the user (only evaluated on user creation)
-	Enabled          *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`                       // boolean flag to indicate if the user is enabled
-	RoleAssignments  []RoleAssignmentSpec `json:"roles,omitempty" yaml:"roles,omitempty"`                           // list of the users role-assignments
-	DefaultProjectID string               `json:"default_project_id,omitempty" yaml:"default_project_id,omitempty"` // default project scope for the user
+	Name             string               `json:"name" yaml:"name"`                                           // username
+	Description      string               `json:"description,omitempty" yaml:"description,omitempty"`         // description of the user
+	Password         string               `json:"password,omitempty" yaml:"password,omitempty"`               // password of the user (only evaluated on user creation)
+	Enabled          *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`                 // boolean flag to indicate if the user is enabled
+	RoleAssignments  []RoleAssignmentSpec `json:"roles,omitempty" yaml:"roles,omitempty"`                     // list of the users role-assignments
+	DefaultProjectID string               `json:"default_project,omitempty" yaml:"default_project,omitempty"` // default project scope for the user
 }
 
 // A keystone group (see https://developer.openstack.org/api-ref/identity/v3/#groups)
