@@ -275,6 +275,12 @@ def seed_endpoints(service, endpoints, keystone):
         region = None
         if 'region' in endpoint:
             region = endpoint['region']
+            if not region or not region.strip():
+                logging.warn(
+                    "skipping endpoint '%s/%s', since its region is misconfigured" % (
+                        service.name, endpoint['interface']))
+                continue
+
         result = keystone.endpoints.list(service=service.id,
                                          interface=endpoint['interface'],
                                          region_id=region)
