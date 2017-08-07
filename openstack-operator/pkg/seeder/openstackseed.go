@@ -226,6 +226,7 @@ type NetworkSpec struct {
 	VlanTransparent         *bool        `json:"vlan_transparent,omitempty" yaml:"vlan_transparent,omitempty"`                   // Indicates the VLAN transparency mode of the network, which is VLAN transparent (true) or not VLAN transparent (false).
 	Description             string       `json:"description,omitempty" yaml:"description,omitempty"`                             // description of the network
 	Subnets                 []SubnetSpec `json:"subnets,omitempty" yaml:"subnets,omitempty"`                                     // List of subnets
+	Tags                    []string     `json:"tags,omitempty" yaml:"tags,omitempty"`                                           // List of network tags (see https://developer.openstack.org/api-ref/networking/v2/index.html#tag-extension-tags)
 }
 
 // A neutron subnet (see https://developer.openstack.org/api-ref/networking/v2/index.html#subnets)
@@ -244,6 +245,7 @@ type SubnetSpec struct {
 	SegmentlId      string   `json:"segment_id,omitempty" yaml:"segment_id,omitempty"`               // The ID of a network segment the subnet is associated with. It is available when segment extension is enabled.
 	SubnetPoolId    string   `json:"subnetpool_id,omitempty" yaml:"subnetpool_id,omitempty"`         // Subnet-pool ID
 	SubnetPool      string   `json:"subnetpool,omitempty" yaml:"subnetpool,omitempty"`               // Subnet-pool name within teh subnets project
+	Tags            []string `json:"tags,omitempty" yaml:"tags,omitempty"`                           // List of subnet tags (see https://developer.openstack.org/api-ref/networking/v2/index.html#tag-extension-tags)
 }
 
 // A neutron router (see https://developer.openstack.org/api-ref/networking/v2/index.html#routers)
@@ -710,6 +712,9 @@ func (e *ProjectSpec) MergeNetworks(project ProjectSpec) {
 				MergeStructFields(&v, n)
 				if len(n.Subnets) > 0 {
 					v.MergeSubnets(n)
+				}
+				if len(n.Tags) > 0 {
+					v.Tags = MergeStringSlices(v.Tags, n.Tags)
 				}
 				e.Networks[i] = v
 				found = true

@@ -31,6 +31,7 @@ Seeding currently only support creating or updating of entities (the operator up
             - subnet pools
         - subnet pools
         - networks
+            - tags
             - subnets
         - routers
             - interfaces

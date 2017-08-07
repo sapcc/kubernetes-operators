@@ -853,9 +853,9 @@ def seed_project_networks(project, networks, args, sess):
 
     for network in networks:
         try:
-            subnets = None
-            if 'subnets' in network:
-                subnets = network.pop('subnets', None)
+            subnets = network.pop('subnets', None)
+
+            tags = network.pop('tags', None)
 
             # rename some yaml unfriendly network attributes
             for key, value in rename.items():
@@ -894,6 +894,9 @@ def seed_project_networks(project, networks, args, sess):
                         body['network'].pop('tenant_id', None)
                         neutron.update_network(resource['id'], body)
                         break
+
+            if tags:
+                seed_network_tags(resource, tags, args, sess)
 
             if subnets:
                 seed_network_subnets(resource, subnets, args, sess)
@@ -1059,6 +1062,35 @@ def seed_router_interfaces(router, interfaces, args, sess):
         neutron.add_interface_router(router['id'], interface)
         logging.info(
             "added interface %s to router'%s'" % (interface, router['name']))
+
+
+def seed_network_tags(network, tags, args, sess):
+    """
+    seed neutron tags of a network
+    :param network:
+    :param tags:
+    :param args:
+    :param sess:
+    :return:
+    """
+
+    logging.debug("seeding tags of network %s" % network['name'])
+
+    # grab a neutron client
+    neutron = neutronclient.Client(session=sess,
+                                   interface=args.interface)
+
+    for tag in tags:
+        if not tag or len(tag) > 60:
+            logging.warn(
+                "skipping tag '%s/%s', since it is invalid" % (
+                    network['name'], tag))
+            continue
+
+        if tag not in network['tags']:
+            logging.info(
+                "adding tag %s to network '%s'" % (tag, network['name']))
+            neutron.add_tag('networks', network['id'], tag)
 
 
 def seed_network_subnets(network, subnets, args, sess):
