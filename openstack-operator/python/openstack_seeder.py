@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import argparse
+import os
 import sys
 import yaml
 import logging
@@ -26,6 +27,7 @@ from urllib3.exceptions import InsecureRequestWarning
 from raven.base import Client
 from raven.conf import setup_logging
 from raven.handlers.logging import SentryHandler
+from raven.transport.requests import RequestsHTTPTransport
 
 from keystoneauth1 import session
 from keystoneauth1.loading import cli
@@ -1312,7 +1314,6 @@ def seed_project_dns_zones(project, zones, args, sess):
             zone = sanitize(zone, (
                 'name', 'email', 'ttl', 'description', 'masters', 'type'))
 
-
             if 'name' not in zone or not zone['name']:
                 logging.warn(
                     "skipping dns zone '%s/%s', since it is misconfigured" % (
@@ -1361,7 +1362,7 @@ def seed_dns_zone_recordsets(zone, recordsets, designate):
             # records = recordset.pop('records', None)
 
             recordset = sanitize(recordset, (
-            'name', 'ttl', 'description', 'type', 'records'))
+                'name', 'ttl', 'description', 'type', 'records'))
 
             if 'name' not in recordset or not recordset['name']:
                 logging.warn(
@@ -1410,7 +1411,7 @@ def seed_dns_zone_recordsets(zone, recordsets, designate):
 
         except Exception as e:
             logging.error("could not seed dns zone %s recordsets: %s" % (
-            zone['name'], e))
+                zone['name'], e))
 
 
 def seed_project_tsig_keys(project, keys, args, sess):
@@ -1457,6 +1458,7 @@ def seed_project_tsig_keys(project, keys, args, sess):
     except Exception as e:
         logging.error("could not seed project dns tsig keys %s: %s" % (
             project.name, e))
+
 
 def domain_config_equal(new, current):
     """
@@ -1639,16 +1641,18 @@ def resolve_role_assignments(keystone):
                 user, domain = assignment['user'].split('@')
                 id = get_user_id(domain, user, keystone)
                 if not id:
-                    logging.warn("user %s not found, skipping role assignment.." % \
-                                 assignment['user'])
+                    logging.warn(
+                        "user %s not found, skipping role assignment.." % \
+                        assignment['user'])
                     continue
                 role_assignment['user'] = id
             elif 'group' in assignment:
                 group, domain = assignment['group'].split('@')
                 id = get_group_id(domain, group, keystone)
                 if not id:
-                    logging.warn("group %s not found, skipping role assignment.." % \
-                                 assignment['group'])
+                    logging.warn(
+                        "group %s not found, skipping role assignment.." % \
+                        assignment['group'])
                     continue
                 role_assignment['group'] = id
             if 'domain' in assignment:
@@ -1680,7 +1684,9 @@ def resolve_role_assignments(keystone):
                 logging.info("grant '%s' to '%s'" % (role, assignment))
                 keystone.roles.grant(role_id, **role_assignment)
         except ValueError as e:
-            logging.error("skipped role assignment %s since it is invalid: %s" % (assignment, e))
+            logging.error(
+                "skipped role assignment %s since it is invalid: %s" % (
+                assignment, e))
 
 
 def seed_config(config, args, sess):
@@ -1781,10 +1787,12 @@ def main():
         level=getattr(logging, args.logLevel))
 
     # setup sentry logging
-    client = Client()
-    handler = SentryHandler(client)
-    handler.setLevel(logging.ERROR)
-    setup_logging(handler)
+    if 'SENTRY_DSN' in os.environ:
+        client = Client(dsn=os.environ['SENTRY_DSN'],
+                        transport=RequestsHTTPTransport, verify_ssl=False)
+        handler = SentryHandler(client)
+        handler.setLevel(logging.ERROR)
+        setup_logging(handler)
 
     return seed(args)
 
