@@ -1686,7 +1686,7 @@ def resolve_role_assignments(keystone):
         except ValueError as e:
             logging.error(
                 "skipped role assignment %s since it is invalid: %s" % (
-                assignment, e))
+                    assignment, e))
 
 
 def seed_config(config, args, sess):
@@ -1788,8 +1788,8 @@ def main():
 
     # setup sentry logging
     if 'SENTRY_DSN' in os.environ:
-        client = Client(dsn=os.environ['SENTRY_DSN'],
-                        transport=RequestsHTTPTransport, verify_ssl=False)
+        transport = RequestsHTTPTransport(verify_ssl=False)
+        client = Client(dsn=os.environ['SENTRY_DSN'], transport=transport)
         handler = SentryHandler(client)
         handler.setLevel(logging.ERROR)
         setup_logging(handler)
