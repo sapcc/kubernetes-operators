@@ -14,6 +14,7 @@ setup(
         'python-designateclient',
         'python-swiftclient==3.3.0',
         'PyYAML==3.12',
+        'raven',
     ],
     url='https://github.com/sapcc/kubernetes-operators/openstack-operator',
     license='',

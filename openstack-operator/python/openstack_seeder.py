@@ -23,6 +23,10 @@ import requests
 from urlparse import urlparse
 from urllib3.exceptions import InsecureRequestWarning
 
+from raven.base import Client
+from raven.conf import setup_logging
+from raven.handlers.logging import SentryHandler
+
 from keystoneauth1 import session
 from keystoneauth1.loading import cli
 from keystoneclient import exceptions
@@ -1775,6 +1779,12 @@ def main():
         format='%(asctime)s %(levelname)s:%(name)s:%(message)s',
         datefmt='%d.%m.%Y %H:%M:%S',
         level=getattr(logging, args.logLevel))
+
+    # setup sentry logging
+    client = Client()
+    handler = SentryHandler(client)
+    handler.setLevel(logging.ERROR)
+    setup_logging(handler)
 
     return seed(args)
 
