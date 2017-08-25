@@ -1627,53 +1627,56 @@ def resolve_role_assignments(keystone):
     for assignment in role_assignments:
         logging.debug("resolving role assignment %s" % assignment)
 
-        role_assignment = dict()
-        role = assignment.pop('role')
-        role_id = get_role_id(role, keystone)
-        if 'user' in assignment:
-            user, domain = assignment['user'].split('@')
-            id = get_user_id(domain, user, keystone)
-            if not id:
-                logging.warn("user %s not found, skipping role assignment.." % \
-                             assignment['user'])
-                continue
-            role_assignment['user'] = id
-        elif 'group' in assignment:
-            group, domain = assignment['group'].split('@')
-            id = get_group_id(domain, group, keystone)
-            if not id:
-                logging.warn("group %s not found, skipping role assignment.." % \
-                             assignment['group'])
-                continue
-            role_assignment['group'] = id
-        if 'domain' in assignment:
-            id = get_domain_id(assignment['domain'], keystone)
-            if not id:
-                logging.warn(
-                    "domain %s not found, skipping role assignment.." % \
-                    assignment['domain'])
-                continue
-            role_assignment['domain'] = id
-        if 'project' in assignment:
-            project, domain = assignment['project'].split('@')
-            id = get_project_id(domain, project, keystone)
-            if not id:
-                logging.warn(
-                    "project %s not found, skipping role assignment.." % \
-                    assignment['project'])
-                continue
-            role_assignment['project'] = id
-        elif 'project_id' in assignment:
-            role_assignment['project'] = assignment['project_id']
-        if 'inherited' in assignment:
-            role_assignment['os_inherit_extension_inherited'] = assignment[
-                'inherited']
-
         try:
-            keystone.roles.check(role_id, **role_assignment)
-        except exceptions.NotFound:
-            logging.info("grant '%s' to '%s'" % (role, assignment))
-            keystone.roles.grant(role_id, **role_assignment)
+            role_assignment = dict()
+            role = assignment.pop('role')
+            role_id = get_role_id(role, keystone)
+            if 'user' in assignment:
+                user, domain = assignment['user'].split('@')
+                id = get_user_id(domain, user, keystone)
+                if not id:
+                    logging.warn("user %s not found, skipping role assignment.." % \
+                                 assignment['user'])
+                    continue
+                role_assignment['user'] = id
+            elif 'group' in assignment:
+                group, domain = assignment['group'].split('@')
+                id = get_group_id(domain, group, keystone)
+                if not id:
+                    logging.warn("group %s not found, skipping role assignment.." % \
+                                 assignment['group'])
+                    continue
+                role_assignment['group'] = id
+            if 'domain' in assignment:
+                id = get_domain_id(assignment['domain'], keystone)
+                if not id:
+                    logging.warn(
+                        "domain %s not found, skipping role assignment.." % \
+                        assignment['domain'])
+                    continue
+                role_assignment['domain'] = id
+            if 'project' in assignment:
+                project, domain = assignment['project'].split('@')
+                id = get_project_id(domain, project, keystone)
+                if not id:
+                    logging.warn(
+                        "project %s not found, skipping role assignment.." % \
+                        assignment['project'])
+                    continue
+                role_assignment['project'] = id
+            elif 'project_id' in assignment:
+                role_assignment['project'] = assignment['project_id']
+            if 'inherited' in assignment:
+                role_assignment['os_inherit_extension_inherited'] = assignment[
+                    'inherited']
+
+            try:
+                keystone.roles.check(role_id, **role_assignment)
+            except exceptions.NotFound:
+                logging.info("grant '%s' to '%s'" % (role, assignment))
+                keystone.roles.grant(role_id, **role_assignment)
+        except ValueError as e:
+            logging.error("skipped role assignment %s since it is invalid: %s" % (assignment, e))
 
 
 def seed_config(config, args, sess):
