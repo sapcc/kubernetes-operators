@@ -1788,8 +1788,8 @@ def main():
 
     # setup sentry logging
     if 'SENTRY_DSN' in os.environ:
-        transport = RequestsHTTPTransport(verify_ssl=False)
-        client = Client(dsn=os.environ['SENTRY_DSN'], transport=transport)
+        dsn = "%s?verify_ssl=0" % os.environ['SENTRY_DSN']
+        client = Client(dsn=dsn, transport=RequestsHTTPTransport)
         handler = SentryHandler(client)
         handler.setLevel(logging.ERROR)
         setup_logging(handler)
