@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import argparse
+import copy
 import os
 import sys
 import yaml
@@ -651,15 +652,15 @@ def seed_projects(domain, projects, args, sess):
 
         # seed designate quota
         if dns_quota:
-            seed_project_designate_quota(resource, dns_quota, args, sess)
+            seed_project_designate_quota(resource, dns_quota, args)
 
         # seed designate zone
         if dns_zones:
-            seed_project_dns_zones(resource, dns_zones, args, sess)
+            seed_project_dns_zones(resource, dns_zones, args)
 
         # seed designate tsig keys
         if dns_tsig_keys:
-            seed_project_tsig_keys(resource, dns_tsig_keys, args, sess)
+            seed_project_tsig_keys(resource, dns_tsig_keys, args)
 
 
 def seed_project_network_quota(project, quota, args, sess):
@@ -1256,13 +1257,12 @@ def seed_swift_containers(project, containers, conn):
                     project.name, e))
 
 
-def seed_project_designate_quota(project, config, args, sess):
+def seed_project_designate_quota(project, config, args):
     """
     Seeds designate quota for a project
     :param project:
     :param config:
     :param args:
-    :param sess:
     :return:
     """
 
@@ -1271,6 +1271,15 @@ def seed_project_designate_quota(project, config, args, sess):
         "seeding designate quota for project %s" % project.name)
 
     try:
+        # the designate client needs a token scoped to a project.id
+        # due to a crappy bugfix in https://review.openstack.org/#/c/187570/
+        designate_args = copy.copy(args)
+        designate_args.os_project_id = project.id
+        designate_args.os_domain_id = None
+        designate_args.os_domain_name = None
+        plugin = cli.load_from_argparse_arguments(designate_args)
+        sess = session.Session(auth=plugin, user_agent='openstack-seeder')
+
         designate = designateclient.Client(session=sess,
                                            endpoint_type=args.interface + 'URL',
                                            all_projects=True)
@@ -1292,18 +1301,27 @@ def seed_project_designate_quota(project, config, args, sess):
                 project.name, e))
 
 
-def seed_project_dns_zones(project, zones, args, sess):
+def seed_project_dns_zones(project, zones, args):
     """
     Seed a projects designate zones and dependent objects
     :param project:
     :param zones:
-    :param designate:
+    :param args:
     :return:
     """
 
     logging.debug("seeding dns zones of project %s" % project.name)
 
     try:
+        # the designate client needs a token scoped to a project.id,
+        # due to a crappy bugfix in https://review.openstack.org/#/c/187570/
+        designate_args = copy.copy(args)
+        designate_args.os_project_id = project.id
+        designate_args.os_domain_id = None
+        designate_args.os_domain_name = None
+        plugin = cli.load_from_argparse_arguments(designate_args)
+        sess = session.Session(auth=plugin, user_agent='openstack-seeder')
+
         designate = designateclient.Client(session=sess,
                                            endpoint_type=args.interface + 'URL',
                                            all_projects=True)
@@ -1414,18 +1432,26 @@ def seed_dns_zone_recordsets(zone, recordsets, designate):
                 zone['name'], e))
 
 
-def seed_project_tsig_keys(project, keys, args, sess):
+def seed_project_tsig_keys(project, keys, args):
     """
     Seed a projects designate tsig keys
     :param project:
     :param keys:
-    :param designate:
+    :param args:
     :return:
     """
 
     logging.debug("seeding dns tsig keys of project %s" % project.name)
 
     try:
+        # the designate client needs a token scoped to a project.id,
+        # due to a crappy bugfix in https://review.openstack.org/#/c/187570/
+        designate_args = copy.copy(args)
+        designate_args.os_project_id = project.id
+        designate_args.os_domain_id = None
+        designate_args.os_domain_name = None
+        plugin = cli.load_from_argparse_arguments(designate_args)
+        sess = session.Session(auth=plugin, user_agent='openstack-seeder')
         designate = designateclient.Client(session=sess,
                                            endpoint_type=args.interface + 'URL',
                                            all_projects=True)
