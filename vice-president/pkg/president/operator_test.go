@@ -127,11 +127,11 @@ func (s *TestSuite) TestIngressSetState() {
 		},
 	}
 
-  annotatedIng, err := s.VP.ingressSetAnnotation(ing, "example.com/vice-president-state", IngressStateEnroll)
-  if err != nil {
-    s.T().Error(err)
-  }
-  assert.Equal(s.T(), expectedIng.GetAnnotations(), annotatedIng.GetAnnotations())
+	annotatedIng, err := s.VP.ingressSetAnnotation(ing, "example.com/vice-president-state", IngressStateEnroll)
+	if err != nil {
+		s.T().Error(err)
+	}
+	assert.Equal(s.T(), expectedIng.GetAnnotations(), annotatedIng.GetAnnotations())
 
 	updatedIng, err := fk.ExtensionsV1beta1().Ingresses(Namespace).Update(annotatedIng)
 	if err != nil {
@@ -223,7 +223,7 @@ func (s *TestSuite) TestSkipIngressWithoutVicePresidentialAnnotation() {
 		s.T().Error(err)
 	}
 
-	if err := s.VP.SyncHandler(ingress); err != nil {
+	if err := s.VP.syncHandler(ingress); err != nil {
 		s.T().Error(err)
 	}
 	o, _, _ := s.VP.IngressInformer.GetStore().Get(ingress)
@@ -264,62 +264,8 @@ func (s *TestSuite) TestIngressStatemachineNewCreateSecretEnrollCert() {
 	}
 
 	// go for it. secret doesn't exist. this should result in below error. also the state should have changed to IngressStateEnroll
-	if err := s.VP.SyncHandler(ingress); err != nil {
-		assert.Error(s.T(), err, fmt.Sprintf("Secret %s/%s doesn't exist. Creating it and enrolling certificate", Namespace, SecretName))
-		o, _, _ := s.VP.IngressInformer.GetStore().Get(ingress)
-		i := o.(*v1beta1.Ingress)
-		assert.Equal(s.T(), IngressStateEnroll, s.VP.ingressGetStateAnnotationForHost(i, Host))
-	}
-}
-
-// TestIngressStatemachineNewSecretExistsEnrollApproveCert tests the behaviour if an empty secret exists. Enrollement of the cert should be done.
-func (s *TestSuite) TestIngressStatemachineNewSecretExistsEnrollCert() {
-
-	Host := "example.com"
-	stateAnnotationKey := fmt.Sprintf("%s/%s", Host, IngressStateAnnotation)
-
-	ingress := &v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: Namespace,
-			Name:      IngressName,
-			Annotations: map[string]string{
-				"vice-president":   "true",
-				stateAnnotationKey: IngressStateEnroll,
-			},
-		},
-		Spec: v1beta1.IngressSpec{
-			TLS: []v1beta1.IngressTLS{
-				{
-					Hosts:      []string{Host},
-					SecretName: SecretName,
-				},
-			},
-		},
-	}
-
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: Namespace,
-			Name:      SecretName,
-		},
-		Type: v1.SecretTypeOpaque,
-	}
-
-	// add secret to informer
-	if err := s.ResetSecretInformerStoreAndAddSecret(secret); err != nil {
+	if err := s.VP.syncHandler(ingress); err != nil {
 		s.T().Error(err)
-	}
-	// reset ingress
-	if err := s.ResetIngressInformerStoreAndAddIngress(ingress); err != nil {
-		s.T().Error(err)
-	}
-
-	// run again. secret exists this time but without cert or key. should result in below error
-	if err := s.VP.SyncHandler(ingress); err != nil {
-		assert.Error(s.T(), err, fmt.Sprintf("Neither certificate nor private key found in secret: %s/%s", Namespace, SecretName))
-		o, _, _ := s.VP.IngressInformer.GetStore().Get(ingress)
-		i := o.(*v1beta1.Ingress)
-		assert.Equal(s.T(), IngressStateApproved, s.VP.ingressGetStateAnnotationForHost(i, Host))
 	}
 }
 
@@ -374,11 +320,8 @@ func (s *TestSuite) TestIngressStatemachineIngressTIDAnnotationEmptySecretExists
 		s.T().Error(err)
 	}
 
-	if err := s.VP.SyncHandler(ingress); err != nil {
-		assert.Error(s.T(), err, fmt.Sprintf("Neither certificate nor private key found in secret: %s/%s", Namespace, SecretName))
-		o, _, _ := s.VP.IngressInformer.GetStore().Get(ingress)
-		i := o.(*v1beta1.Ingress)
-		assert.Equal(s.T(), IngressStateApproved, s.VP.ingressGetStateAnnotationForHost(i, Host))
+	if err := s.VP.syncHandler(ingress); err != nil {
+		s.T().Error(err)
 	}
 
 	// check the secret
