@@ -1,6 +1,6 @@
 package president
 
-// CertificateValidityMonth defines how long certificates must be valid before a renewal is invoked in month
+// CertificateValidityMonth defines how long certificates must be valid before a renewal is invoked (in month)
 const CertificateValidityMonth = 1
 
 // CertificateType ..

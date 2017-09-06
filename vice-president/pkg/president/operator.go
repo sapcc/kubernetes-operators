@@ -29,8 +29,6 @@ import (
 
 	"errors"
 
-	"encoding/base64"
-
 	"fmt"
 	"reflect"
 
@@ -532,7 +530,7 @@ func (vp *Operator) ingressGetStateAnnotationForHost(ingress *v1beta1.Ingress, h
 }
 
 func (vp *Operator) ingressClearStateAndTIDAnnotationForHost(ingress *v1beta1.Ingress, host string) {
-	LogInfo("Removing state and TID annotation from ingress %s/%s for host %s",ingress.GetNamespace(),ingress.GetName(),host)
+	LogInfo("Removing state and TID annotation from ingress %s/%s for host %s", ingress.GetNamespace(), ingress.GetName(), host)
 
 	o, err := api.Scheme.Copy(ingress)
 	if err != nil {
@@ -601,8 +599,7 @@ func (vp *Operator) getCertificateAndKeyFromSecret(secret *v1.Secret) (*ViceCert
 					vc.Certificate = nil
 					continue
 				}
-				decodedCert := make([]byte, base64.StdEncoding.DecodedLen(len(v)))
-				l, err := base64.StdEncoding.Decode(decodedCert, v)
+				decodedCert, l, err := base64DecodePEM(v)
 				if err != nil {
 					LogError("Couldn't decode base64 certificate: %s", err.Error())
 					continue
@@ -616,8 +613,7 @@ func (vp *Operator) getCertificateAndKeyFromSecret(secret *v1.Secret) (*ViceCert
 					vc.PrivateKey = nil
 					continue
 				}
-				decodedKey := make([]byte, base64.StdEncoding.DecodedLen(len(v)))
-				l, err := base64.StdEncoding.Decode(decodedKey, v)
+				decodedKey, l, err := base64DecodePEM(v)
 				if err != nil {
 					LogError("Couldn't decode base64 private key: %s", err.Error())
 					continue

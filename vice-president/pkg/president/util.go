@@ -26,7 +26,6 @@ import (
 
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -46,7 +45,7 @@ func checkError(err error) error {
 	return nil
 }
 
-func readPrivateKeyFromPEM(keyPEM []byte) (*rsa.PrivateKey,error) {
+func readPrivateKeyFromPEM(keyPEM []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode(keyPEM)
 	if block == nil {
 		return nil, fmt.Errorf("Failed to decode public key from PEM block: %#v", keyPEM)
@@ -59,12 +58,12 @@ func readPrivateKeyFromPEM(keyPEM []byte) (*rsa.PrivateKey,error) {
 	return key, nil
 }
 
-func writePrivateKeyToPEM(key *rsa.PrivateKey) ([]byte,error) {
+func writePrivateKeyToPEM(key *rsa.PrivateKey) ([]byte, error) {
 	keyPEM := pem.EncodeToMemory(
 		&pem.Block{
-			Type:  PrivateKeyType,
+			Type:    PrivateKeyType,
 			Headers: nil,
-			Bytes: x509.MarshalPKCS1PrivateKey(key),
+			Bytes:   x509.MarshalPKCS1PrivateKey(key),
 		},
 	)
 	if keyPEM == nil {
@@ -73,7 +72,7 @@ func writePrivateKeyToPEM(key *rsa.PrivateKey) ([]byte,error) {
 	return keyPEM, nil
 }
 
-func readCertificateFromPEM(certPEM []byte) (*x509.Certificate,error) {
+func readCertificateFromPEM(certPEM []byte) (*x509.Certificate, error) {
 	block, _ := pem.Decode(certPEM)
 	if block == nil {
 		return nil, fmt.Errorf("Failed to decode certificate from PEM block: %s", string(certPEM))
@@ -89,7 +88,7 @@ func readCertificateFromPEM(certPEM []byte) (*x509.Certificate,error) {
 	return cert, nil
 }
 
-func writeCertificateToPEM(cert *x509.Certificate) ([]byte,error) {
+func writeCertificateToPEM(cert *x509.Certificate) ([]byte, error) {
 	certPEM := pem.EncodeToMemory(
 		&pem.Block{
 			Type:  CertificateType,
@@ -102,16 +101,7 @@ func writeCertificateToPEM(cert *x509.Certificate) ([]byte,error) {
 	return certPEM, nil
 }
 
-func base64EncodePEM(pem []byte) ([]byte,error) {
-	base64EncodedPEM := make([]byte, base64.StdEncoding.EncodedLen(len(pem)))
-	base64.StdEncoding.Encode(base64EncodedPEM, pem)
-	if base64EncodedPEM == nil {
-		return nil, fmt.Errorf("Couldn't base64-encode PEM %#v", string(pem))
-	}
-	return base64EncodedPEM, nil
-}
-
-func readCertFromFile(filePath string) (*x509.Certificate,error) {
+func readCertFromFile(filePath string) (*x509.Certificate, error) {
 	certPEM, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		log.Printf("Couldn't read file. %s", err)
@@ -120,7 +110,7 @@ func readCertFromFile(filePath string) (*x509.Certificate,error) {
 	return readCertificateFromPEM(certPEM)
 }
 
-func readKeyFromFile(filePath string) (*rsa.PrivateKey,error) {
+func readKeyFromFile(filePath string) (*rsa.PrivateKey, error) {
 	keyRaw, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		LogError("Couldn't read file. %s", err)
@@ -184,7 +174,7 @@ func LogFatal(msg string, args ...interface{}) {
 func doLog(logLevel string, msg string, args []interface{}) {
 	msg = strings.TrimPrefix(msg, "\n")
 	msg = strings.Replace(msg, "\n", "\\n", -1) //avoid multiline log messages
-	msg = fmt.Sprintf("%s: %s",logLevel,msg)
+	msg = fmt.Sprintf("%s: %s", logLevel, msg)
 	if logLevel == "FATAL" {
 		log.Fatalf(msg+"\n", args...)
 		return
