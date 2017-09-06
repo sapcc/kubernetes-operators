@@ -39,12 +39,27 @@ func (s *TestSuite) TestGetCertificateFromSecret() {
 
 func (s *TestSuite) TestUpdateCertificateInSecret() {
 	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: SecretName, Namespace: Namespace},
+		ObjectMeta: metav1.ObjectMeta{
+      Name: SecretName,
+      Namespace: Namespace,
+    },
 	}
-	if err := s.VP.updateCertificateInSecret(secret, s.ViceCert); err != nil {
+
+	updatedSecret, err := s.VP.addCertificateAndKeyToSecret(s.ViceCert, secret)
+  if err != nil {
 		s.T().Error(err)
 	}
-	assert.Equal(s.T(), s.Secret.Data["tls_crt"], secret.Data["tls_crt"])
+	assert.Equal(s.T(), s.Secret.Data[SecretTLSCertType], updatedSecret.Data[SecretTLSCertType])
+  // TODO:
+  //assert.Equal(s.T(), s.Secret.Data[SecretTLSKeyType], updatedSecret.Data[SecretTLSKeyType])
+
+  // verify
+  viceCert, err := s.VP.getCertificateAndKeyFromSecret(updatedSecret)
+  if err != nil {
+    s.T().Error(err)
+  }
+  assert.Equal(s.T(), s.ViceCert.Certificate, viceCert.Certificate)
+  assert.Equal(s.T(), s.ViceCert.PrivateKey, viceCert.PrivateKey)
 }
 
 func (s *TestSuite) TestCertificateAndHostMatch() {
@@ -138,6 +153,26 @@ func (s *TestSuite) TestIngressSetState() {
 		s.T().Error(err)
 	}
 	assert.Equal(s.T(), expectedIng.GetAnnotations(), updatedIng.GetAnnotations())
+
+}
+
+func (s *TestSuite) GenerateWriteReadPrivateKey() {
+  key, err := rsa.GenerateKey(rand.Reader, 2048)
+  if err != nil {
+    s.T().Error(err)
+  }
+
+  keyPEM, err := writePrivateKeyToPEM(key)
+  if err != nil {
+    s.T().Error(err)
+  }
+
+  rKey, err := readPrivateKeyFromPEM(keyPEM)
+  if err != nil {
+    s.T().Error(err)
+  }
+
+  assert.Equal(s.T(),key,rKey)
 
 }
 

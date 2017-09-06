@@ -131,11 +131,17 @@ func (s *TestSuite) SetupSuite() {
 		Host:        "www.example.com",
 	}
 
+	base64EncodedCert := make([]byte, base64.StdEncoding.EncodedLen(len(s.CertByte)))
+	base64.StdEncoding.Encode(base64EncodedCert, s.CertByte)
+
+	base64EncodedKey := make([]byte, base64.StdEncoding.EncodedLen(len(s.KeyByte)))
+	base64.StdEncoding.Encode(base64EncodedKey, s.KeyByte)
+
 	s.Secret = &v1.Secret{
 		Type: v1.SecretTypeOpaque,
 		Data: map[string][]byte{
-			"tls.cert": []byte(base64.StdEncoding.EncodeToString(s.CertByte)),
-			"tls.key":  []byte(base64.StdEncoding.EncodeToString(s.KeyByte)),
+			SecretTLSCertType: base64EncodedCert,
+			SecretTLSKeyType:  base64EncodedKey,
 		},
 		ObjectMeta: meta_v1.ObjectMeta{
 			Namespace: "default",
