@@ -265,7 +265,7 @@ func (vp *Operator) processNextWorkItem() bool {
 	defer vp.queue.Done(key)
 
 	// do your work on the key.  This method will contains your "do stuff" logic
-	err := vp.SyncHandler(key)
+	err := vp.syncHandler(key)
 	if err == nil {
 		vp.queue.Forget(key)
 		return true
@@ -277,8 +277,7 @@ func (vp *Operator) processNextWorkItem() bool {
 	return true
 }
 
-// SyncHandler ..
-func (vp *Operator) SyncHandler(key interface{}) error {
+func (vp *Operator) syncHandler(key interface{}) error {
 	o, exists, err := vp.IngressInformer.GetStore().Get(key)
 	if checkError(err) != nil {
 		LogError("Failed to fetch key %s from cache: %s", key, err)
@@ -577,36 +576,38 @@ func (vp *Operator) ingressGetStateAnnotationForHost(ingress *v1beta1.Ingress, h
 
 func (vp *Operator) ingressClearStateAndTIDAnnotationForHost(ingress *v1beta1.Ingress, host string) {
 	LogInfo("Removing state and TID annotation from ingress %s/%s for host %s",ingress.GetNamespace(),ingress.GetName(),host)
-	annotations := ingress.GetAnnotations()
+
+	o, err := api.Scheme.Copy(ingress)
+	if err != nil {
+		return
+	}
+	updatedIngress := o.(*v1beta1.Ingress)
+
+	annotations := updatedIngress.GetAnnotations()
 	if annotations == nil {
 		return
 	}
 	delete(annotations, fmt.Sprintf("%s/%s", host, IngressStateAnnotation))
 	delete(annotations, fmt.Sprintf("%s/%s", host, IngressTIDAnnotation))
-
-	o, err := api.Scheme.Copy(ingress)
-	if err != nil {
-		return
-	}
-	updatedIngress := o.(*v1beta1.Ingress)
 	updatedIngress.SetAnnotations(annotations)
 
 	vp.updateUpstreamIngress(updatedIngress, ingress)
-
 }
 
 func (vp *Operator) ingressSetAnnotation(ingress *v1beta1.Ingress, annotationKey, annotationValue string) (*v1beta1.Ingress, error) {
 	LogInfo("Annotating ingress %s/%s with %s : %s", ingress.GetNamespace(), ingress.GetName(), annotationKey, annotationValue)
-	annotations := ingress.GetAnnotations()
-	if annotations == nil {
-		annotations = map[string]string{}
-	}
-	annotations[annotationKey] = annotationValue
+
 	o, err := api.Scheme.Copy(ingress)
 	if err != nil {
 		return nil, err
 	}
 	updatedIngress := o.(*v1beta1.Ingress)
+	annotations := updatedIngress.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+	annotations[annotationKey] = annotationValue
+
 	updatedIngress.SetAnnotations(annotations)
 
 	return updatedIngress, err
