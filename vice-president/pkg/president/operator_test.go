@@ -1,7 +1,25 @@
+/*******************************************************************************
+*
+* Copyright 2017 SAP SE
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You should have received a copy of the License along with this
+* program. If not, you may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*
+*******************************************************************************/
+
 package president
 
 import (
-	"fmt"
 	"path"
 	"testing"
 
@@ -11,15 +29,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/kubernetes/pkg/util/slice"
 )
 
-const IngressName = "my-ingress"
-const SecretName = "my-secret"
-const Namespace = "default"
+const (
+  IngressName = "my-ingress"
+  SecretName = "my-secret"
+  Namespace = "default"
+  HostName = "example.com"
+)
 
 func TestMySuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
@@ -27,39 +47,37 @@ func TestMySuite(t *testing.T) {
 
 func (s *TestSuite) TestGetCertificateFromSecret() {
 
-	viceCert, err := s.VP.getCertificateAndKeyFromSecret(s.Secret)
+	certificate, privateKey, err := s.VP.getCertificateAndKeyFromSecret(s.Secret)
 	if err != nil {
 		s.T().Errorf("Couldn't get certificate from secret: %s", err.Error())
 	}
 
-	assert.Equal(s.T(), s.Cert, viceCert.Certificate)
-	assert.Equal(s.T(), s.Key, viceCert.PrivateKey)
+	assert.Equal(s.T(), s.Cert, certificate)
+	assert.Equal(s.T(), s.Key, privateKey)
 
 }
 
 func (s *TestSuite) TestUpdateCertificateInSecret() {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-      Name: SecretName,
-      Namespace: Namespace,
-    },
+			Name:      SecretName,
+			Namespace: Namespace,
+		},
 	}
 
 	updatedSecret, err := s.VP.addCertificateAndKeyToSecret(s.ViceCert, secret)
-  if err != nil {
+	if err != nil {
 		s.T().Error(err)
 	}
 	assert.Equal(s.T(), s.Secret.Data[SecretTLSCertType], updatedSecret.Data[SecretTLSCertType])
-  // TODO:
-  //assert.Equal(s.T(), s.Secret.Data[SecretTLSKeyType], updatedSecret.Data[SecretTLSKeyType])
 
-  // verify
-  viceCert, err := s.VP.getCertificateAndKeyFromSecret(updatedSecret)
-  if err != nil {
-    s.T().Error(err)
-  }
-  assert.Equal(s.T(), s.ViceCert.Certificate, viceCert.Certificate)
-  assert.Equal(s.T(), s.ViceCert.PrivateKey, viceCert.PrivateKey)
+	// verify
+	certificate, privateKey, err := s.VP.getCertificateAndKeyFromSecret(updatedSecret)
+	if err != nil {
+		s.T().Error(err)
+	}
+	assert.Equal(s.T(), s.ViceCert.Certificate, certificate)
+	assert.Equal(s.T(), s.ViceCert.PrivateKey, privateKey)
 }
 
 func (s *TestSuite) TestCertificateAndHostMatch() {
@@ -122,87 +140,24 @@ func (s *TestSuite) TestPickupCertificate() {
 	}
 }
 
-func (s *TestSuite) TestIngressSetState() {
-	expectedIng := &v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      IngressName,
-			Namespace: Namespace,
-			Annotations: map[string]string{
-				"example.com/vice-president-state": "enroll",
-			},
-		},
-	}
-
-	fk := fake.NewSimpleClientset(expectedIng)
-
-	ing := &v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      IngressName,
-			Namespace: Namespace,
-		},
-	}
-
-	annotatedIng, err := s.VP.ingressSetAnnotation(ing, "example.com/vice-president-state", IngressStateEnroll)
+func (s *TestSuite) TestGenerateWriteReadPrivateKey() {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		s.T().Error(err)
 	}
-	assert.Equal(s.T(), expectedIng.GetAnnotations(), annotatedIng.GetAnnotations())
 
-	updatedIng, err := fk.ExtensionsV1beta1().Ingresses(Namespace).Update(annotatedIng)
+	keyPEM, err := writePrivateKeyToPEM(key)
 	if err != nil {
 		s.T().Error(err)
 	}
-	assert.Equal(s.T(), expectedIng.GetAnnotations(), updatedIng.GetAnnotations())
 
-}
-
-func (s *TestSuite) GenerateWriteReadPrivateKey() {
-  key, err := rsa.GenerateKey(rand.Reader, 2048)
-  if err != nil {
-    s.T().Error(err)
-  }
-
-  keyPEM, err := writePrivateKeyToPEM(key)
-  if err != nil {
-    s.T().Error(err)
-  }
-
-  rKey, err := readPrivateKeyFromPEM(keyPEM)
-  if err != nil {
-    s.T().Error(err)
-  }
-
-  assert.Equal(s.T(),key,rKey)
-
-}
-
-func (s *TestSuite) TestIngressSetStateAndTIDAnnotation() {
-	Host := "example.com"
-	ing := &v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      IngressName,
-			Namespace: Namespace,
-		},
+	rKey, err := readPrivateKeyFromPEM(keyPEM)
+	if err != nil {
+		s.T().Error(err)
 	}
 
-	updatedStateIng := &v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      IngressName,
-			Namespace: Namespace,
-			Annotations: map[string]string{
-				fmt.Sprintf("%s/s", Host, IngressStateAnnotation): IngressStateEnroll,
-			},
-		},
-	}
+	assert.Equal(s.T(), key, rKey)
 
-	assert.Equal(s.T(), IngressStateEnroll, s.VP.ingressGetStateAnnotationForHost(updatedStateIng, Host))
-	assert.True(s.T(), s.VP.isIngressNeedsUpdate(updatedStateIng, ing))
-
-	ing.SetAnnotations(map[string]string{fmt.Sprintf("%s/%s", Host, IngressStateAnnotation): IngressStateApprove})
-	assert.Equal(s.T(), IngressStateApprove, s.VP.ingressGetStateAnnotationForHost(ing, Host))
-
-	ing.SetAnnotations(map[string]string{fmt.Sprintf("%s/%s", Host, IngressTIDAnnotation): "uniqueTID"})
-	assert.Equal(s.T(), "uniqueTID", s.VP.ingressGetTIDForHost(ing, Host))
 }
 
 func (s *TestSuite) TestLoadConfig() {
@@ -232,62 +187,47 @@ func (s *TestSuite) TestGetSANS() {
 	}
 }
 
-func (s *TestSuite) TestSkipIngressWithoutVicePresidentialAnnotation() {
+func (s *TestSuite) TestIngressVicePresidentialAnnotation() {
 
-	ingress := &v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:   Namespace,
-			Name:        "IgnoreMe!",
-			Annotations: map[string]string{},
-		},
-		Spec: v1beta1.IngressSpec{
-			TLS: []v1beta1.IngressTLS{
-				{
-					Hosts:      []string{"example.com"},
-					SecretName: SecretName,
-				},
-			},
-		},
-	}
+  testData := map[bool]*v1beta1.Ingress{
+    true: {
+      ObjectMeta: metav1.ObjectMeta{
+        Namespace:   Namespace,
+        Name:        "DoNotIgnoreMe!",
+        Annotations: map[string]string{
+          "vice-president": "true",
+        },
+      },
+    },
+    false: {
+      ObjectMeta: metav1.ObjectMeta{
+        Namespace:   Namespace,
+        Name:        "IgnoreMe!",
+        Annotations: map[string]string{},
+      },
+    },
+  }
 
-	if err := s.ResetIngressInformerStoreAndAddIngress(ingress); err != nil {
-		s.T().Error(err)
-	}
-
-	if err := s.ResetSecretInformerStoreAndAddSecret(nil); err != nil {
-		s.T().Error(err)
-	}
-
-	if err := s.VP.syncHandler(ingress); err != nil {
-		s.T().Error(err)
-	}
-	o, _, _ := s.VP.IngressInformer.GetStore().Get(ingress)
-	ing := o.(*v1beta1.Ingress)
-
-	// neither state nor tid should be annotated
-
-	assert.Empty(s.T(), ing.GetAnnotations())
-	assert.Empty(s.T(), s.VP.SecretInformer.GetStore().List())
+  for expectedBool, ingress := range testData {
+    assert.Equal(s.T(), expectedBool, s.VP.isTakeCareOfIngress(ingress))
+  }
 
 }
 
-// TestIngressStatemachineNewCreateSecretEnrollApproveCert tests the behaviour if the referenced secret doesn't exist, in which case it should be created and enrollment of the cert should be triggered.
-func (s *TestSuite) TestIngressStatemachineNewCreateSecretEnrollCert() {
-
-	Host := "example.com"
+func (s *TestSuite) TestStateMachine() {
 
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: Namespace,
 			Name:      IngressName,
 			Annotations: map[string]string{
-				"vice-president": "true",
+        "vice-president" : "true",
 			},
 		},
 		Spec: v1beta1.IngressSpec{
 			TLS: []v1beta1.IngressTLS{
 				{
-					Hosts:      []string{Host},
+					Hosts:      []string{HostName},
 					SecretName: SecretName,
 				},
 			},
@@ -304,11 +244,11 @@ func (s *TestSuite) TestIngressStatemachineNewCreateSecretEnrollCert() {
 	}
 }
 
-// TestIngressStatemachineIngressTIDAnnotationEmptySecretExistsPickupCert tests the behaviour if the ingress is annotated with a Transaction ID, but the secret wasn't updated with the cert. Pickup should be triggered.
+
+/*// TestIngressStatemachineIngressTIDAnnotationEmptySecretExistsPickupCert tests the behaviour if the ingress is annotated with a Transaction ID, but the secret wasn't updated with the cert. Pickup should be triggered.
 func (s *TestSuite) TestIngressStatemachineIngressTIDAnnotationEmptySecretExistsPickupCert() {
 
 	Host := "example.com"
-	tidAnnotationKey := fmt.Sprintf("%s/%s", Host, IngressTIDAnnotation)
 
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -316,11 +256,7 @@ func (s *TestSuite) TestIngressStatemachineIngressTIDAnnotationEmptySecretExists
 			Name:      IngressName,
 			Annotations: map[string]string{
 				"vice-president": "true",
-				tidAnnotationKey: "87d1adc3f1f262409092ec31fb09f4c7",
 			},
-		},
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "extensions/v1beta1",
 		},
 		Spec: v1beta1.IngressSpec{
 			TLS: []v1beta1.IngressTLS{
@@ -364,4 +300,4 @@ func (s *TestSuite) TestIngressStatemachineIngressTIDAnnotationEmptySecretExists
 	sec := obj.(*v1.Secret)
 	assert.Equal(s.T(), secret.Data["tls.key"], sec.Data["tls.key"])
 	assert.True(s.T(), sec.Data["tls.crt"] != nil)
-}
+}*/

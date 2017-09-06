@@ -27,13 +27,12 @@ import (
 
 	"crypto/tls"
 
-	"errors"
-
 	"fmt"
 	"reflect"
 
 	"strings"
 
+	"crypto/rsa"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/go-vice"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -79,6 +78,10 @@ func New(options Options) *Operator {
 
 	LogInfo("Creating new vice president in version %v\n", VERSION)
 
+	if err := options.CheckOptions(); err != nil {
+		LogInfo(err.Error())
+	}
+
 	config := newClientConfig(options)
 
 	vicePresidentConfig, err := ReadConfig(options.VicePresidentConfig)
@@ -97,10 +100,6 @@ func New(options Options) *Operator {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		LogFatal("Couldn't create Kubernetes client: %s", err)
-	}
-
-	if err := options.CheckOptions(); err != nil {
-		LogInfo(err.Error())
 	}
 
 	cert, err := tls.LoadX509KeyPair(options.ViceCrtFile, options.ViceKeyFile)
@@ -246,215 +245,206 @@ func (vp *Operator) syncHandler(key interface{}) error {
 	}
 
 	ingress := o.(*v1beta1.Ingress)
-	ingressAnnotations := ingress.GetAnnotations()
 
-	if ingressAnnotations[vp.Options.IngressAnnotation] == "true" {
+	if vp.isTakeCareOfIngress(ingress) {
 
 		for _, tls := range ingress.Spec.TLS {
 
 			LogInfo("Checking Ingress %v/%v: Hosts: %v, Secret: %v/%v", ingress.GetNamespace(), ingress.GetName(), tls.Hosts, ingress.GetNamespace(), tls.SecretName)
 
 			for _, host := range tls.Hosts {
-
-				// check the secret. does it exist? does it contain a certificate and a key?
-				// if not create empty secret in namespace of ingress and set to enrolling state
-				viceCert, secret, err := vp.checkSecret(ingress, host, tls.SecretName)
-				if err != nil {
+				if err := vp.runStateMachine(ingress, tls.SecretName, host); err != nil {
 					return err
 				}
-				viceCert.Host = host
-
-				// if a certificate was found, validate it
-				if viceCert.Certificate != nil {
-					if err := vp.checkViceCertificate(viceCert, ingress); err != nil {
-						return err
-					}
-				}
-
-				// this one looks a little bit ugly:
-				// try to pickup cert if TID and private key exist. cert is missing. ingress not in state enroll or renew.
-				if tid := vp.ingressGetTIDForHost(ingress, viceCert.Host); tid != "" {
-					viceCert.TID = tid
-					if vp.ingressGetStateAnnotationForHost(ingress, viceCert.Host) != IngressStateEnroll || vp.ingressGetStateAnnotationForHost(ingress, viceCert.Host) != IngressStateRenew {
-						if viceCert.PrivateKey != nil && viceCert.Certificate == nil {
-							vp.ingressSetStateForHost(ingress, viceCert.Host, IngressStatePickup)
-						}
-					} else {
-						// make sure to avoid duplicate enroll/renew-requests for certificates if there's a TID
-						vp.ingressSetStateForHost(ingress, viceCert.Host, IngressStateApprove)
-					}
-				}
-
-				// StateMachine loop; done if state == IngressStateApproved
-				for {
-					if state := vp.ingressGetStateAnnotationForHost(ingress, viceCert.Host); state == IngressStateApproved {
-						break
-					}
-					if err := vp.runStateMachine(ingress, secret, viceCert); err != nil {
-						return err
-					}
-				}
-
 			}
 		}
-	} else if len(ingressAnnotations) != 0 {
-		LogDebug("Ignoring ingress %v/%v as annotation %s was set not found or set to false", ingress.GetNamespace(), ingress.GetName(), vp.Options.IngressAnnotation)
 	} else {
-		LogDebug("Ignoring ingress %v/%v as no annotations were found.", ingress.GetNamespace(), ingress.GetName())
+		LogDebug("Ignoring ingress %v/%v as vice-presidential annotation was not set.", ingress.GetNamespace(), ingress.GetName())
 	}
 	return err
 }
 
-func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secret *v1.Secret, viceCert *ViceCertificate) error {
+func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host string) error {
 	// labels for prometheus metrics
 	labels := prometheus.Labels{
 		"ingress": fmt.Sprintf("%s/%s", ingress.GetNamespace(), ingress.GetName()),
-		"host":    viceCert.Host,
+		"host":    host,
 	}
 	// add 0 to initialize the metrics that indicate failure
 	initializeFailureMetrics(labels)
 
-	// return an error if something is off to avoid a constant loop and give another ingress a chance
-	switch state := vp.ingressGetStateAnnotationForHost(ingress, viceCert.Host); state {
-	case IngressStateEnroll:
-		if err := vp.enrollCertificate(viceCert); err != nil {
-			LogInfo("Couldn't enroll new certificate for ingress %s/%s and host %s: %s", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, err)
+	var viceCert *ViceCertificate
+	var secret *v1.Secret
+	var state, nextState string
 
-			enrollFailedCounter.With(labels).Inc()
+	for {
+		// return an error if something is off to avoid a constant loop and give another ingress a chance
+		state = nextState
+		LogDebug("Setting state: %s",state)
 
-			return err
-		}
-		vp.ingressSetStateForHost(ingress, viceCert.Host, IngressStateApprove)
-		vp.ingressSetTIDForHost(ingress, viceCert.Host, viceCert.TID)
+		switch state {
+		case IngressStateEnroll:
+			if err := vp.enrollCertificate(viceCert); err != nil {
+				LogInfo("Couldn't enroll new certificate for ingress %s/%s and host %s: %s", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, err)
 
-		enrollSuccessCounter.With(labels).Inc()
+				enrollFailedCounter.With(labels).Inc()
 
-	case IngressStateRenew:
-		if err := vp.renewCertificate(viceCert); err != nil {
-			LogInfo("Couldn't renew certificate for ingress %s/%s, host %s using TID %s: %s.", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, viceCert.TID, err)
-
-			renewFailedCounter.With(labels).Inc()
-
-			return err
-		}
-		vp.ingressSetStateForHost(ingress, viceCert.Host, IngressStateApprove)
-		vp.ingressSetTIDForHost(ingress, viceCert.Host, viceCert.TID)
-
-		renewSuccessCounter.With(labels).Inc()
-
-	case IngressStateApprove:
-		if viceCert.Certificate != nil {
-			LogInfo("Certificate for ingress %s/%s, host %s was automatically approved", ingress.GetNamespace(), ingress.GetName(), viceCert.Host)
-		} else {
-			if err := vp.approveCertificate(viceCert); err != nil {
-				LogInfo("Couldn't approve certificate for ingress %s/%s, host %s using TID %s: %s", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, viceCert.TID, err)
-				approveFailedCounter.With(labels).Inc()
 				return err
 			}
+			enrollSuccessCounter.With(labels).Inc()
+
+			nextState = IngressStateApprove
+
+		case IngressStateRenew:
+			if err := vp.renewCertificate(viceCert); err != nil {
+				LogInfo("Couldn't renew certificate for ingress %s/%s, host %s using TID %s: %s.", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, viceCert.TID, err)
+
+				renewFailedCounter.With(labels).Inc()
+
+				return err
+			}
+
+			renewSuccessCounter.With(labels).Inc()
+
+			nextState = IngressStateApprove
+
+		case IngressStateApprove:
+			if viceCert.Certificate != nil {
+				LogInfo("Certificate for ingress %s/%s, host %s was automatically approved", ingress.GetNamespace(), ingress.GetName(), viceCert.Host)
+			} else {
+				if err := vp.approveCertificate(viceCert); err != nil {
+					LogInfo("Couldn't approve certificate for ingress %s/%s, host %s using TID %s: %s", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, viceCert.TID, err)
+					approveFailedCounter.With(labels).Inc()
+					return err
+				}
+			}
+
+			if err := vp.updateCertificateAndKeyInSecret(secret, viceCert); err != nil {
+				return err
+			}
+
+			approveSuccessCounter.With(labels).Inc()
+
+			nextState = IngressStateApproved
+
+		case IngressStatePickup:
+			if err := vp.pickupCertificate(viceCert); err != nil {
+				LogInfo("Couldn't pickup certificate for ingress %s/%s, host %s using TID %s: %s.", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, viceCert.TID, err)
+
+				pickupFailedCounter.With(labels).Inc()
+
+				return err
+			}
+
+			pickupSuccessCounter.With(labels).Inc()
+
+			if err := vp.updateCertificateAndKeyInSecret(secret, viceCert); err != nil {
+				return err
+			}
+
+			nextState = IngressStateApprove
+
+		case IngressStateApproved:
+			return nil
+
+		default:
+			// check the secret. does it exist? does it contain a certificate and a key?
+			// if not create empty secret in namespace of ingress and set to enrolling state
+			v, s, err := vp.checkSecret(ingress, host, secretName)
+			if err != nil || v.Certificate == nil {
+				nextState = IngressStateEnroll
+			}
+			viceCert = v
+			secret = s
+
+			// if a certificate was found, validate it
+			if viceCert.Certificate != nil {
+				if s := vp.checkViceCertificate(viceCert); s != "" {
+					nextState = s
+				}
+			}
 		}
-		vp.ingressSetStateForHost(ingress, viceCert.Host, IngressStateApproved)
-		vp.ingressSetTIDForHost(ingress, viceCert.Host, viceCert.TID)
 
-		approveSuccessCounter.With(labels).Inc()
-
-		if err := vp.updateCertificateInSecret(secret, viceCert); err != nil {
-			return err
-		}
-
-	case IngressStatePickup:
-		if err := vp.pickupCertificate(viceCert); err != nil {
-			LogInfo("Couldn't pickup certificate for ingress %s/%s, host %s using TID %s: %s.", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, viceCert.TID, err)
-
-			pickupFailedCounter.With(labels).Inc()
-
-			return err
-		}
-		vp.ingressSetStateForHost(ingress, viceCert.Host, IngressStateApproved)
-		vp.ingressSetTIDForHost(ingress, viceCert.Host, viceCert.TID)
-
-		pickupSuccessCounter.With(labels).Inc()
-
-		if err := vp.updateCertificateInSecret(secret, viceCert); err != nil {
-			return err
-		}
-	case IngressStateApproved:
-		vp.ingressClearStateAndTIDAnnotationForHost(ingress, viceCert.Host)
-
-	default:
-		LogInfo("Checked certificate for ingress %s/%s", ingress.GetNamespace(), ingress.GetName())
 	}
 	return nil
 }
 
+func (vp *Operator) isTakeCareOfIngress(ingress *v1beta1.Ingress) bool {
+	if ingress.GetAnnotations()[vp.Options.IngressAnnotation] == "true" {
+		return true
+	}
+	return false
+}
+
 func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host, secretName string) (*ViceCertificate, *v1.Secret, error) {
+
+	// force sync here
+	if err := vp.SecretInformer.GetStore().Resync(); err != nil {
+		return nil, nil, err
+	}
 
 	obj, exists, err := vp.SecretInformer.GetStore().GetByKey(fmt.Sprintf("%s/%s", ingress.GetNamespace(), secretName))
 
 	// does the secret exist?
-	if exists != true {
+	if exists != true || (err != nil && apierrors.IsNotFound(err)){
 		LogInfo("Secret %s/%s doesn't exist. Creating it and enrolling certificate", ingress.GetNamespace(), secretName)
-		vp.ingressSetStateForHost(ingress, host, IngressStateEnroll)
 		secret := vp.createEmptySecret(ingress.GetNamespace(), secretName)
-		vp.addUpstreamSecret(secret)
-		return &ViceCertificate{}, secret, nil
+		if err := vp.addUpstreamSecret(secret); err != nil {
+			return &ViceCertificate{Host: host}, secret, err
+		}
+		return &ViceCertificate{Host: host}, secret, nil
 	}
 
 	if checkError(err) != nil {
-		if apierrors.IsNotFound(err) {
-			LogInfo("Secret %s/%s doesn't exist. Creating it and enrolling certificate", ingress.GetNamespace(), secretName)
-			vp.ingressSetStateForHost(ingress, host, IngressStateEnroll)
-			secret := vp.createEmptySecret(ingress.GetNamespace(), secretName)
-			vp.addUpstreamSecret(secret)
-			return &ViceCertificate{}, secret, nil
-		}
 		LogInfo("Couldn't get secret %s/%s.", ingress.GetNamespace(), secretName)
-		return &ViceCertificate{}, &v1.Secret{}, err
+		return &ViceCertificate{Host: host}, &v1.Secret{}, err
 	}
 
 	secret := obj.(*v1.Secret)
 
 	// does the certificate exist? can it be decoded and parsed from the secret?
-	viceCert, err := vp.getCertificateAndKeyFromSecret(secret)
+	cert, key, err := vp.getCertificateAndKeyFromSecret(secret)
 	if err != nil {
 		LogError(err.Error())
-		vp.ingressSetStateForHost(ingress, host, IngressStateEnroll)
-		return &ViceCertificate{}, secret, nil
+		return &ViceCertificate{Host: host}, secret, nil
 	}
-	return viceCert, secret, nil
+	return &ViceCertificate{Host: host, Certificate: cert, PrivateKey:  key }, secret, nil
 }
 
 // checkViceCertificate checks a given ViceCertificate and annotates the ingress accordingly
-func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate, ingress *v1beta1.Ingress) error {
+func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate) string {
 	// does the secret contain the correct key for the certificate?
 	if !viceCert.DoesKeyAndCertificateTally() {
-		vp.ingressSetStateForHost(ingress, viceCert.Host, IngressStateRenew)
-		return errors.New("Certificate and Key don't match. Renewing")
+		LogInfo("Certificate and Key don't match. Renewing")
+		return IngressStateRenew
 	}
 
 	//  is the certificate for the correct host?
 	if !viceCert.DoesCertificateAndHostMatch() {
-		vp.ingressSetStateForHost(ingress, viceCert.Host, IngressStateEnroll)
-		return errors.New("Certificate and Key don't match. Enrolling new one")
+		LogInfo("Certificate and Key don't match. Enrolling new one")
+		return IngressStateEnroll
 	}
 
 	// is the certificate valid for time t ?
 	if viceCert.DoesCertificateExpireSoon() {
 		LogInfo("Certificate for host %s will expire in %s month. Renewing", viceCert.Host, CertificateRecheckInterval)
-		vp.ingressSetStateForHost(ingress, viceCert.Host, IngressStateRenew)
-	} else {
-		LogInfo("Certificate for host %s is valid until %s", viceCert.Host, viceCert.Certificate.NotAfter.UTC())
+		return IngressStateRenew
 	}
-	return nil
+	LogInfo("Certificate for host %s is valid until %s", viceCert.Host, viceCert.Certificate.NotAfter.UTC())
+	return ""
 }
 
 // UpdateCertificateInSecret adds or updates the certificate in a secret
-func (vp *Operator) updateCertificateInSecret(secret *v1.Secret, vc *ViceCertificate) error {
+func (vp *Operator) updateCertificateAndKeyInSecret(secret *v1.Secret, vc *ViceCertificate) error {
+	LogInfo("Add/Update certificate and key in secret %s/%s",secret.GetNamespace(),secret.GetName())
 	updatedSecret, err := vp.addCertificateAndKeyToSecret(vc, secret)
 	if err != nil {
 		LogError("Couldn't update secret %s/%s: %s", secret.Namespace, secret.Name, err)
 		return err
 	}
-	vp.updateUpstreamSecret(updatedSecret, secret)
+	if err := vp.updateUpstreamSecret(updatedSecret, secret); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -504,87 +494,10 @@ func (vp *Operator) createEmptySecret(nameSpace, secretName string) *v1.Secret {
 	}
 }
 
-// IngressSetStateForHost sets the state for an ingress and updates the upstream object; Annotation looks like <host>/vice-president-state : <state>
-func (vp *Operator) ingressSetStateForHost(ingress *v1beta1.Ingress, host, state string) {
-	updatedIngress, err := vp.ingressSetAnnotation(ingress, fmt.Sprintf("%s/%s", host, IngressStateAnnotation), state)
-	if checkError(err) != nil {
-		LogError(err.Error())
-		return
-	}
-	vp.updateUpstreamIngress(updatedIngress, ingress)
-}
-
-// ingressSetTIDForHost sets the TID for an ingress and updates the upstream object; Annotation looks like  <host>/vice-president-tid : <tid>
-func (vp *Operator) ingressSetTIDForHost(ingress *v1beta1.Ingress, host, tid string) {
-	updatedIngress, err := vp.ingressSetAnnotation(ingress, fmt.Sprintf("%s/%s", host, IngressTIDAnnotation), tid)
-	if checkError(err) != nil {
-		LogError(err.Error())
-		return
-	}
-	vp.updateUpstreamIngress(updatedIngress, ingress)
-}
-
-// IngressGetStateAnnotationForHost checks an ingress for vice-presidential annotations of the state of an host
-func (vp *Operator) ingressGetStateAnnotationForHost(ingress *v1beta1.Ingress, host string) string {
-	return vp.getIngressAnnotationForHost(ingress, host, IngressStateAnnotation)
-}
-
-func (vp *Operator) ingressClearStateAndTIDAnnotationForHost(ingress *v1beta1.Ingress, host string) {
-	LogInfo("Removing state and TID annotation from ingress %s/%s for host %s", ingress.GetNamespace(), ingress.GetName(), host)
-
-	o, err := api.Scheme.Copy(ingress)
-	if err != nil {
-		return
-	}
-	updatedIngress := o.(*v1beta1.Ingress)
-
-	annotations := updatedIngress.GetAnnotations()
-	if annotations == nil {
-		return
-	}
-	delete(annotations, fmt.Sprintf("%s/%s", host, IngressStateAnnotation))
-	delete(annotations, fmt.Sprintf("%s/%s", host, IngressTIDAnnotation))
-	updatedIngress.SetAnnotations(annotations)
-
-	vp.updateUpstreamIngress(updatedIngress, ingress)
-}
-
-func (vp *Operator) ingressSetAnnotation(ingress *v1beta1.Ingress, annotationKey, annotationValue string) (*v1beta1.Ingress, error) {
-	LogInfo("Annotating ingress %s/%s with %s : %s", ingress.GetNamespace(), ingress.GetName(), annotationKey, annotationValue)
-
-	o, err := api.Scheme.Copy(ingress)
-	if err != nil {
-		return nil, err
-	}
-	updatedIngress := o.(*v1beta1.Ingress)
-	annotations := updatedIngress.GetAnnotations()
-	if annotations == nil {
-		annotations = map[string]string{}
-	}
-	annotations[annotationKey] = annotationValue
-
-	updatedIngress.SetAnnotations(annotations)
-
-	return updatedIngress, err
-}
-
-// ingressGetTIDAnnotationForHost checks an ingress for vice-presidential annotations of the TID of an host
-func (vp *Operator) ingressGetTIDForHost(ingress *v1beta1.Ingress, host string) string {
-	return vp.getIngressAnnotationForHost(ingress, host, IngressTIDAnnotation)
-}
-
-func (vp *Operator) getIngressAnnotationForHost(ingress *v1beta1.Ingress, host, annotationKey string) string {
-	for k, v := range ingress.GetAnnotations() {
-		if strings.Contains(k, annotationKey) && strings.Contains(k, host) {
-			return v
-		}
-	}
-	return ""
-}
-
 // GetCertificateAndKeyFromSecret extracts the certificate and private key from a given secrets spec
-func (vp *Operator) getCertificateAndKeyFromSecret(secret *v1.Secret) (*ViceCertificate, error) {
-	vc := &ViceCertificate{}
+func (vp *Operator) getCertificateAndKeyFromSecret(secret *v1.Secret) (*x509.Certificate, *rsa.PrivateKey, error) {
+	var certificate *x509.Certificate
+	var privateKey *rsa.PrivateKey
 	// do not just return on error. we might be able to pickup the certificate if the key still exists.
 	if secret.Data != nil {
 		for k, v := range secret.Data {
@@ -596,7 +509,7 @@ func (vp *Operator) getCertificateAndKeyFromSecret(secret *v1.Secret) (*ViceCert
 			case SecretTLSCertType:
 				if v == nil || len(v) == 0 {
 					LogInfo("Certificate in secret %s/%s is empty", secret.GetNamespace(), secret.GetName())
-					vc.Certificate = nil
+					certificate = nil
 					continue
 				}
 				decodedCert, l, err := base64DecodePEM(v)
@@ -604,13 +517,13 @@ func (vp *Operator) getCertificateAndKeyFromSecret(secret *v1.Secret) (*ViceCert
 					LogError("Couldn't decode base64 certificate: %s", err.Error())
 					continue
 				}
-				if vc.Certificate, err = readCertificateFromPEM(decodedCert[:l]); err != nil {
+				if certificate, err = readCertificateFromPEM(decodedCert[:l]); err != nil {
 					LogError(err.Error())
 				}
 			case SecretTLSKeyType:
 				if v == nil || len(v) == 0 {
 					LogInfo("Key in secret %s/%s is empty", secret.GetNamespace(), secret.GetName())
-					vc.PrivateKey = nil
+					privateKey = nil
 					continue
 				}
 				decodedKey, l, err := base64DecodePEM(v)
@@ -618,16 +531,16 @@ func (vp *Operator) getCertificateAndKeyFromSecret(secret *v1.Secret) (*ViceCert
 					LogError("Couldn't decode base64 private key: %s", err.Error())
 					continue
 				}
-				if vc.PrivateKey, err = readPrivateKeyFromPEM(decodedKey[:l]); err != nil {
+				if privateKey, err = readPrivateKeyFromPEM(decodedKey[:l]); err != nil {
 					LogError(err.Error())
 				}
 			}
 		}
 	}
-	if vc.Certificate == nil && vc.PrivateKey == nil {
-		return nil, fmt.Errorf("Neither certificate nor private key found in secret: %s/%s", secret.Namespace, secret.Name)
+	if certificate == nil && privateKey == nil {
+		return nil, nil, fmt.Errorf("Neither certificate nor private key found in secret: %s/%s", secret.Namespace, secret.Name)
 	}
-	return vc, nil
+	return certificate, privateKey, nil
 }
 
 func (vp *Operator) addCertificateAndKeyToSecret(viceCert *ViceCertificate, oldSecret *v1.Secret) (*v1.Secret, error) {
@@ -643,16 +556,6 @@ func (vp *Operator) addCertificateAndKeyToSecret(viceCert *ViceCertificate, oldS
 		return nil, err
 	}
 
-	encodedCert, err := base64EncodePEM(certPEM)
-	if err != nil {
-		return nil, err
-	}
-
-	encodedKey, err := base64EncodePEM(keyPEM)
-	if err != nil {
-		return nil, err
-	}
-
 	o, err := api.Scheme.Copy(oldSecret)
 	if checkError(err) != nil {
 		return nil, err
@@ -663,8 +566,8 @@ func (vp *Operator) addCertificateAndKeyToSecret(viceCert *ViceCertificate, oldS
 		secret.Data = map[string][]byte{}
 	}
 
-	secret.Data[SecretTLSCertType] = encodedCert
-	secret.Data[SecretTLSKeyType] = encodedKey
+	secret.Data[SecretTLSCertType] = certPEM
+	secret.Data[SecretTLSKeyType] = keyPEM
 
 	return secret, nil
 }
@@ -705,6 +608,7 @@ func (vp *Operator) ingressDelete(obj interface{}) {
 		return
 	}
 	vp.queue.Add(key)
+
 }
 
 func (vp *Operator) ingressUpdate(cur, old interface{}) {
@@ -712,54 +616,45 @@ func (vp *Operator) ingressUpdate(cur, old interface{}) {
 	iCur := cur.(*v1beta1.Ingress)
 
 	if vp.isIngressNeedsUpdate(iCur, iOld) {
-		LogInfo("Updated ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
+		LogDebug("Updated ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
 		vp.queue.Add(iCur)
 		return
 	}
 	LogDebug("Nothing changed. No need to update ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
 }
 
-func (vp *Operator) updateUpstreamIngress(iCur, iOld *v1beta1.Ingress) {
-	if vp.isIngressNeedsUpdate(iCur, iOld) {
-		LogInfo("Updating upstream ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
-		_, err := vp.Clientset.Ingresses(iOld.GetNamespace()).Update(iCur)
-		if checkError(err) != nil {
-			LogError(err.Error())
-		}
-	}
-	LogDebug("No need to update upstream ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
-}
-
-func (vp *Operator) addUpstreamSecret(secret *v1.Secret) {
-	LogInfo("Added secret %s/%s", secret.GetNamespace(), secret.GetName())
-	_, err := vp.Clientset.Secrets(secret.GetNamespace()).Create(secret)
+func (vp *Operator) addUpstreamSecret(secret *v1.Secret) error {
+	LogInfo("Added upstream secret %s/%s", secret.GetNamespace(), secret.GetName())
+	 _, err := vp.Clientset.Secrets(secret.GetNamespace()).Create(secret)
 	if checkError(err) != nil {
-		LogError(err.Error())
+		return err
 	}
+	return nil
 }
 
-func (vp *Operator) deleteUpstreamSecret(secret *v1.Secret) {
-	LogInfo("Deleted secret %s/%s", secret.GetNamespace(), secret.GetName())
+func (vp *Operator) deleteUpstreamSecret(secret *v1.Secret) error {
+	LogInfo("Deleted upstream secret %s/%s", secret.GetNamespace(), secret.GetName())
 	err := vp.Clientset.Secrets(secret.GetNamespace()).Delete(
 		secret.GetName(),
 		&meta_v1.DeleteOptions{},
 	)
 	if checkError(err) != nil {
-		LogError(err.Error())
+		return err
 	}
+	return nil
 }
 
-func (vp *Operator) updateUpstreamSecret(sCur, sOld *v1.Secret) {
+func (vp *Operator) updateUpstreamSecret(sCur, sOld *v1.Secret) error {
 	if vp.isSecretNeedsUpdate(sCur, sOld) {
-		LogInfo("Updated secret %s/%s", sOld.GetNamespace(), sOld.GetName())
+		LogInfo("Updated upstream secret %s/%s", sOld.GetNamespace(), sOld.GetName())
 		_, err := vp.Clientset.Secrets(sOld.GetNamespace()).Update(sCur)
 		if checkError(err) != nil {
-			LogError(err.Error())
+			return err
 		}
-		return
+		return nil
 	}
 	LogInfo("Nothing changed. No need to update secret %s/%s", sOld.GetNamespace(), sOld.GetName())
-
+	return nil
 }
 
 func (vp *Operator) checkCertificates() {
