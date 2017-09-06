@@ -46,12 +46,12 @@ func checkError(err error) error {
 	return nil
 }
 
-func readPrivateKeyFromPEM(keyPEM []byte) (key *rsa.PrivateKey, err error) {
+func readPrivateKeyFromPEM(keyPEM []byte) (*rsa.PrivateKey,error) {
 	block, _ := pem.Decode(keyPEM)
 	if block == nil {
 		return nil, fmt.Errorf("Failed to decode public key from PEM block: %#v", keyPEM)
 	}
-	key, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		LogError("Could not parse private key: %s", err.Error())
 		return nil, err
@@ -59,8 +59,8 @@ func readPrivateKeyFromPEM(keyPEM []byte) (key *rsa.PrivateKey, err error) {
 	return key, nil
 }
 
-func writePrivateKeyToPEM(key *rsa.PrivateKey) (keyPEM []byte, err error) {
-	keyPEM = pem.EncodeToMemory(
+func writePrivateKeyToPEM(key *rsa.PrivateKey) ([]byte,error) {
+	keyPEM := pem.EncodeToMemory(
 		&pem.Block{
 			Type:  PrivateKeyType,
 			Headers: nil,
@@ -73,7 +73,7 @@ func writePrivateKeyToPEM(key *rsa.PrivateKey) (keyPEM []byte, err error) {
 	return keyPEM, nil
 }
 
-func readCertificateFromPEM(certPEM []byte) (cert *x509.Certificate, err error) {
+func readCertificateFromPEM(certPEM []byte) (*x509.Certificate,error) {
 	block, _ := pem.Decode(certPEM)
 	if block == nil {
 		return nil, fmt.Errorf("Failed to decode certificate from PEM block: %s", string(certPEM))
@@ -81,7 +81,7 @@ func readCertificateFromPEM(certPEM []byte) (cert *x509.Certificate, err error) 
 	if block.Type != CertificateType {
 		return nil, fmt.Errorf("Certificate contains invalid data: %#v", block)
 	}
-	cert, err = x509.ParseCertificate(block.Bytes)
+	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		LogError("Failed to parse certificate: %s", err.Error())
 		return nil, err
@@ -89,8 +89,8 @@ func readCertificateFromPEM(certPEM []byte) (cert *x509.Certificate, err error) 
 	return cert, nil
 }
 
-func writeCertificateToPEM(cert *x509.Certificate) (certPEM []byte, err error) {
-	certPEM = pem.EncodeToMemory(
+func writeCertificateToPEM(cert *x509.Certificate) ([]byte,error) {
+	certPEM := pem.EncodeToMemory(
 		&pem.Block{
 			Type:  CertificateType,
 			Bytes: cert.Raw,
@@ -102,8 +102,8 @@ func writeCertificateToPEM(cert *x509.Certificate) (certPEM []byte, err error) {
 	return certPEM, nil
 }
 
-func base64EncodePEM(pem []byte) (base64EncodedPEM []byte, err error) {
-	base64EncodedPEM = make([]byte, base64.StdEncoding.EncodedLen(len(pem)))
+func base64EncodePEM(pem []byte) ([]byte,error) {
+	base64EncodedPEM := make([]byte, base64.StdEncoding.EncodedLen(len(pem)))
 	base64.StdEncoding.Encode(base64EncodedPEM, pem)
 	if base64EncodedPEM == nil {
 		return nil, fmt.Errorf("Couldn't base64-encode PEM %#v", string(pem))
@@ -111,7 +111,7 @@ func base64EncodePEM(pem []byte) (base64EncodedPEM []byte, err error) {
 	return base64EncodedPEM, nil
 }
 
-func readCertFromFile(filePath string) (cert *x509.Certificate, err error) {
+func readCertFromFile(filePath string) (*x509.Certificate,error) {
 	certPEM, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		log.Printf("Couldn't read file. %s", err)
@@ -120,13 +120,13 @@ func readCertFromFile(filePath string) (cert *x509.Certificate, err error) {
 	return readCertificateFromPEM(certPEM)
 }
 
-func readKeyFromFile(filePath string) (key *rsa.PrivateKey, err error) {
+func readKeyFromFile(filePath string) (*rsa.PrivateKey,error) {
 	keyRaw, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		LogError("Couldn't read file. %s", err)
 		return nil, err
 	}
-	key, err = x509.ParsePKCS1PrivateKey(keyRaw)
+	key, err := x509.ParsePKCS1PrivateKey(keyRaw)
 	if err != nil {
 		LogError("Couldn't parse key. %s", err)
 		return nil, err
