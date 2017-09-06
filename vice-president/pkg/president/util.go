@@ -63,6 +63,7 @@ func writePrivateKeyToPEM(key *rsa.PrivateKey) (keyPEM []byte, err error) {
 	keyPEM = pem.EncodeToMemory(
 		&pem.Block{
 			Type:  PrivateKeyType,
+			Headers: nil,
 			Bytes: x509.MarshalPKCS1PrivateKey(key),
 		},
 	)
