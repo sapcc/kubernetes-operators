@@ -159,7 +159,7 @@ func (vc *ViceCertificate) pickup(vp *Operator) error {
 
 func (vc *ViceCertificate) approve(vp *Operator) error {
 
-	LogInfo("Approving certificate for host %s", vc.Host)
+	LogInfo("Approving certificate for host %s using TID %s", vc.Host, vc.TID)
 
 	if vc.TID == "" {
 		return errors.New("Cannot approve a certificate without its Transaction ID")
@@ -172,7 +172,7 @@ func (vc *ViceCertificate) approve(vp *Operator) error {
 		},
 	)
 	if err != nil {
-		LogError("Couldn't approve certificate for host %s", vc.Host)
+		LogError("Couldn't approve certificate for host %s using TID %s", vc.Host, vc.TID)
 		return err
 	}
 

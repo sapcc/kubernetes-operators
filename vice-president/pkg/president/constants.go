@@ -1,3 +1,22 @@
+/*******************************************************************************
+*
+* Copyright 2017 SAP SE
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You should have received a copy of the License along with this
+* program. If not, you may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*
+*******************************************************************************/
+
 package president
 
 // CertificateValidityMonth defines how long certificates must be valid before a renewal is invoked (in month)
@@ -22,9 +41,6 @@ const SecretTLSKeyType = "tls.key"
 
 // the vice president is tracking the state of the ingresses it handled via the following annotations
 
-// IngressStateAnnotation is the key used to annotate an ingress with the state
-const IngressStateAnnotation = "vice-president-state"
-
 // IngressStateEnroll means a enrollment request has to be issued
 const IngressStateEnroll = "enroll"
 
@@ -39,6 +55,3 @@ const IngressStateApproved = "approved"
 
 // IngressStatePickup means that a certificate has to be picked up
 const IngressStatePickup = "pickup"
-
-// IngressTIDAnnotation is the key used to annotate an ingress with the TransactionID (TID)
-const IngressTIDAnnotation = "vice-president-tid"
