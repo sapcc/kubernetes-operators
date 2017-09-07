@@ -21,9 +21,11 @@ package president
 
 import (
 	"encoding/base64"
+	"bytes"
 )
 
 func base64DecodePEM(encodedPEM []byte) ([]byte, int, error) {
+	encodedPEM = bytes.Trim(encodedPEM,"\"")
 	decodedPEM := make([]byte, base64.StdEncoding.DecodedLen(len(encodedPEM)))
 	l, err := base64.StdEncoding.Decode(decodedPEM, encodedPEM)
 	if err != nil {
