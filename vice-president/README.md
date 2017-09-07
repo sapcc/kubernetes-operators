@@ -35,3 +35,8 @@ The secret contains the certificates, of which the vice president takes care.
 
 To keep track of the current state of the certificates, the corresponding ingress is annotated with the current state and, 
 if available, the Transaction ID (TID) returned by the Symantec VICE API.
+
+
+## Debug
+
+The Symantec VICE API might return errors listed [here](https://support.venafi.com/hc/en-us/articles/215914347-Info-VeriSign-Symantec-MPKI-Error-Codes).
