@@ -19,39 +19,41 @@
 
 package president
 
-// CertificateValidityMonth defines how long certificates must be valid before a renewal is invoked (in month)
-const CertificateValidityMonth = 1
+const (
+	// CertificateValidityMonth defines how long certificates must be valid before a renewal is invoked (in month)
+	CertificateValidityMonth = 1
 
-// CertificateType ..
-const CertificateType = "CERTIFICATE"
+	// CertificateType ..
+	CertificateType = "CERTIFICATE"
 
-// PrivateKeyType ..
-const PrivateKeyType = "RSA PRIVATE KEY"
+	// PrivateKeyType ..
+	PrivateKeyType = "RSA PRIVATE KEY"
 
-// SecretTLSCertType defines under which key the certificate is stored in the secret
-// the following cert types will also be considered:
-// (1) with underscore and dot, e.g.: tls_cert || tls.cert
-// (2) *.cert | *.crt
-const SecretTLSCertType = "tls.crt"
+	// SecretTLSCertType defines under which key the certificate is stored in the secret
+	// the following cert types will also be considered:
+	// (1) with underscore and dot, e.g.: tls_cert || tls.cert
+	// (2) *.cert | *.crt
+	SecretTLSCertType = "tls.crt"
 
-// SecretTLSKeyType defines under which key the private key is stored in the secret
-// the following key types will be checked:
-// (1) with underscore and dot, e.g.: tls_key || tls.key
-const SecretTLSKeyType = "tls.key"
+	// SecretTLSKeyType defines under which key the private key is stored in the secret
+	// the following key types will be checked:
+	// (1) with underscore and dot, e.g.: tls_key || tls.key
+	SecretTLSKeyType = "tls.key"
 
-// the vice president is tracking the state of the ingresses it handled via the following annotations
+	// the vice president is tracking the state of the ingresses it handled via the following annotations
 
-// IngressStateEnroll means a enrollment request has to be issued
-const IngressStateEnroll = "enroll"
+	// IngressStateEnroll means a enrollment request has to be issued
+	IngressStateEnroll = "enroll"
 
-// IngressStateRenew means a renewal request has to be be issued
-const IngressStateRenew = "renew"
+	// IngressStateRenew means a renewal request has to be be issued
+	IngressStateRenew = "renew"
 
-// IngressStateApprove means that a certificate has to be approved
-const IngressStateApprove = "approve"
+	// IngressStateApprove means that a certificate has to be approved
+	IngressStateApprove = "approve"
 
-// IngressStateApproved means that a certificate was approved
-const IngressStateApproved = "approved"
+	// IngressStateApproved means that a certificate was approved
+	IngressStateApproved = "approved"
 
-// IngressStatePickup means that a certificate has to be picked up
-const IngressStatePickup = "pickup"
+	// IngressStatePickup means that a certificate has to be picked up
+	IngressStatePickup = "pickup"
+)
