@@ -32,6 +32,7 @@ import (
 
 	"strings"
 
+	"bytes"
 	"crypto/rsa"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/go-vice"
@@ -280,7 +281,7 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 	for {
 		// return an error if something is off to avoid a constant loop and give another ingress a chance
 		state = nextState
-		LogDebug("Setting state: %s",state)
+		LogDebug("Setting state: %s", state)
 
 		switch state {
 		case IngressStateEnroll:
@@ -386,7 +387,7 @@ func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host, secretName strin
 	obj, exists, err := vp.SecretInformer.GetStore().GetByKey(fmt.Sprintf("%s/%s", ingress.GetNamespace(), secretName))
 
 	// does the secret exist?
-	if exists != true || (err != nil && apierrors.IsNotFound(err)){
+	if exists != true || (err != nil && apierrors.IsNotFound(err)) {
 		LogInfo("Secret %s/%s doesn't exist. Creating it and enrolling certificate", ingress.GetNamespace(), secretName)
 		secret := vp.createEmptySecret(ingress.GetNamespace(), secretName)
 		if err := vp.addUpstreamSecret(secret); err != nil {
@@ -408,7 +409,7 @@ func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host, secretName strin
 		LogError(err.Error())
 		return &ViceCertificate{Host: host}, secret, nil
 	}
-	return &ViceCertificate{Host: host, Certificate: cert, PrivateKey:  key }, secret, nil
+	return &ViceCertificate{Host: host, Certificate: cert, PrivateKey: key}, secret, nil
 }
 
 // checkViceCertificate checks a given ViceCertificate and annotates the ingress accordingly
@@ -436,7 +437,7 @@ func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate) string {
 
 // UpdateCertificateInSecret adds or updates the certificate in a secret
 func (vp *Operator) updateCertificateAndKeyInSecret(secret *v1.Secret, vc *ViceCertificate) error {
-	LogInfo("Add/Update certificate and key in secret %s/%s",secret.GetNamespace(),secret.GetName())
+	LogInfo("Add/Update certificate and key in secret %s/%s", secret.GetNamespace(), secret.GetName())
 	updatedSecret, err := vp.addCertificateAndKeyToSecret(vc, secret)
 	if err != nil {
 		LogError("Couldn't update secret %s/%s: %s", secret.Namespace, secret.Name, err)
@@ -566,8 +567,8 @@ func (vp *Operator) addCertificateAndKeyToSecret(viceCert *ViceCertificate, oldS
 		secret.Data = map[string][]byte{}
 	}
 
-	secret.Data[SecretTLSCertType] = certPEM
-	secret.Data[SecretTLSKeyType] = keyPEM
+	secret.Data[SecretTLSCertType] = bytes.Trim(certPEM, "\"")
+	secret.Data[SecretTLSKeyType] = bytes.Trim(keyPEM, "\"")
 
 	return secret, nil
 }
@@ -625,7 +626,7 @@ func (vp *Operator) ingressUpdate(cur, old interface{}) {
 
 func (vp *Operator) addUpstreamSecret(secret *v1.Secret) error {
 	LogInfo("Added upstream secret %s/%s", secret.GetNamespace(), secret.GetName())
-	 _, err := vp.Clientset.Secrets(secret.GetNamespace()).Create(secret)
+	_, err := vp.Clientset.Secrets(secret.GetNamespace()).Create(secret)
 	if checkError(err) != nil {
 		return err
 	}
