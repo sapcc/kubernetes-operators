@@ -22,7 +22,6 @@ package president
 import (
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/pem"
 	"io/ioutil"
 	"log"
@@ -131,17 +130,11 @@ func (s *TestSuite) SetupSuite() {
 		Host:        "www.example.com",
 	}
 
-	base64EncodedCert := make([]byte, base64.StdEncoding.EncodedLen(len(s.CertByte)))
-	base64.StdEncoding.Encode(base64EncodedCert, s.CertByte)
-
-	base64EncodedKey := make([]byte, base64.StdEncoding.EncodedLen(len(s.KeyByte)))
-	base64.StdEncoding.Encode(base64EncodedKey, s.KeyByte)
-
 	s.Secret = &v1.Secret{
 		Type: v1.SecretTypeOpaque,
 		Data: map[string][]byte{
-			SecretTLSCertType: base64EncodedCert,
-			SecretTLSKeyType:  base64EncodedKey,
+			SecretTLSCertType: s.CertByte,
+			SecretTLSKeyType:  s.KeyByte,
 		},
 		ObjectMeta: meta_v1.ObjectMeta{
 			Namespace: "default",
