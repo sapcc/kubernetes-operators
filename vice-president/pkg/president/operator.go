@@ -34,10 +34,12 @@ import (
 
 	"bytes"
 	"crypto/rsa"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/go-vice"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
@@ -171,6 +173,7 @@ func New(options Options) *Operator {
 
 // Run starts the operator
 func (vp *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGroup) {
+	defer utilruntime.HandleCrash()
 	defer vp.queue.ShutDown()
 	defer wg.Done()
 	wg.Add(1)
@@ -236,6 +239,7 @@ func (vp *Operator) processNextWorkItem() bool {
 func (vp *Operator) syncHandler(key interface{}) error {
 	o, exists, err := vp.IngressInformer.GetStore().Get(key)
 	if checkError(err) != nil {
+		utilruntime.HandleError(fmt.Errorf("%v failed with : %v", key, err))
 		LogError("Failed to fetch key %s from cache: %s", key, err)
 		return err
 	}
