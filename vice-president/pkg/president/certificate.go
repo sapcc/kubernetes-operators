@@ -32,11 +32,13 @@ import (
 	"encoding/pem"
 
 	"fmt"
+
 	"github.com/sapcc/go-vice"
 )
 
 // ViceCertificate contains all properties requires by the Symantec VICE API
 type ViceCertificate struct {
+	Roots       *x509.CertPool
 	Certificate *x509.Certificate
 	PrivateKey  *rsa.PrivateKey
 	CSR         []byte
@@ -224,11 +226,8 @@ func (vc *ViceCertificate) createCSR(vp *Operator) error {
 
 // DoesCertificateAndHostMatch checks that a given certificate is for the correct host
 func (vc *ViceCertificate) DoesCertificateAndHostMatch() bool {
-	if _, err := vc.Certificate.Verify(
-		x509.VerifyOptions{
-			DNSName: vc.Host,
-		}); err != nil {
-		LogError("failed to verify certificate for host %s: %s", vc.Host, err.Error())
+	if err := vc.Certificate.VerifyHostname(vc.Host); err != nil {
+		LogError("Failed to verify certificate for host %s: %s", vc.Host, err.Error())
 		return false
 	}
 	return true
