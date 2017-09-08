@@ -53,9 +53,10 @@ var (
 	// VERSION of the vice president
 	VERSION = "0.0.0.dev"
 	// ResyncPeriod defines the period after which down- and upstream are synced
-	ResyncPeriod = 5 * time.Second
+	ResyncPeriod = 10 * time.Second
 	// CertificateRecheckInterval defines the period after which certificates are checked
-	CertificateRecheckInterval = 15 * time.Second
+	// A minimum of 60 seconds is necessary
+	CertificateRecheckInterval = 60 * time.Second
 )
 
 // Operator is the vice-president certificate operator
@@ -391,14 +392,14 @@ func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host, secretName strin
 		LogInfo("Secret %s/%s doesn't exist. Creating it and enrolling certificate", ingress.GetNamespace(), secretName)
 		secret := vp.createEmptySecret(ingress.GetNamespace(), secretName)
 		if err := vp.addUpstreamSecret(secret); err != nil {
-			return &ViceCertificate{Host: host}, secret, err
+			return &ViceCertificate{Host: host, Roots: vp.rootCertPool}, secret, err
 		}
-		return &ViceCertificate{Host: host}, secret, nil
+		return &ViceCertificate{Host: host, Roots: vp.rootCertPool}, secret, nil
 	}
 
 	if checkError(err) != nil {
 		LogInfo("Couldn't get secret %s/%s.", ingress.GetNamespace(), secretName)
-		return &ViceCertificate{Host: host}, &v1.Secret{}, err
+		return &ViceCertificate{Host: host, Roots: vp.rootCertPool}, &v1.Secret{}, err
 	}
 
 	secret := obj.(*v1.Secret)
@@ -407,9 +408,9 @@ func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host, secretName strin
 	cert, key, err := vp.getCertificateAndKeyFromSecret(secret)
 	if err != nil {
 		LogError(err.Error())
-		return &ViceCertificate{Host: host}, secret, nil
+		return &ViceCertificate{Host: host, Roots: vp.rootCertPool}, secret, nil
 	}
-	return &ViceCertificate{Host: host, Certificate: cert, PrivateKey: key}, secret, nil
+	return &ViceCertificate{Host: host, Roots: vp.rootCertPool, Certificate: cert, PrivateKey: key}, secret, nil
 }
 
 // checkViceCertificate checks a given ViceCertificate and annotates the ingress accordingly
@@ -510,31 +511,23 @@ func (vp *Operator) getCertificateAndKeyFromSecret(secret *v1.Secret) (*x509.Cer
 			case SecretTLSCertType:
 				if v == nil || len(v) == 0 {
 					LogInfo("Certificate in secret %s/%s is empty", secret.GetNamespace(), secret.GetName())
-					certificate = nil
 					continue
 				}
-				decodedCert, l, err := base64DecodePEM(v)
+				c, err := readCertificateFromPEM(v)
 				if err != nil {
-					LogError("Couldn't decode base64 certificate: %s", err.Error())
-					continue
-				}
-				if certificate, err = readCertificateFromPEM(decodedCert[:l]); err != nil {
 					LogError(err.Error())
 				}
+				certificate = c
 			case SecretTLSKeyType:
 				if v == nil || len(v) == 0 {
 					LogInfo("Key in secret %s/%s is empty", secret.GetNamespace(), secret.GetName())
-					privateKey = nil
 					continue
 				}
-				decodedKey, l, err := base64DecodePEM(v)
+				k, err := readPrivateKeyFromPEM(v)
 				if err != nil {
-					LogError("Couldn't decode base64 private key: %s", err.Error())
-					continue
-				}
-				if privateKey, err = readPrivateKeyFromPEM(decodedKey[:l]); err != nil {
 					LogError(err.Error())
 				}
+				privateKey = k
 			}
 		}
 	}
