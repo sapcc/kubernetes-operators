@@ -63,6 +63,9 @@ func ReadConfig(filePath string) (cfg VicePresidentConfig, err error) {
 	if err != nil {
 		return cfg, fmt.Errorf("parse configuration: %s", err.Error())
 	}
+
+	cfg.checkConfig()
+
 	return cfg, nil
 }
 
@@ -80,4 +83,11 @@ func newClientConfig(options Options) *rest.Config {
 	}
 
 	return config
+}
+
+// enforce a minimal interval of 60 seconds to make sure everything was updated
+func (c *VicePresidentConfig) checkConfig() {
+	if c.CertificateCheckInterval < 60 {
+		c.CertificateCheckInterval = 60
+	}
 }
