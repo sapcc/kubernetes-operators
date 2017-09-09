@@ -56,8 +56,9 @@ func (o *Options) CheckOptions() error {
 	}
 
 	if o.MetricListenAddress == "" {
-		o.MetricListenAddress = ":9091"
-		LogDebug("Metric listen address not provided. Using default :9091.")
+		o.MetricListenAddress = "9091"
+		LogDebug("Metric listen address not provided. Using default :9091/metrics.")
 	}
+
 	return nil
 }
