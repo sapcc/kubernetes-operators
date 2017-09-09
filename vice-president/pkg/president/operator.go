@@ -365,9 +365,7 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 
 			// if a certificate was found, validate it
 			if viceCert.Certificate != nil {
-				if s := vp.checkViceCertificate(viceCert); s != "" {
-					nextState = s
-				}
+				nextState = vp.checkViceCertificate(viceCert)
 			}
 		}
 
@@ -427,7 +425,7 @@ func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate) string {
 
 	//  is the certificate for the correct host?
 	if !viceCert.DoesCertificateAndHostMatch() {
-		LogInfo("Certificate and Key don't match. Enrolling new one")
+		LogInfo("Certificate and Host don't match. Enrolling new one")
 		return IngressStateEnroll
 	}
 
@@ -437,7 +435,7 @@ func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate) string {
 		return IngressStateRenew
 	}
 	LogInfo("Certificate for host %s is valid until %s", viceCert.Host, viceCert.Certificate.NotAfter.UTC())
-	return ""
+	return IngressStateApproved
 }
 
 // UpdateCertificateInSecret adds or updates the certificate in a secret
