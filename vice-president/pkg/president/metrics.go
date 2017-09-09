@@ -21,6 +21,9 @@ package president
 
 import (
 	"net/http"
+	"strings"
+
+	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -114,6 +117,9 @@ func init() {
 // ExposeMetrics exposes the above defined metrics on <metricPort>:/metrics
 func ExposeMetrics(metricPort string) error {
 	http.Handle("/metrics", promhttp.Handler())
-	LogInfo("Exposing metrics on localhost:%s/metrics ",metricPort)
-	return http.ListenAndServe(metricPort, nil)
+	LogInfo("Exposing metrics on localhost %s/metrics ", metricPort)
+	return http.ListenAndServe(
+		fmt.Sprintf("0.0.0.0:%s", strings.TrimPrefix(metricPort, ":")),
+		nil,
+	)
 }
