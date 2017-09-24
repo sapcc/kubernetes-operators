@@ -3,6 +3,7 @@ from collections import defaultdict, deque
 from os.path import commonprefix
 from pyVim.connect import SmartConnect, Disconnect
 from pyVmomi import vim
+from socket import error as socket_error
 from .vcenter_util import *
 from .masterpassword import MasterPassword
 from .templates import env
@@ -59,6 +60,8 @@ class Configurator(object):
 
             except vim.fault.InvalidLogin as e:
                 log.error(e.msg)
+            except socket_error as e:
+                log.error("%s: %s", host, e)
 
         if removed:
             log.info("Gone vcs {}".format(removed))
@@ -84,14 +87,16 @@ class Configurator(object):
                 availability_zones.add(availability_zone)
                 cluster_options = self.global_options.copy()
                 cluster_options.update(vcenter_options)
-                datastores = cluster['datastore']
-                datastore_names = [datastore.name for datastore in datastores if self.EPH_MATCH.match(datastore.name)]
-                eph = commonprefix(datastore_names)
-
                 cluster_options.update(name=match.group(1).lower(),
-                                       cluster_name=cluster_name,
-                                       availability_zone=availability_zone,
-                                       datastore_regex="^{}.*".format(eph))
+                        cluster_name=cluster_name,
+                        availability_zone=availability_zone)
+
+                if not cluster_options.get('pbm_enabled', False):
+                    datastores = cluster['datastore']
+                    datastore_names = [datastore.name for datastore in datastores if self.EPH_MATCH.match(datastore.name)]
+                    eph = commonprefix(datastore_names)
+                    cluster_options.update(datastore_regex="^{}.*".format(eph))
+
                 for network in cluster['network']:
                     match = self.BR_MATCH.match(network.name)
                     if match:

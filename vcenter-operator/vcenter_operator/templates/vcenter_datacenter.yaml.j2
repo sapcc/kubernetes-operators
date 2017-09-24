@@ -19,6 +19,7 @@ data:
     vmware_host_username = {{ username | quote }}
     vmware_host_password = {{ password | quote }}
     vmware_insecure = True
+    vmware_storage_profile = "cinder-vvol"
 ---
 kind: Deployment
 apiVersion: extensions/v1beta1

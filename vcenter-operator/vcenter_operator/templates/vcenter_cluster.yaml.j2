@@ -9,7 +9,8 @@ metadata:
 data:
   hypervisor.conf: |
     [DEFAULT]
-    compute_driver=nova.virt.vmwareapi.VMwareVCDriver
+    compute_driver = nova.virt.vmwareapi.VMwareVCDriver
+    reserved_host_memory_mb = 0
 
     [vmware]
     insecure = True
@@ -19,7 +20,13 @@ data:
     host_username = {{ username | quote }}
     host_password = {{ password | quote }}
     cluster_name = {{ cluster_name | quote }}
+    {%- if pbm_enabled %}
+    pbm_enabled = True
+    pbm_default_policy = "nova-ephemeral"
+    {%- else %}
     datastore_regex = {{ datastore_regex | quote }}
+    {%- endif %}
+    use_linked_clone = False
 ---
 apiVersion: v1
 kind: ConfigMap
