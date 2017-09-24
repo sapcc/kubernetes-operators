@@ -39,8 +39,8 @@ import (
 	"github.com/sapcc/go-vice"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -165,6 +165,12 @@ func New(options Options) *Operator {
 		DeleteFunc: operator.ingressDelete,
 	})
 
+	SecretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    operator.secretAdd,
+		UpdateFunc: operator.secretUpdate,
+		DeleteFunc: operator.secretDelete,
+	})
+
 	operator.IngressInformer = IngressInformer
 	operator.SecretInformer = SecretInformer
 
@@ -240,13 +246,11 @@ func (vp *Operator) syncHandler(key interface{}) error {
 	o, exists, err := vp.IngressInformer.GetStore().Get(key)
 	if checkError(err) != nil {
 		utilruntime.HandleError(fmt.Errorf("%v failed with : %v", key, err))
-		LogError("Failed to fetch key %s from cache: %s", key, err)
 		return err
 	}
 
 	if !exists {
 		LogInfo("Deleted ingress %#v", key)
-		//TODO delete?
 		return nil
 	}
 
@@ -390,7 +394,7 @@ func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host, secretName strin
 	obj, exists, err := vp.SecretInformer.GetStore().GetByKey(fmt.Sprintf("%s/%s", ingress.GetNamespace(), secretName))
 
 	// does the secret exist?
-	if exists != true || (err != nil && apierrors.IsNotFound(err)) {
+	if !exists || (err != nil && apierrors.IsNotFound(err)) {
 		LogInfo("Secret %s/%s doesn't exist. Creating it and enrolling certificate", ingress.GetNamespace(), secretName)
 		secret := vp.createEmptySecret(ingress.GetNamespace(), secretName)
 		if err := vp.addUpstreamSecret(secret); err != nil {
@@ -597,7 +601,20 @@ func (vp *Operator) ingressAdd(obj interface{}) {
 }
 
 func (vp *Operator) ingressDelete(obj interface{}) {
-	i := obj.(*v1beta1.Ingress)
+	i, ok := obj.(*v1beta1.Ingress)
+	if !ok {
+		// If we reached here it means the ingress was deleted but its final state is unrecorded.
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			LogError("Couldn't get object from tombstone %#v", obj)
+			return
+		}
+		_, ok = tombstone.Obj.(*v1beta1.Ingress)
+		if !ok {
+			LogError("Tombstone contained object that is not an Ingress: %#v", obj)
+			return
+		}
+	}
 	LogDebug("Deleted ingress %s/%s.", i.GetNamespace(), i.GetName())
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(i)
 	if err != nil {
@@ -617,6 +634,29 @@ func (vp *Operator) ingressUpdate(cur, old interface{}) {
 		return
 	}
 	LogDebug("Nothing changed. No need to update ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
+}
+
+func (vp *Operator) secretAdd(obj interface{}) {
+	s := obj.(*v1.Secret)
+	vp.SecretInformer.GetStore().Add(s)
+}
+
+func (vp *Operator) secretUpdate(cur, old interface{}) {
+	sOld := old.(*v1.Secret)
+	sCur := cur.(*v1.Secret)
+
+	if vp.isSecretNeedsUpdate(sCur, sOld) {
+		LogDebug("Updated secret %s/%s", sOld.GetNamespace(), sOld.GetName())
+		vp.SecretInformer.GetStore().Update(sCur)
+		return
+	}
+	LogDebug("Nothing changed. No need to update secret %s/%s", sOld.GetNamespace(), sOld.GetName())
+}
+
+func (vp *Operator) secretDelete(obj interface{}) {
+	s := obj.(*v1.Secret)
+	vp.SecretInformer.GetStore().Delete(s)
+	LogDebug("Deleted secret %s/%s.", s.GetNamespace(), s.GetName())
 }
 
 func (vp *Operator) addUpstreamSecret(secret *v1.Secret) error {
