@@ -260,7 +260,7 @@ func (vp *Operator) syncHandler(key interface{}) error {
 
 		for _, tls := range ingress.Spec.TLS {
 
-			LogInfo("Checking Ingress %v/%v: Hosts: %v, Secret: %v/%v", ingress.GetNamespace(), ingress.GetName(), tls.Hosts, ingress.GetNamespace(), tls.SecretName)
+			LogDebug("Checking Ingress %v/%v: Hosts: %v, Secret: %v/%v", ingress.GetNamespace(), ingress.GetName(), tls.Hosts, ingress.GetNamespace(), tls.SecretName)
 
 			for _, host := range tls.Hosts {
 				if err := vp.runStateMachine(ingress, tls.SecretName, host); err != nil {
@@ -385,11 +385,6 @@ func (vp *Operator) isTakeCareOfIngress(ingress *v1beta1.Ingress) bool {
 }
 
 func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host, secretName string) (*ViceCertificate, *v1.Secret, error) {
-
-	// force sync here
-	if err := vp.SecretInformer.GetStore().Resync(); err != nil {
-		return nil, nil, err
-	}
 
 	obj, exists, err := vp.SecretInformer.GetStore().GetByKey(fmt.Sprintf("%s/%s", ingress.GetNamespace(), secretName))
 
