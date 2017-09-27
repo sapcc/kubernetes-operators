@@ -70,7 +70,6 @@ type Operator struct {
 	Clientset       *kubernetes.Clientset
 	ViceClient      *vice.Client
 	IngressInformer cache.SharedIndexInformer
-	SecretInformer  cache.SharedIndexInformer
 
 	rootCertPool *x509.CertPool
 
@@ -145,34 +144,13 @@ func New(options Options) *Operator {
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 	)
 
-	SecretInformer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{
-			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
-				return clientset.Secrets(v1.NamespaceAll).List(meta_v1.ListOptions{})
-			},
-			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
-				return clientset.Secrets(v1.NamespaceAll).Watch(meta_v1.ListOptions{})
-			},
-		},
-		&v1.Secret{},
-		ResyncPeriod,
-		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-	)
-
 	IngressInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    operator.ingressAdd,
 		UpdateFunc: operator.ingressUpdate,
 		DeleteFunc: operator.ingressDelete,
 	})
 
-	SecretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    operator.secretAdd,
-		UpdateFunc: operator.secretUpdate,
-		DeleteFunc: operator.secretDelete,
-	})
-
 	operator.IngressInformer = IngressInformer
-	operator.SecretInformer = SecretInformer
 
 	return operator
 }
@@ -187,12 +165,11 @@ func (vp *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGr
 	LogInfo("Ladies and Gentlemen, the Vice President! Renewing your Symantec certificates now in version %v\n", VERSION)
 
 	go vp.IngressInformer.Run(stopCh)
-	go vp.SecretInformer.Run(stopCh)
 
 	LogInfo("Waiting for cache to sync...")
 	cache.WaitForCacheSync(
-		stopCh, vp.IngressInformer.HasSynced,
-		vp.SecretInformer.HasSynced,
+		stopCh,
+		vp.IngressInformer.HasSynced,
 	)
 	LogInfo("Cache primed. Ready for operations.")
 
@@ -386,24 +363,20 @@ func (vp *Operator) isTakeCareOfIngress(ingress *v1beta1.Ingress) bool {
 
 func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host, secretName string) (*ViceCertificate, *v1.Secret, error) {
 
-	obj, exists, err := vp.SecretInformer.GetStore().GetByKey(fmt.Sprintf("%s/%s", ingress.GetNamespace(), secretName))
+	secret, err := vp.Clientset.Secrets(ingress.GetNamespace()).Get(secretName, meta_v1.GetOptions{})
 
 	// does the secret exist?
-	if !exists || (err != nil && apierrors.IsNotFound(err)) {
-		LogInfo("Secret %s/%s doesn't exist. Creating it and enrolling certificate", ingress.GetNamespace(), secretName)
-		secret := vp.createEmptySecret(ingress.GetNamespace(), secretName)
-		if err := vp.addUpstreamSecret(secret); err != nil {
-			return &ViceCertificate{Host: host, Roots: vp.rootCertPool}, secret, err
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			LogInfo("Secret %s/%s doesn't exist. Creating it and enrolling certificate", ingress.GetNamespace(), secretName)
+			secret := vp.createEmptySecret(ingress.GetNamespace(), secretName)
+			if err := vp.addUpstreamSecret(secret); err != nil {
+				return &ViceCertificate{Host: host, Roots: vp.rootCertPool}, secret, err
+			}
 		}
-		return &ViceCertificate{Host: host, Roots: vp.rootCertPool}, secret, nil
-	}
-
-	if checkError(err) != nil {
 		LogInfo("Couldn't get secret %s/%s.", ingress.GetNamespace(), secretName)
 		return &ViceCertificate{Host: host, Roots: vp.rootCertPool}, &v1.Secret{}, err
 	}
-
-	secret := obj.(*v1.Secret)
 
 	// does the certificate exist? can it be decoded and parsed from the secret?
 	cert, key, err := vp.getCertificateAndKeyFromSecret(secret)
@@ -629,29 +602,6 @@ func (vp *Operator) ingressUpdate(cur, old interface{}) {
 		return
 	}
 	LogDebug("Nothing changed. No need to update ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
-}
-
-func (vp *Operator) secretAdd(obj interface{}) {
-	s := obj.(*v1.Secret)
-	vp.SecretInformer.GetStore().Add(s)
-}
-
-func (vp *Operator) secretUpdate(cur, old interface{}) {
-	sOld := old.(*v1.Secret)
-	sCur := cur.(*v1.Secret)
-
-	if vp.isSecretNeedsUpdate(sCur, sOld) {
-		LogDebug("Updated secret %s/%s", sOld.GetNamespace(), sOld.GetName())
-		vp.SecretInformer.GetStore().Update(sCur)
-		return
-	}
-	LogDebug("Nothing changed. No need to update secret %s/%s", sOld.GetNamespace(), sOld.GetName())
-}
-
-func (vp *Operator) secretDelete(obj interface{}) {
-	s := obj.(*v1.Secret)
-	vp.SecretInformer.GetStore().Delete(s)
-	LogDebug("Deleted secret %s/%s.", s.GetNamespace(), s.GetName())
 }
 
 func (vp *Operator) addUpstreamSecret(secret *v1.Secret) error {

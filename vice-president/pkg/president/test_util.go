@@ -227,16 +227,3 @@ func (s *TestSuite) ResetIngressInformerStoreAndAddIngress(ingress *v1beta1.Ingr
 	}
 	return nil
 }
-
-// ResetSecretInformerStoreAndAddSecret clears the secret informer store and adds the given secret
-func (s *TestSuite) ResetSecretInformerStoreAndAddSecret(secret *v1.Secret) error {
-	for _, v := range s.VP.SecretInformer.GetStore().List() {
-		if err := s.VP.SecretInformer.GetStore().Delete(v); err != nil {
-			return err
-		}
-	}
-	if secret != nil {
-		return s.VP.SecretInformer.GetStore().Add(secret)
-	}
-	return nil
-}
