@@ -1,6 +1,6 @@
 # Vice President
 
-![Docker Repository](https://img.shields.io/docker/pulls/sapcc/vice-president.svg?maxAge=604800)
+[![Docker Repository](https://img.shields.io/docker/pulls/sapcc/vice-president.svg?maxAge=604800)](https://hub.docker.com/r/sapcc/vice-president/)
 
 This operator automatically checks, requests and renews certificates for Kubernetes Ingresses using the Symantec Vice API.
 
