@@ -43,3 +43,10 @@ vendor:
 	else
 		glide install --strip-vendor --strip-vcs && glide update --strip-vendor --strip-vcs
 	endif
+
+generate-dummy-cert:
+	mkdir tmp
+	openssl genrsa -out tmp/ca.key 2048
+	openssl req -new -x509 -days 365 -key tmp/ca.key -subj "/C=CN/ST=GD/L=SZ/O=Acme, Inc./CN=MyRootCA" -out tmp/ca.crt
+	openssl req -newkey rsa:2048 -nodes -keyout tmp/cert.key -subj "/C=CN/ST=GD/L=SZ/O=Acme, Inc./CN=www.example.com" -out tmp/cert.csr
+	openssl x509 -req -extfile <(printf "subjectAltName=DNS:example.com,DNS:www.example.com,DNS:www.my-example.com") -days 10 -in tmp/cert.csr -CA tmp/ca.crt -CAkey tmp/ca.key -CAcreateserial -out tmp/cert.pem

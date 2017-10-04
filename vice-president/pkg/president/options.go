@@ -31,6 +31,8 @@ type Options struct {
 	ViceKeyFile string
 	ViceCrtFile string
 
+	IntermediateCertificate string
+
 	IngressAnnotation string
 
 	MetricListenAddress string
@@ -46,6 +48,9 @@ func (o *Options) CheckOptions() error {
 	}
 	if o.VicePresidentConfig == "" {
 		return fmt.Errorf("Path to vice config not provided. Aborting")
+	}
+	if o.IntermediateCertificate == "" {
+		LogDebug("Intermediate certificate not provided")
 	}
 	if o.KubeConfig == "" {
 		LogDebug("Path to kubeconfig not provided. Using Default")

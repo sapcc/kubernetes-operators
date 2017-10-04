@@ -24,6 +24,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
+	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -88,17 +89,27 @@ func readCertificateFromPEM(certPEM []byte) (*x509.Certificate, error) {
 	return cert, nil
 }
 
-func writeCertificateToPEM(cert *x509.Certificate) ([]byte, error) {
-	certPEM := pem.EncodeToMemory(
-		&pem.Block{
-			Type:  CertificateType,
-			Bytes: cert.Raw,
-		},
-	)
-	if certPEM == nil {
-		return nil, fmt.Errorf("Couldn't encode certificate %#v", cert)
+func writeCertificatesToPEM(certs []*x509.Certificate) ([]byte, error) {
+  certPEMs := []byte{}
+
+	for _, c := range certs {
+		certByte := removeSpecialCharactersFromPEM(
+			pem.EncodeToMemory(
+				&pem.Block{
+					Type:  CertificateType,
+					Bytes: c.Raw,
+				},
+			),
+		)
+		for _, b := range certByte {
+			certPEMs = append(certPEMs, b)
+		}
 	}
-	return certPEM, nil
+
+	if certPEMs == nil {
+		return nil, fmt.Errorf("Couldn't encode certificate %#v", certPEMs)
+	}
+	return certPEMs, nil
 }
 
 func readCertFromFile(filePath string) (*x509.Certificate, error) {
@@ -184,4 +195,13 @@ func doLog(logLevel string, msg string, args []interface{}) {
 	} else {
 		log.Println(msg)
 	}
+}
+
+func removeSpecialCharactersFromPEM(pem []byte) []byte {
+	specialChars := []string{"\"", "^@","\x00", "0"}
+	var result []byte
+	for _, c := range specialChars {
+		result = bytes.TrimLeft(pem, fmt.Sprintf("%q\n", c))
+	}
+	return result
 }

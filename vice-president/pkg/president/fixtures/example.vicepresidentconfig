@@ -10,5 +10,5 @@ vice:
   default_challenge: "Password1!"
 
 president:
-  resync_period_seconds: 5
-  certificate_check_interval_seconds: 15
+  resync_period_minutes: 4
+  certificate_check_interval_minutes: 10

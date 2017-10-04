@@ -51,15 +51,16 @@ const TESTPORT = 8001
 // TestSuite ..
 type TestSuite struct {
 	suite.Suite
-	VP       *Operator
-	HTTPMux  *http.ServeMux
-	TestPort int
-	Cert     *x509.Certificate
-	CertByte []byte
-	Key      *rsa.PrivateKey
-	KeyByte  []byte
-	Secret   *v1.Secret
-	ViceCert *ViceCertificate
+	VP                   *Operator
+	HTTPMux              *http.ServeMux
+	TestPort             int
+	Cert                 *x509.Certificate
+	CertByte             []byte
+	Key                  *rsa.PrivateKey
+	KeyByte              []byte
+	Secret               *v1.Secret
+	ViceCert             *ViceCertificate
+	IntermediateCertByte []byte
 }
 
 // SetupMockEndpoints defines the endpoints available during mock tests
@@ -110,6 +111,11 @@ func (s *TestSuite) SetupSuite() {
 		s.T().Errorf("failed to parse certificate: %s", err.Error())
 	}
 
+	s.IntermediateCertByte, err = s.readFixture("intermediate.pem")
+	if err != nil {
+		log.Fatalf("Coulnd't load intermediate.pem")
+	}
+
 	//read private key from fixtures
 	s.KeyByte, err = s.readFixture("example.key")
 	if err != nil {
@@ -124,16 +130,22 @@ func (s *TestSuite) SetupSuite() {
 		s.T().Errorf("Could not parse private key: %s", err.Error())
 	}
 
+	intermediateCert, err := readCertFromFile(path.Join(FIXTURES, "intermediate.pem"))
+	if err != nil {
+		s.T().Error(err)
+	}
+
 	s.ViceCert = &ViceCertificate{
 		Certificate: s.Cert,
 		PrivateKey:  s.Key,
 		Host:        "www.example.com",
+		IntermediateCertificate: intermediateCert,
 	}
 
 	s.Secret = &v1.Secret{
 		Type: v1.SecretTypeOpaque,
 		Data: map[string][]byte{
-			SecretTLSCertType: s.CertByte,
+			SecretTLSCertType: append(s.IntermediateCertByte, s.CertByte...),
 			SecretTLSKeyType:  s.KeyByte,
 		},
 		ObjectMeta: meta_v1.ObjectMeta{
@@ -144,10 +156,11 @@ func (s *TestSuite) SetupSuite() {
 
 	//create vice president
 	s.VP = New(Options{
-		ViceCrtFile:         "fixtures/example.pem",
-		ViceKeyFile:         "fixtures/example.key",
-		VicePresidentConfig: "fixtures/example.vicepresidentconfig",
-		KubeConfig:          "fixtures/example.kubeconfig",
+		ViceCrtFile:             "fixtures/example.pem",
+		ViceKeyFile:             "fixtures/example.key",
+		VicePresidentConfig:     "fixtures/example.vicepresidentconfig",
+		KubeConfig:              "fixtures/example.kubeconfig",
+		IntermediateCertificate: "fixtures/intermediate.pem",
 	})
 
 	s.VP.ViceClient.BaseURL, _ = url.Parse(fmt.Sprintf("http://localhost:%s", testPort))

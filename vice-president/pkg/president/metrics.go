@@ -34,7 +34,7 @@ var enrollSuccessCounter = prometheus.NewCounterVec(
 		Name: "vice_president_successful_enrollments",
 		Help: "Counter for successful certificate enrollments.",
 	},
-	[]string{"ingress", "host"},
+	[]string{"ingress", "host", "sans"},
 )
 
 var enrollFailedCounter = prometheus.NewCounterVec(
@@ -42,7 +42,7 @@ var enrollFailedCounter = prometheus.NewCounterVec(
 		Name: "vice_president_failed_enrollments",
 		Help: "Counter for failed certificate enrollments.",
 	},
-	[]string{"ingress", "host"},
+	[]string{"ingress", "host", "sans"},
 )
 
 var renewSuccessCounter = prometheus.NewCounterVec(
@@ -50,7 +50,7 @@ var renewSuccessCounter = prometheus.NewCounterVec(
 		Name: "vice_president_successful_renewals",
 		Help: "Counter for successful certificate renewals.",
 	},
-	[]string{"ingress", "host"},
+	[]string{"ingress", "host", "sans"},
 )
 
 var renewFailedCounter = prometheus.NewCounterVec(
@@ -58,7 +58,7 @@ var renewFailedCounter = prometheus.NewCounterVec(
 		Name: "vice_president_failed_renewals",
 		Help: "Counter for failed certificate renewals.",
 	},
-	[]string{"ingress", "host"},
+	[]string{"ingress", "host", "sans"},
 )
 
 var pickupSuccessCounter = prometheus.NewCounterVec(
@@ -66,7 +66,7 @@ var pickupSuccessCounter = prometheus.NewCounterVec(
 		Name: "vice_president_successful_pickups",
 		Help: "Counter for successful certificate pickups.",
 	},
-	[]string{"ingress", "host"},
+	[]string{"ingress", "host", "sans"},
 )
 
 var pickupFailedCounter = prometheus.NewCounterVec(
@@ -74,7 +74,7 @@ var pickupFailedCounter = prometheus.NewCounterVec(
 		Name: "vice_president_failed_pickups",
 		Help: "Counter for failed certificate pickups.",
 	},
-	[]string{"ingress", "host"},
+	[]string{"ingress", "host", "sans"},
 )
 
 var approveSuccessCounter = prometheus.NewCounterVec(
@@ -82,7 +82,7 @@ var approveSuccessCounter = prometheus.NewCounterVec(
 		Name: "vice_president_successful_approvals",
 		Help: "Counter for successful certificate approvals.",
 	},
-	[]string{"ingress", "host"},
+	[]string{"ingress", "host", "sans"},
 )
 
 var approveFailedCounter = prometheus.NewCounterVec(
@@ -90,7 +90,7 @@ var approveFailedCounter = prometheus.NewCounterVec(
 		Name: "vice_president_failed_approvals",
 		Help: "Counter for failed certificate approvals.",
 	},
-	[]string{"ingress", "host"},
+	[]string{"ingress", "host", "sans"},
 )
 
 // init failure metrics with 0. useful for alerting.

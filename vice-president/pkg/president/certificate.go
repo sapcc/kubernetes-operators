@@ -38,13 +38,14 @@ import (
 
 // ViceCertificate contains all properties requires by the Symantec VICE API
 type ViceCertificate struct {
-	Roots       *x509.CertPool
-	Certificate *x509.Certificate
-	PrivateKey  *rsa.PrivateKey
-	CSR         []byte
-	Host        string
-	SANs        []string
-	TID         string
+	Roots                   *x509.CertPool
+	IntermediateCertificate *x509.Certificate
+	Certificate             *x509.Certificate
+	PrivateKey              *rsa.PrivateKey
+	CSR                     []byte
+	Host                    string
+	sans                    []string
+	TID                     string
 }
 
 func (vc *ViceCertificate) enroll(vp *Operator) error {
@@ -66,11 +67,12 @@ func (vc *ViceCertificate) enroll(vp *Operator) error {
 			CertProductType:    vice.CertProductType.Server,
 			ServerType:         vice.ServerType.OpenSSL,
 			ValidityPeriod:     vice.ValidityPeriod.OneYear,
+			SubjectAltNames:    vc.GetSANs(),
 			SignatureAlgorithm: vice.SignatureAlgorithm.SHA256WithRSAEncryption,
 		},
 	)
 	if err != nil {
-		LogError("Couldn't enroll new certificate using CSR %#v: %s", string(vc.CSR), err)
+		LogError("Couldn't enroll new certificate using CSR %v: %s", string(vc.CSR), err)
 		return err
 	}
 
@@ -103,7 +105,7 @@ func (vc *ViceCertificate) renew(vp *Operator) error {
 			LastName:           vp.VicePresidentConfig.LastName,
 			Email:              vp.VicePresidentConfig.EMail,
 			CSR:                string(vc.CSR),
-			SubjectAltNames:    vc.Certificate.DNSNames,
+			SubjectAltNames:    vc.GetSANs(),
 			OriginalChallenge:  vp.VicePresidentConfig.DefaultChallenge,
 			Challenge:          vp.VicePresidentConfig.DefaultChallenge,
 			CertProductType:    vice.CertProductType.Server,
@@ -113,7 +115,7 @@ func (vc *ViceCertificate) renew(vp *Operator) error {
 		},
 	)
 	if err != nil {
-		LogError("Couldn't renew certificate using CSR %#v: %s", string(vc.CSR), err)
+		LogError("Couldn't renew certificate using CSR %v: %s", string(vc.CSR), err)
 		return err
 	}
 
@@ -260,13 +262,33 @@ func (vc *ViceCertificate) DoesKeyAndCertificateTally() bool {
 
 // GetSANs returns the SANs of the certificate. Also checks if the common name is part of the SANs.
 func (vc *ViceCertificate) GetSANs() []string {
-	if vc.SANs == nil {
-		vc.SANs = []string{}
+	if vc.sans == nil {
+		vc.sans = []string{}
 	}
-	if contains(vc.SANs, vc.Host) != true {
-		vc.SANs = append(vc.SANs, vc.Host)
+	if contains(vc.sans, vc.Host) != true {
+		vc.sans = append(vc.sans, vc.Host)
 	}
-	return vc.SANs
+	return vc.sans
+}
+
+// SetSANs set the SANs of the certificate. Also checks if the common name is part of the SANs.
+func (vc *ViceCertificate) SetSANs(sans []string) {
+	if contains(sans, vc.Host) != true {
+		sans = append(sans, vc.Host)
+	}
+	if vc.sans == nil {
+		vc.sans = sans
+	} else {
+		vc.sans = append(vc.sans, sans...)
+	}
+}
+
+// WithIntermediateCertificate returns the certificate chain
+func (vc *ViceCertificate) WithIntermediateCertificate() []*x509.Certificate {
+	return []*x509.Certificate{
+		vc.Certificate,
+		vc.IntermediateCertificate,
+	}
 }
 
 func contains(stringSlice []string, searchString string) bool {

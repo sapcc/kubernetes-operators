@@ -49,8 +49,8 @@ type ViceConfig struct {
 
 // OptionalPresidentConfig to define the parameters used by the certificate operator
 type OptionalPresidentConfig struct {
-	ResyncPeriod             int `yaml:"resync_period_seconds"`
-	CertificateCheckInterval int `yaml:"certificate_check_interval_seconds"`
+	ResyncPeriod             int `yaml:"resync_period_minutes"`
+	CertificateCheckInterval int `yaml:"certificate_check_interval_minutes"`
 }
 
 // ReadConfig reads a given vice configuration file and returns the ViceConfig object and if applicable an error
@@ -85,9 +85,12 @@ func newClientConfig(options Options) *rest.Config {
 	return config
 }
 
-// enforce a minimal interval of 60 seconds to make sure everything was updated
+// enforce a minimal interval of 5 minute
 func (c *VicePresidentConfig) checkConfig() {
-	if c.CertificateCheckInterval < 60 {
-		c.CertificateCheckInterval = 60
+	if c.CertificateCheckInterval < 5 {
+		c.CertificateCheckInterval = 5
+	}
+	if c.ResyncPeriod < 2 {
+		c.ResyncPeriod = 2
 	}
 }
