@@ -91,7 +91,7 @@ class Configurator(object):
                         cluster_name=cluster_name,
                         availability_zone=availability_zone)
 
-                if not cluster_options.get('pbm_enabled', False):
+                if cluster_options.get('pbm_enabled', 'false') != 'true':
                     datastores = cluster['datastore']
                     datastore_names = [datastore.name for datastore in datastores if self.EPH_MATCH.match(datastore.name)]
                     eph = commonprefix(datastore_names)
