@@ -178,8 +178,10 @@ func (op *Operator) handler(key *tprv1.SentryProject) error {
 			return fmt.Errorf("Failed to create client key for project %s: %s", tpr.Spec.Name, err)
 		}
 		secretData := map[string]string{
-			fmt.Sprintf("%s.DSN", tpr.Spec.Name):        clientKey.DSN.Secret,
-			fmt.Sprintf("%s.DSN.public", tpr.Spec.Name): clientKey.DSN.Public,
+			fmt.Sprintf("%s.DSN", tpr.Spec.Name):               clientKey.DSN.Secret,
+			fmt.Sprintf("%s.DSN.public", tpr.Spec.Name):        clientKey.DSN.Public,
+			fmt.Sprintf("%s.DSN.python", tpr.Spec.Name):        fmt.Sprintf("requests+%s?verify_ssl=0", clientKey.DSN.Secret),
+			fmt.Sprintf("%s.DSN.public.python", tpr.Spec.Name): fmt.Sprintf("requests+%s?verify_ssl=0", clientKey.DSN.Public),
 		}
 
 		secret, err := op.clientset.Secrets(tpr.Namespace).Get("sentry", metav1.GetOptions{})
