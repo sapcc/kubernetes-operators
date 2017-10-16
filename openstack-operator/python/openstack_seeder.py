@@ -202,14 +202,17 @@ def sanitize(source, keys):
     return result
 
 
-def redact(source, keys=('password', 'secret', 'userPassword')):
-    def _blankout(d, keys):
-        for attr in keys:
-            if attr in d:
-                if isinstance(d[attr], str):
-                      d[attr] = '********'
-        for k,v in d.iteritems():
-            if isinstance(v, dict):
+def redact(source, keys=('password', 'secret', 'userPassword', 'cam_password')):
+    def _blankout(data, k):
+        if isinstance(data, list):
+            for item in data:
+                _blankout(item, k)
+        elif isinstance(data, dict):
+            for attr in keys:
+                if attr in data:
+                    if isinstance(data[attr], str):
+                          data[attr] = '********'
+            for k,v in data.iteritems():
                 _blankout(v, keys)
 
     result = copy.deepcopy(source)
