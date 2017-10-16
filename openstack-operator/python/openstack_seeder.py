@@ -203,11 +203,17 @@ def sanitize(source, keys):
 
 
 def redact(source, keys=('password', 'secret', 'userPassword')):
-    result = copy.copy(source)
-    for attr in keys:
-        if attr in result:
-            if isinstance(result[attr], str):
-                result[attr] = '********'
+    def _blankout(d, keys):
+        for attr in keys:
+            if attr in d:
+                if isinstance(d[attr], str):
+                      d[attr] = '********'
+        for k,v in d.iteritems():
+            if isinstance(v, dict):
+                _blankout(v, keys)
+
+    result = copy.deepcopy(source)
+    _blankout(result, keys)
     return result
 
 
@@ -1515,7 +1521,7 @@ def domain_config_equal(new, current):
 
 
 def seed_domain_config(domain, driver, keystone):
-    logging.debug("seeding domain config %s %s" % (domain.name, driver))
+    logging.debug("seeding domain config %s %s" % (domain.name, redact(driver)))
 
     # get the current domain configuration
     try:
@@ -1782,7 +1788,7 @@ def seed(args):
         return 1
 
     try:
-        logging.info("seeding openstack with '%s'" % config)
+        logging.info("seeding openstack with '%s'" % redact(config))
 
         if not args.dry_run:
             plugin = cli.load_from_argparse_arguments(args)
