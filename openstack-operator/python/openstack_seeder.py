@@ -39,8 +39,6 @@ from neutronclient.v2_0 import client as neutronclient
 from swiftclient import client as swiftclient
 from designateclient.v2 import client as designateclient
 
-# todo: subnet pools, networks
-
 # caches
 role_cache = {}
 domain_cache = {}
@@ -204,6 +202,15 @@ def sanitize(source, keys):
     return result
 
 
+def redact(source, keys=('password', 'secret', 'userPassword')):
+    result = copy.copy(source)
+    for attr in keys:
+        if attr in result:
+            if isinstance(result[attr], str):
+                result[attr] = '********'
+    return result
+
+
 def seed_role(role, keystone):
     """ seed a keystone role """
     logging.debug("seeding role %s" % role)
@@ -354,7 +361,7 @@ def seed_users(domain, users, keystone):
             if 'name' not in user or not user['name']:
                 logging.warn(
                     "skipping user '%s/%s', since it is misconfigured" % (
-                        domain.name, user))
+                        domain.name, redact(user)))
                 continue
 
             result = keystone.users.list(domain=domain.id,
