@@ -90,7 +90,7 @@ func readCertificateFromPEM(certPEM []byte) (*x509.Certificate, error) {
 }
 
 func writeCertificatesToPEM(certs []*x509.Certificate) ([]byte, error) {
-  certPEMs := []byte{}
+	certPEMs := []byte{}
 
 	for _, c := range certs {
 		certByte := removeSpecialCharactersFromPEM(
@@ -198,7 +198,7 @@ func doLog(logLevel string, msg string, args []interface{}) {
 }
 
 func removeSpecialCharactersFromPEM(pem []byte) []byte {
-	specialChars := []string{"\"", "^@","\x00", "0"}
+	specialChars := []string{"\"", "^@", "\x00", "0"}
 	var result []byte
 	for _, c := range specialChars {
 		result = bytes.TrimLeft(pem, fmt.Sprintf("%q\n", c))

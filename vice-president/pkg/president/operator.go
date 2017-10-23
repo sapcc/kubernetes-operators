@@ -381,7 +381,7 @@ func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host string, sans []st
 		if apierrors.IsNotFound(err) {
 			LogInfo("Secret %s/%s doesn't exist. Creating it and enrolling certificate", ingress.GetNamespace(), secretName)
 			err = vp.addUpstreamSecret(
-				vp.createEmptySecret(ingress.GetNamespace(), secretName),
+				vp.createEmptySecret(ingress.GetNamespace(), secretName, ingress.GetLabels()),
 			)
 			if err != nil {
 				return nil, nil, fmt.Errorf("couldn't create secret %s/%s: %v", ingress.GetNamespace(), secretName, err)
@@ -422,6 +422,12 @@ func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate) string {
 	//  is the certificate for the correct host?
 	if !viceCert.DoesCertificateAndHostMatch() {
 		LogInfo("Certificate and Host don't match. Enrolling new one")
+		return IngressStateEnroll
+	}
+
+	// check remote by initiating TLS handshake
+	if !viceCert.DoesRemoteCertificateMatch() {
+		LogInfo("Mismatching remote certificate. Enrolling new one")
 		return IngressStateEnroll
 	}
 
@@ -484,11 +490,15 @@ func (vp *Operator) pickupCertificate(vc *ViceCertificate) error {
 	return nil
 }
 
-func (vp *Operator) createEmptySecret(nameSpace, secretName string) *v1.Secret {
+func (vp *Operator) createEmptySecret(nameSpace, secretName string, labels map[string]string) *v1.Secret {
+	if labels == nil {
+		labels = map[string]string{}
+	}
 	return &v1.Secret{
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name:      secretName,
 			Namespace: nameSpace,
+			Labels:    labels,
 		},
 		Type: v1.SecretTypeOpaque,
 	}
@@ -590,7 +600,7 @@ func (vp *Operator) isSecretNeedsUpdate(sCur, sOld *v1.Secret) bool {
 func (vp *Operator) ingressAdd(obj interface{}) {
 	i := obj.(*v1beta1.Ingress)
 	// need to add with some delay to avoid errors when ingress is added and secret is deleted at the same time
-	vp.queue.AddAfter(i, 5 *time.Second)
+	vp.queue.AddAfter(i, 5*time.Second)
 }
 
 func (vp *Operator) ingressUpdate(cur, old interface{}) {
@@ -600,7 +610,7 @@ func (vp *Operator) ingressUpdate(cur, old interface{}) {
 	if vp.isIngressNeedsUpdate(iCur, iOld) {
 		LogDebug("Updated ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
 		// need to add with some delay to avoid errors when ingress is added and secret is deleted at the same time
-		vp.queue.AddAfter(iCur, 5 *time.Second)
+		vp.queue.AddAfter(iCur, 5*time.Second)
 		return
 	}
 	LogDebug("Nothing changed. No need to update ingress %s/%s", iOld.GetNamespace(), iOld.GetName())

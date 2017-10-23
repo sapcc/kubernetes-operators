@@ -23,15 +23,14 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"errors"
-	"time"
-
-	"crypto/tls"
 	"encoding/pem"
-
+	"errors"
 	"fmt"
+	"net"
+	"time"
 
 	"github.com/sapcc/go-vice"
 )
@@ -257,6 +256,32 @@ func (vc *ViceCertificate) DoesKeyAndCertificateTally() bool {
 		LogInfo("Certificate and Key don't match: %s ", err)
 		return false
 	}
+	return true
+}
+
+// DoesRemoteCertificateMatch connects to the URL, does the TLS handshake and checks if the certificates match
+func (vc *ViceCertificate) DoesRemoteCertificateMatch() bool {
+
+	conn, err := tls.DialWithDialer(
+		&net.Dialer{Timeout: 2 * time.Second},
+		"tcp",
+		fmt.Sprintf("%v:%v", vc.Host, 443),
+		&tls.Config{InsecureSkipVerify: true},
+	)
+	if err != nil {
+		LogError("Couldn't fetch remote certificate for %v: %v. Skipping...", vc.Host, err)
+		return true
+	}
+  defer conn.Close()
+
+	cert := conn.ConnectionState().PeerCertificates[0]
+	if cert.Equal(vc.Certificate) {
+		LogDebug("Remote certificate of host %v matches.", vc.Host)
+	} else {
+		LogInfo("Mismatching remote certificate. Expected host %v but got host %v", vc.Host, cert.Subject.CommonName)
+		return false
+	}
+
 	return true
 }
 
