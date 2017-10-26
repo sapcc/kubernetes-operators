@@ -33,6 +33,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	"k8s.io/client-go/tools/cache"
+	"fmt"
 )
 
 const (
@@ -203,7 +205,14 @@ func (s *TestSuite) TestStateMachine() {
 	}
 
 	// go for it. secret doesn't exist. this should result in below error. also the state should have changed to IngressStateEnroll
-	if err := s.VP.syncHandler(ingress); err != nil {
+	key, err := cache.MetaNamespaceKeyFunc(ingress)
+	if err != nil {
+		s.T().Error(err)
+	}
+
+	s.VP.queue.Add(key)
+
+	if err := s.VP.syncHandler(key); err != nil {
 		// TODO: need to mock this
 		if err.Error() != "the server could not find the requested resource (put secrets my-secret)" {
 			//s.T().Error(err)

@@ -211,7 +211,7 @@ func (vp *Operator) processNextWorkItem() bool {
 	defer vp.queue.Done(key)
 
 	// do your work on the key.  This method will contains your "do stuff" logic
-	err := vp.syncHandler(key)
+	err := vp.syncHandler(key.(string))
 	if err == nil {
 		vp.queue.Forget(key)
 		return true
@@ -223,8 +223,8 @@ func (vp *Operator) processNextWorkItem() bool {
 	return true
 }
 
-func (vp *Operator) syncHandler(key interface{}) error {
-	o, exists, err := vp.IngressInformer.GetStore().Get(key)
+func (vp *Operator) syncHandler(key string) error {
+	o, exists, err := vp.IngressInformer.GetStore().GetByKey(key)
 	if checkError(err) != nil {
 		utilruntime.HandleError(fmt.Errorf("%v failed with : %v", key, err))
 		return err
@@ -392,7 +392,6 @@ func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host string, sans []st
 				return nil, nil, err
 			}
 			return vc, secret, nil
-
 		}
 		LogError("Couldn't get secret %s/%s: %v", ingress.GetNamespace(), secretName, err)
 		return nil, nil, err
@@ -599,8 +598,12 @@ func (vp *Operator) isSecretNeedsUpdate(sCur, sOld *v1.Secret) bool {
 
 func (vp *Operator) ingressAdd(obj interface{}) {
 	i := obj.(*v1beta1.Ingress)
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		LogError("Couldn't add ingress %s/%s", i.GetNamespace(), i.GetName())
+	}
 	// need to add with some delay to avoid errors when ingress is added and secret is deleted at the same time
-	vp.queue.AddAfter(i, 5*time.Second)
+	vp.queue.AddAfter(key, 5*time.Second)
 }
 
 func (vp *Operator) ingressUpdate(cur, old interface{}) {
@@ -609,8 +612,12 @@ func (vp *Operator) ingressUpdate(cur, old interface{}) {
 
 	if vp.isIngressNeedsUpdate(iCur, iOld) {
 		LogDebug("Updated ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
+		key, err := cache.MetaNamespaceKeyFunc(cur)
+		if err != nil {
+			LogError("Couldn't add ingress %s/%s", iCur.GetNamespace(), iCur.GetName())
+		}
 		// need to add with some delay to avoid errors when ingress is added and secret is deleted at the same time
-		vp.queue.AddAfter(iCur, 5*time.Second)
+		vp.queue.AddAfter(key, 5*time.Second)
 		return
 	}
 	LogDebug("Nothing changed. No need to update ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
@@ -692,7 +699,11 @@ func (vp *Operator) updateUpstreamSecret(sCur, sOld *v1.Secret) error {
 func (vp *Operator) checkCertificates() {
 	for _, o := range vp.IngressInformer.GetStore().List() {
 		i := o.(*v1beta1.Ingress)
+		key, err := cache.MetaNamespaceKeyFunc(o)
+		if err != nil {
+			LogError("Couldn't add ingress %s/%s", i.GetNamespace(), i.GetName())
+		}
 		LogDebug("Added ingress %s/%s", i.GetNamespace(), i.GetName())
-		vp.queue.Add(i)
+		vp.queue.Add(key)
 	}
 }
