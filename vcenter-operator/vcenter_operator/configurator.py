@@ -1,15 +1,21 @@
-import logging, ssl, six, re, atexit, sys
+import atexit
+import logging
+import re
+import six
+import ssl
+import sys
+
 from collections import defaultdict, deque
+from kubernetes import client
 from os.path import commonprefix
 from pyVim.connect import SmartConnect, Disconnect
 from pyVmomi import vim
 from socket import error as socket_error
+
 from .vcenter_util import *
 from .masterpassword import MasterPassword
 from .templates import env
 from .phelm import DeploymentState
-
-from kubernetes import client
 
 log = logging.getLogger(__name__)
 
@@ -164,7 +170,10 @@ class Configurator(object):
         self._add_code('global', self.global_options)
 
         for host in six.iterkeys(self.vcenters):
-            self._poll(host)
+            try:
+                self._poll(host)
+            except six.moves.http_client.HTTPException:
+                continue
 
         if len(self.states) > 1:
             last = self.states.popleft()
