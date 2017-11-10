@@ -44,6 +44,7 @@ class Configurator(object):
                     continue
 
                 password = self.mpw.derive('long', host)
+                password.replace("/", "") # Vcenter doesn't accept / in password
 
                 log.info("{}".format(host))
                 if hasattr(ssl, '_create_unverified_context'):
