@@ -258,7 +258,7 @@ func (vc *ViceCertificate) DoesRemoteCertificateMatch() bool {
 		&tls.Config{InsecureSkipVerify: true},
 	)
 	if err != nil {
-		LogError("Couldn't fetch remote certificate for %v: %v. Skipping...", vc.Host, err)
+		LogError("Couldn't fetch remote certificate for %v: %v. Skipping", vc.Host, err)
 		return true
 	}
 	defer conn.Close()
@@ -267,7 +267,11 @@ func (vc *ViceCertificate) DoesRemoteCertificateMatch() bool {
 	if cert.Equal(vc.Certificate) {
 		LogDebug("Remote certificate of host %v matches.", vc.Host)
 	} else {
-		LogInfo("Mismatching remote certificate. Expected host %v but got host %v", vc.Host, cert.Subject.CommonName)
+		LogInfo("Mismatching remote certificate. Expected:\n" +
+			"host %v but got %v \n" +
+			"SANs: %v but got %v \n" +
+			"valid from %v but got %v \n" +
+			"valid until %v but got %v \n",vc.Host, cert.Subject.CommonName, vc.GetSANs(), cert.DNSNames, vc.Certificate.NotBefore, cert.NotBefore, vc.Certificate.NotAfter, cert.NotAfter)
 		return false
 	}
 
