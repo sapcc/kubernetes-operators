@@ -125,7 +125,8 @@ class Configurator(object):
                 datacenter_options = self.global_options.copy()
                 datacenter_options.update(vcenter_options)
                 datacenter_options.update(cluster_name=cluster_name,
-                                       availability_zone=availability_zone)
+                                          name=match.group(1).lower(),
+                                          availability_zone=availability_zone)
                 self._add_code('vcenter_datacenter', datacenter_options)
 
         if not storage_node:
