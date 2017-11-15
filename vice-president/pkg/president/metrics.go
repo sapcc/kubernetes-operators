@@ -20,13 +20,14 @@
 package president
 
 import (
-	"net/http"
-	"strings"
-
+	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sapcc/go-vice"
 )
 
 var enrollSuccessCounter = prometheus.NewCounterVec(
@@ -93,6 +94,98 @@ var approveFailedCounter = prometheus.NewCounterVec(
 	[]string{"ingress", "host", "sans"},
 )
 
+var tokenCountOrderedGauge = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "vice_president_ordered_tokens",
+		Help: "Number of available certificate units",
+	},
+	[]string{"type"},
+)
+
+var tokenCountUsedGauge = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "vice_president_used_tokens",
+		Help: "Number of available certificate units",
+	},
+	[]string{"type"},
+)
+
+var tokenCountRemainingGauge = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "vice_president_remaining_tokens",
+		Help: "Number of available certificate units",
+	},
+	[]string{"type"},
+)
+
+// MetricsCollector ..
+type MetricsCollector struct {
+	viceClient *vice.Client
+}
+
+// NewMetricsCollector returns a new MetricsCollector
+func NewMetricsCollector(viceCertFilePath, viceKeyFilePath string) *MetricsCollector {
+	cert, err := tls.LoadX509KeyPair(viceCertFilePath, viceKeyFilePath)
+	if err != nil {
+		LogFatal("Couldn't load certificate from %s and/or key from %s for vice client: %v", viceCertFilePath, viceKeyFilePath, err)
+	}
+	return &MetricsCollector{
+		viceClient: vice.New(cert),
+	}
+}
+
+// Describe ..
+func (m *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
+	tokenCountOrderedGauge.Describe(ch)
+	tokenCountRemainingGauge.Describe(ch)
+	tokenCountUsedGauge.Describe(ch)
+}
+
+// Collect ..
+func (m *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
+	desCh := make(chan *prometheus.Desc, 1)
+	tokenCountRemainingGauge.Describe(desCh)
+	tokenCountRemainingDesc := <-desCh
+	tokenCountUsedGauge.Describe(desCh)
+	tokenCountUsedDesc := <-desCh
+	tokenCountOrderedGauge.Describe(desCh)
+	tokenCountOrderedDesc := <-desCh
+
+	tokenCount, err := m.viceClient.Certificates.GetTokenCount(context.TODO())
+	if err != nil {
+		LogError("Unable to fetch token count: %v", err)
+	}
+	LogDebug("Got token count %#v", tokenCount)
+
+	for _, t := range tokenCount.Tokens {
+		if t.Ordered == 0 && t.Used == 0 && t.Remaining == 0 {
+			LogDebug("Token count for %#v is 0", t)
+		} else {
+			ch <- prometheus.MustNewConstMetric(
+				tokenCountRemainingDesc,
+				prometheus.GaugeValue,
+				float64(t.Remaining),
+				string(t.Type),
+			)
+
+			ch <- prometheus.MustNewConstMetric(
+				tokenCountUsedDesc,
+				prometheus.GaugeValue,
+				float64(t.Used),
+				string(t.Type),
+			)
+
+			ch <- prometheus.MustNewConstMetric(
+				tokenCountOrderedDesc,
+				prometheus.GaugeValue,
+				float64(t.Ordered),
+				string(t.Type),
+			)
+		}
+	}
+
+}
+
 // init failure metrics with 0. useful for alerting.
 func initializeFailureMetrics(labels map[string]string) {
 	enrollFailedCounter.With(labels).Add(0.0)
@@ -101,7 +194,7 @@ func initializeFailureMetrics(labels map[string]string) {
 	pickupFailedCounter.With(labels).Add(0.0)
 }
 
-func init() {
+func registerCollectors(collector prometheus.Collector) {
 	prometheus.MustRegister(
 		enrollSuccessCounter,
 		enrollFailedCounter,
@@ -111,15 +204,17 @@ func init() {
 		pickupFailedCounter,
 		approveSuccessCounter,
 		approveFailedCounter,
+		collector,
 	)
 }
 
 // ExposeMetrics exposes the above defined metrics on <metricPort>:/metrics
-func ExposeMetrics(metricPort string) error {
+func ExposeMetrics(metricPort int, viceCertFilePath, viceKeyFilePath string) error {
+	registerCollectors(NewMetricsCollector(viceCertFilePath, viceKeyFilePath))
 	http.Handle("/metrics", promhttp.Handler())
-	LogInfo("Exposing metrics on localhost %s/metrics ", metricPort)
+	LogInfo("Exposing metrics on localhost:%v/metrics ", metricPort)
 	return http.ListenAndServe(
-		fmt.Sprintf("0.0.0.0:%s", strings.TrimPrefix(metricPort, ":")),
+		fmt.Sprintf("0.0.0.0:%v", metricPort),
 		nil,
 	)
 }

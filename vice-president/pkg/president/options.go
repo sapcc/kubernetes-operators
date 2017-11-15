@@ -35,7 +35,7 @@ type Options struct {
 
 	IngressAnnotation string
 
-	MetricListenAddress string
+	MetricPort int
 }
 
 // CheckOptions verifies the Options and sets default values, if necessary
@@ -60,9 +60,9 @@ func (o *Options) CheckOptions() error {
 		LogDebug("Ingress annotation not provided. Using default 'vice-president'.")
 	}
 
-	if o.MetricListenAddress == "" {
-		o.MetricListenAddress = "9091"
-		LogDebug("Metric listen address not provided. Using default :9091/metrics.")
+	if o.MetricPort == 0 {
+		o.MetricPort = 9091
+		LogDebug("Metric port not provided. Using default port: 9091")
 	}
 
 	return nil
