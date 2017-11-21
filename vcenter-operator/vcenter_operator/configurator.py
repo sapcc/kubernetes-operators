@@ -21,8 +21,7 @@ log = logging.getLogger(__name__)
 
 
 class Configurator(object):
-    CLUSTER_MATCH = re.compile('^production(.*)$')
-    STORAGE_MATCH = re.compile('^storage(.*)$')
+    CLUSTER_MATCH = re.compile('^production(bb[1-9][0-9]*)$')
     EPH_MATCH = re.compile('^eph.*$')
     BR_MATCH = re.compile('^br-(.*)$')
 
@@ -65,7 +64,7 @@ class Configurator(object):
                                            }
 
             except vim.fault.InvalidLogin as e:
-                log.error(e.msg)
+                log.error("%s: %s", host, e.msg)
             except socket_error as e:
                 log.error("%s: %s", host, e)
 
@@ -81,61 +80,50 @@ class Configurator(object):
         filter_spec = create_filter_spec(view_ref=view_ref,
                                          obj_type=obj_type, path_set=['name', 'parent', 'datastore', 'network'])
 
-        storage_node = None
         availability_zones = set()
 
         for cluster in collect_properties(service_instance, [filter_spec]):
             cluster_name = cluster['name']
             match = self.CLUSTER_MATCH.match(cluster_name)
-            if match:
-                parent = cluster['parent']
-                availability_zone = parent.parent.name.lower()
-                availability_zones.add(availability_zone)
-                cluster_options = self.global_options.copy()
-                cluster_options.update(vcenter_options)
-                cluster_options.update(name=match.group(1).lower(),
-                        cluster_name=cluster_name,
-                        availability_zone=availability_zone)
 
-                if cluster_options.get('pbm_enabled', 'false') != 'true':
-                    datastores = cluster['datastore']
-                    datastore_names = [datastore.name for datastore in datastores if self.EPH_MATCH.match(datastore.name)]
-                    eph = commonprefix(datastore_names)
-                    cluster_options.update(datastore_regex="^{}.*".format(eph))
+            if not match:
+                log.warning("%s: Ignoring cluster %s", host, cluster_name)
+                continue
 
-                for network in cluster['network']:
-                    match = self.BR_MATCH.match(network.name)
-                    if match:
-                        cluster_options['bridge'] = match.group(0).lower()
-                        cluster_options['physical'] = match.group(1).lower()
-                        break
+            parent = cluster['parent']
+            availability_zone = parent.parent.name.lower()
+            availability_zones.add(availability_zone)
+            cluster_options = self.global_options.copy()
+            cluster_options.update(vcenter_options)
+            cluster_options.update(name=match.group(1).lower(),
+                    cluster_name=cluster_name,
+                    availability_zone=availability_zone)
 
-                cluster_state = self.clusters[cluster_name]
-                config_hash = hash(frozenset(cluster_options.items()))
-                cluster_options['config_hash'] = config_hash + sys.maxsize
-                cluster_state['config_hash'] = config_hash
-                self._add_code('vcenter_cluster', cluster_options)
+            if cluster_options.get('pbm_enabled', 'false') != 'true':
+                datastores = cluster['datastore']
+                datastore_names = [datastore.name for datastore in datastores if self.EPH_MATCH.match(datastore.name)]
+                eph = commonprefix(datastore_names)
+                cluster_options.update(datastore_regex="^{}.*".format(eph))
 
-            match = self.STORAGE_MATCH.match(cluster_name)
-            if match:
-                storage_node = True
-                parent = cluster['parent']
-                availability_zone = parent.parent.name.lower()
-                availability_zones.add(availability_zone)
-                datacenter_options = self.global_options.copy()
-                datacenter_options.update(vcenter_options)
-                datacenter_options.update(cluster_name=cluster_name,
-                                          name=match.group(1).lower(),
-                                          availability_zone=availability_zone)
-                self._add_code('vcenter_datacenter', datacenter_options)
+            for network in cluster['network']:
+                match = self.BR_MATCH.match(network.name)
+                if match:
+                    cluster_options['bridge'] = match.group(0).lower()
+                    cluster_options['physical'] = match.group(1).lower()
+                    break
 
-        if not storage_node:
-            for availability_zone in availability_zones:
-                cluster_options = self.global_options.copy()
-                cluster_options.update(vcenter_options)
-                cluster_options.update(availability_zone=availability_zone)
+            cluster_state = self.clusters[cluster_name]
+            config_hash = hash(frozenset(cluster_options.items()))
+            cluster_options['config_hash'] = config_hash + sys.maxsize
+            cluster_state['config_hash'] = config_hash
+            self._add_code('vcenter_cluster', cluster_options)
 
-            self._add_code('vcenter_datacenter', cluster_options)
+        for availability_zone in availability_zones:
+            cluster_options = self.global_options.copy()
+            cluster_options.update(vcenter_options)
+            cluster_options.update(availability_zone=availability_zone)
+
+        self._add_code('vcenter_datacenter', cluster_options)
 
     def _add_code(self, scope, options):
         for template_name in env.list_templates(filter_func=lambda x: x.startswith(scope) and x.endswith('.yaml.j2')):
@@ -173,7 +161,8 @@ class Configurator(object):
         for host in six.iterkeys(self.vcenters):
             try:
                 self._poll(host)
-            except six.moves.http_client.HTTPException:
+            except six.moves.http_client.HTTPException as e:
+                log.warning("%s: %r", host, e)
                 continue
 
         if len(self.states) > 1:

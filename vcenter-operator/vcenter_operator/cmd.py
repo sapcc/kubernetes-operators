@@ -34,7 +34,7 @@ def main():
     configurator = Configurator(domain, global_options)
     configurator.poll_config()
     discovery = DnsDiscovery(domain, configurator.global_options)
-    discovery.register(re.compile(six.b('\Avc-[a-z]+-?\d+\Z')), configurator)
+    discovery.register(re.compile(six.b('\Avc-[a-z]+-\d+\Z')), configurator)
 
     while True:
         discovery.discover()
