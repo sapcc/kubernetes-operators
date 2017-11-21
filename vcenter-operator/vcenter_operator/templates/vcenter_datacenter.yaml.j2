@@ -19,7 +19,7 @@ data:
     vmware_host_username = {{ username | quote }}
     vmware_host_password = {{ password | quote }}
     vmware_insecure = True
-    vmware_storage_profile = "cinder-vvol"
+    vmware_storage_profile = cinder-vvol
 ---
 kind: Deployment
 apiVersion: extensions/v1beta1
@@ -35,14 +35,16 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 3
+      maxUnavailable: 1
+      maxSurge: 1
   selector:
     matchLabels:
         name: cinder-volume-vmware-{{ name }}
   template:
     metadata:
       labels:
+        application: cinder
+        component: volume-vmware-{{ name }}
         name: cinder-volume-vmware-{{ name }}
       annotations:
         pod.beta.kubernetes.io/hostname: cinder-volume-vmware-{{ name }}
@@ -52,27 +54,46 @@ spec:
           image: {{ cinder_agent_image }}
           imagePullPolicy: IfNotPresent
           command:
-            - /container.init/cinder-volume-start
+            - dumb-init
+            - kubernetes-entrypoint
           env:
-            - name: DEBUG_CONTAINER
-              value: "false"
+            - name: COMMAND
+              value: "cinder-volume --config-file /etc/cinder/cinder.conf --config-file /etc/cinder/volume.conf"
+            - name: NAMESPACE
+              value: {{ namespace }}
             - name: SENTRY_DSN
               value: {{ cinder_sentry_dsn }}
+            - name: PYTHONWARNINGS
+              value: "ignore:Unverified HTTPS request"
           volumeMounts:
-            - mountPath: /cinder-etc
-              name: cinder-etc
-            - mountPath: /volume-config
-              name: volume-config
-            - mountPath: /container.init
-              name: container-init
+            - name: etccinder
+              mountPath: /etc/cinder
+            - name: cinder-etc
+              mountPath: /etc/cinder/cinder.conf
+              subPath: cinder.conf
+              readOnly: true
+            - name: cinder-etc
+              mountPath: /etc/cinder/policy.json
+              subPath: policy.json
+              readOnly: true
+            - name: cinder-etc
+              mountPath: /etc/cinder/rootwrap.conf
+              subPath: rootwrap.conf
+              readOnly: true
+            - name: cinder-etc
+              mountPath: /etc/cinder/logging.conf
+              subPath: logging.conf
+              readOnly: true
+            - name: volume-config
+              mountPath: /etc/cinder/volume.conf
+              subPath: volume.conf
+              readOnly: true
       volumes:
+        - name: etccinder
+          emptyDir: {}
         - name: cinder-etc
           configMap:
             name: cinder-etc
         - name: volume-config
           configMap:
             name:  volume-vmware-{{ name }}
-        - name: container-init
-          configMap:
-            name: cinder-bin
-            defaultMode: 0755
