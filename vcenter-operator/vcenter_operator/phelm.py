@@ -119,12 +119,13 @@ class DeploymentState(object):
                 continue
 
             api = self.get_api(api_version)
+            underscored = _under_score(kind)
             if self.dry_run:
-                log.info("{}: {}/{}".format(action.title(), kind, name))
+                log.info("{}: {}/{}".format(action.title(), underscored, name))
             else:
                 try:
-                    log.debug("{}: {}/{}".format(action.title(), kind, name))
-                    deleter = self.get_method(api, 'delete', 'namespaced', _under_score(kind))
+                    log.debug("{}: {}/{}".format(action.title(), underscored, name))
+                    deleter = self.get_method(api, 'delete', 'namespaced', underscored)
                     deleter(name, self.namespace, client.V1DeleteOptions(orphan_dependents=False))
                 except client.rest.ApiException as e:
                     if e.status == 404:

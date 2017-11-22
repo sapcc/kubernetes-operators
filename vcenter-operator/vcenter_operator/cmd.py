@@ -1,4 +1,9 @@
-import logging, re, six
+import argparse
+import logging
+import re
+import six
+import sys
+
 from time import sleep
 from kubernetes import config as k8s_config
 from .discovery import DnsDiscovery
@@ -7,10 +12,17 @@ from .configurator import Configurator
 log = logging.getLogger(__name__)
 
 
-def main():
-    global_options = {}
+def _build_arg_parser():
+    args = argparse.ArgumentParser()
+    args.add_argument('--dry-run', action='store_true', default=False)
+    return args
 
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)-15s %(message)s')
+
+def main():
+    args = _build_arg_parser().parse_args(sys.argv[1:])
+    global_options = {'dry_run': str(args.dry_run)}
+
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)-15s %(process)d %(levelname)s %(message)s')
     logging.getLogger('kubernetes').setLevel(logging.WARNING)
 
     try:
