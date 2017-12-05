@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='openstack_seeder',
-    version='0.0.6',
+    version='0.1.0',
     packages='.',
     dependency_links=[
         'git+https://github.com/sapcc/python-designateclient.git@master-m3#egg=python-designateclient',
