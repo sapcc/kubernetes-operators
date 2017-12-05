@@ -150,6 +150,7 @@ class Configurator(object):
         password = configmap.data.pop('password')
         self.global_options.update(configmap.data)
         if self.password != password:
+            self.global_options.update(master_password=password)
             self.password = password
             self.mpw = MasterPassword(self.username, self.password)
 

@@ -1,6 +1,9 @@
-import struct, logging, six
-from hmac import HMAC
+import logging
+import struct
 from hashlib import sha256
+from hmac import HMAC
+
+import six
 from enum import Enum
 
 log = logging.getLogger(__name__)
@@ -78,7 +81,7 @@ DEFAULT_NAMESPACE = six.b('com.lyndir.masterpassword')
 
 
 class MasterPassword(object):
-    def __init__(self, name, password, namespace = None):
+    def __init__(self, name, password, namespace=None):
         self.namespace = namespace or DEFAULT_NAMESPACE
         salt = self.namespace + struct.pack('!I', len(name)) + name.encode('utf-8')
         self.key = hash(password, salt)

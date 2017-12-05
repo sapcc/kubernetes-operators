@@ -18,7 +18,7 @@ data:
     cache_prefix= "{{ name | ini_escape }}-images"
     host_ip = {{ host }}
     host_username = {{ username | quote }}
-    host_password = {{ password | quote }}
+    host_password = {{ username | derive_password | quote }}
     cluster_name = {{ cluster_name | quote }}
     {%- if pbm_enabled == 'true' %}
     pbm_enabled = True
@@ -46,7 +46,7 @@ data:
     cluster_name = {{ cluster_name | quote }}
 
     vsphere_login = {{ username | quote }}
-    vsphere_password = {{ password | quote }}
+    vsphere_password = {{ username | derive_password | quote }}
 
     network_maps = "{{ physical | ini_escape }}:{{ bridge | ini_escape }}"
 ---
