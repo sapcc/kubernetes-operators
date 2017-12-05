@@ -19,7 +19,8 @@ Seeding currently only support creating or updating of entities (the operator up
 - roles
 - services
     - endpoints
-- flavors (untested)
+- flavors
+    - extra-specs
 - domains
     - configuration
     - domain-role-assignments
@@ -42,6 +43,7 @@ Seeding currently only support creating or updating of entities (the operator up
         - dns_zones
             - recordsets
         - dns_tsigkeys
+        - flavors
     - groups
         - group-role-assignments
     - users

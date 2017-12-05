@@ -1,3 +1,0 @@
-[console_scripts]
-openstack-seeder = openstack_seeder:main
-

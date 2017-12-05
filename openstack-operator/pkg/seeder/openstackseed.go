@@ -105,6 +105,7 @@ type ProjectSpec struct {
 	IsDomain        *bool                 `json:"is_domain,omitempty" yaml:"is_domain,omitempty"`           // is the project actually a domain?
 	Endpoints       []ProjectEndpointSpec `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`           // list of project endpoint filters
 	RoleAssignments []RoleAssignmentSpec  `json:"roles,omitempty" yaml:"roles,omitempty"`                   // list of project-role-assignments
+	Flavors         []string              `json:"flavors,omitempty" yaml:"flavors,omitempty"`               // list of nova flavor-id's
 	AddressScopes   []AddressScopeSpec    `json:"address_scopes,omitempty" yaml:"address_scopes,omitempty"` // list of neutron address-scopes
 	SubnetPools     []SubnetPoolSpec      `json:"subnet_pools,omitempty" yaml:"subnet_pools,omitempty"`     // list of neutron subnet-pools
 	NetworkQuota    *NetworkQuotaSpec     `json:"network_quota,omitempty" yaml:"network_quota,omitempty"`   // neutron quota
@@ -159,18 +160,18 @@ type GroupSpec struct {
 
 // A nova flavor (see https://developer.openstack.org/api-ref/compute/#flavors)
 //
-// This has not been tested and should be considered WIP
 type FlavorSpec struct {
-	Name       string  `json:"name" yaml:"name"` // flavor name
-	Id         string  `json:"id,omitempty" yaml:"id,omitempty"`
-	Ram        int     `json:"ram,omitempty" yaml:"ram,omitempty"`
-	Disk       int     `json:"disk,omitempty" yaml:"disk,omitempty"`
-	Vcpus      int     `json:"vcpus,omitempty" yaml:"vcpus,omitempty"`
-	Swap       int     `json:"swap,omitempty" yaml:"swap,omitempty"`
-	RxTxfactor float32 `json:"rxtxfactor,omitempty" yaml:"rxtxfactor,omitempty"`
-	IsPublic   *bool   `json:"is_public,omitempty" yaml:"is_public,omitempty"`
-	Disabled   *bool   `json:"disabled,omitempty" yaml:"disabled,omitempty"`
-	Ephemeral  int     `json:"ephemeral,omitempty" yaml:"ephemeral,omitempty"`
+	Name       string                 `json:"name" yaml:"name"` // flavor name
+	Id         string                 `json:"id,omitempty" yaml:"id,omitempty"`
+	Ram        int                    `json:"ram,omitempty" yaml:"ram,omitempty"`
+	Disk       int                    `json:"disk,omitempty" yaml:"disk,omitempty"`
+	Vcpus      int                    `json:"vcpus,omitempty" yaml:"vcpus,omitempty"`
+	Swap       int                    `json:"swap,omitempty" yaml:"swap,omitempty"`
+	RxTxfactor float32                `json:"rxtxfactor,omitempty" yaml:"rxtxfactor,omitempty"`
+	IsPublic   *bool                  `json:"is_public,omitempty" yaml:"is_public,omitempty"`
+	Disabled   *bool                  `json:"disabled,omitempty" yaml:"disabled,omitempty"`
+	Ephemeral  int                    `json:"ephemeral,omitempty" yaml:"ephemeral,omitempty"`
+	ExtraSpecs map[string]interface{} `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // list of extra specs
 }
 
 // A neutron address scope (see https://developer.openstack.org/api-ref/networking/v2/index.html  UNDOCUMENTED)
@@ -407,11 +408,19 @@ func (e *OpenstackSeedSpec) MergeFlavor(flavor FlavorSpec) {
 	if e.Flavors == nil {
 		e.Flavors = make([]FlavorSpec, 0)
 	}
-	for i, v := range e.Flavors {
-		if v.Name == flavor.Name {
+	for i, f := range e.Flavors {
+		if f.Name == flavor.Name {
 			glog.V(2).Info("merge flavor ", flavor)
-			MergeStructFields(&v, flavor)
-			e.Flavors[i] = v
+
+			if f.ExtraSpecs == nil {
+				f.ExtraSpecs = make(map[string]interface{})
+			}
+			for k, v := range flavor.ExtraSpecs {
+				f.ExtraSpecs[k] = v
+			}
+
+			MergeStructFields(&f, flavor)
+			e.Flavors[i] = f
 			return
 		}
 	}
@@ -496,6 +505,9 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 				}
 				if len(project.DNSTSIGKeys) > 0 {
 					v.MergeDNSTSIGKeys(project)
+				}
+				if len(project.Flavors) > 0 {
+					v.Flavors = MergeStringSlices(v.Flavors, project.Flavors)
 				}
 				e.Projects[i] = v
 				found = true
@@ -1176,6 +1188,9 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 	}
 
 	for _, flavor := range spec.Flavors {
+		if flavor.Id == "" {
+			return errors.New("flavor id is required")
+		}
 		if flavor.Name == "" {
 			return errors.New("flavor name is required")
 		}

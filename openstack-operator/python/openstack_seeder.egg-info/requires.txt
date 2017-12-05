@@ -1,3 +1,0 @@
-PyYAML==3.12
-python-keystoneclient==3.8.0
-python-novaclient==7.0.0
