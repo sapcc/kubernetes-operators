@@ -5,6 +5,15 @@ from kubernetes import client
 log = logging.getLogger(__name__)
 
 
+def _remove_empty_from_dict(d):
+    if type(d) is dict:
+        return dict((k, _remove_empty_from_dict(v)) for k, v in d.iteritems() if v and _remove_empty_from_dict(v))
+    elif type(d) is list:
+        return [_remove_empty_from_dict(v) for v in d if v and _remove_empty_from_dict(v)]
+    else:
+        return d
+
+
 def _under_score(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
@@ -82,6 +91,8 @@ class DeploymentState(object):
 
             if self.dry_run:
                 log.info("{}: {}/{}".format(action.title(), underscored, new_item.metadata.name))
+                for line in yaml.dump(_remove_empty_from_dict(new_item.to_dict())).split("\n"):
+                    log.debug(line)
             else:
                 log.debug("{}: {}/{}".format(action.title(), underscored, new_item.metadata.name))
                 method = getattr(api, '{}_namespaced_{}'.format(action, underscored))
