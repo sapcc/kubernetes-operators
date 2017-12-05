@@ -35,6 +35,7 @@ from keystoneauth1.loading import cli
 from keystoneclient import exceptions
 from keystoneclient.v3 import client as keystoneclient
 from novaclient import client as novaclient
+from novaclient import exceptions as novaexceptions
 from neutronclient.v2_0 import client as neutronclient
 from swiftclient import client as swiftclient
 from designateclient.v2 import client as designateclient
@@ -139,7 +140,7 @@ def get_subnetpool_id(project_id, name, neutron):
     if project_id not in subnetpool_cache:
         subnetpool_cache[project_id] = dict()
     if name not in subnetpool_cache[project_id]:
-        query = {'project_id': project_id, 'name': name}
+        query = {'tenant_id': project_id, 'name': name}
         result = neutron.list_subnetpools(retrieve_all=True, **query)
         if result and result['subnetpools']:
             result = subnetpool_cache[project_id][name] = \
@@ -158,7 +159,7 @@ def get_network_id(project_id, name, neutron):
     if project_id not in network_cache:
         network_cache[project_id] = dict()
     if name not in network_cache[project_id]:
-        query = {'project_id': project_id, 'name': name}
+        query = {'tenant_id': project_id, 'name': name}
         result = neutron.list_networks(retrieve_all=True, **query)
         if result and result['networks']:
             result = network_cache[project_id][name] = result['networks'][0][
@@ -177,7 +178,7 @@ def get_subnet_id(project_id, name, neutron):
     if project_id not in subnet_cache:
         subnet_cache[project_id] = dict()
     if name not in subnet_cache[project_id]:
-        query = {'project_id': project_id, 'name': name}
+        query = {'tenant_id': project_id, 'name': name}
         result = neutron.list_subnets(retrieve_all=True, **query)
         if result and result['subnets']:
             result = subnet_cache[project_id][name] = result['subnets'][0][
@@ -585,6 +586,8 @@ def seed_projects(domain, projects, args, sess):
 
         dns_tsig_keys = project.pop('dns_tsigkeys', None)
 
+        flavors = project.pop('flavors', None)
+
         project = sanitize(project,
                            ('name', 'description', 'enabled', 'parent'))
 
@@ -678,6 +681,33 @@ def seed_projects(domain, projects, args, sess):
         if dns_tsig_keys:
             seed_project_tsig_keys(resource, dns_tsig_keys, args)
 
+        # seed flavors
+        if flavors:
+            seed_project_flavors(resource, flavors, args, sess)
+
+
+def seed_project_flavors(project, flavors, args, sess):
+    """
+    seed a projects compute flavors
+    """
+
+    logging.debug("seeding flavors of project %s" % project.name)
+
+    # grab a nova client
+    nova = novaclient.Client("2.1", session=sess, endpoint_type=args.interface)
+    for flavorid in flavors:
+        try:
+            # validate flavor-id
+            nova.flavors.get(flavorid)
+            # check if project has access
+            access = set([a.tenant_id for a in nova.flavor_access.list(flavor=flavorid)])
+            if project.id not in access:
+                # add it
+                logging.info("adding flavor '%s' access to project '%s" % (flavorid, project.name))
+                nova.flavor_access.add_tenant_access(flavorid, project.id)
+        except Exception as e:
+            logging.error("could not add flavor-id '%s' access for project '%s': %s" % (flavorid, project.name, e))
+
 
 def seed_project_network_quota(project, quota, args, sess):
     """
@@ -746,7 +776,7 @@ def seed_project_address_scopes(project, address_scopes, args, sess):
 
             body = {'address_scope': scope.copy()}
             body['address_scope']['tenant_id'] = project.id
-            query = {'project_id': project.id, 'name': scope['name']}
+            query = {'tenant_id': project.id, 'name': scope['name']}
             result = neutron.list_address_scopes(retrieve_all=True, **query)
             if not result or not result['address_scopes']:
                 logging.info(
@@ -803,7 +833,7 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess, **kvargs):
             body = {'subnetpool': subnet_pool.copy()}
             body['subnetpool']['tenant_id'] = project.id
 
-            query = {'project_id': project.id, 'name': subnet_pool['name']}
+            query = {'tenant_id': project.id, 'name': subnet_pool['name']}
             result = neutron.list_subnetpools(retrieve_all=True, **query)
             if not result or not result['subnetpools']:
                 logging.info(
@@ -899,7 +929,7 @@ def seed_project_networks(project, networks, args, sess):
 
             body = {'network': network.copy()}
             body['network']['tenant_id'] = project.id
-            query = {'project_id': project.id, 'name': network['name']}
+            query = {'tenant_id': project.id, 'name': network['name']}
             result = neutron.list_networks(retrieve_all=True, **query)
             if not result or not result['networks']:
                 logging.info(
@@ -993,7 +1023,7 @@ def seed_project_routers(project, routers, args, sess):
 
             body = {'router': router.copy()}
             body['router']['tenant_id'] = project.id
-            query = {'project_id': project.id, 'name': router['name']}
+            query = {'tenant_id': project.id, 'name': router['name']}
             result = neutron.list_routers(retrieve_all=True, **query)
             if not result or not result['routers']:
                 logging.info(
@@ -1619,38 +1649,70 @@ def seed_domain(domain, args, sess):
 def seed_flavor(flavor, args, sess):
     logging.debug("seeding flavor %s" % flavor)
 
-    nova = novaclient.Client("2.1", session=sess,
-                             interface=args.interface)
+    nova = novaclient.Client("2.1", session=sess, endpoint_type=args.interface)
+
+    extra_specs = None
+    if 'extra_specs' in flavor:
+        extra_specs = flavor.pop('extra_specs', None)
+        if not isinstance(extra_specs, dict):
+            logging.warn(
+                "skipping flavor '%s', since it has invalid extra_specs" % flavor)
 
     flavor = sanitize(flavor, (
         'id', 'name', 'ram', 'disk', 'vcpus', 'swap', 'rxtx_factor',
         'is_public', 'disabled', 'ephemeral'))
     if 'name' not in flavor or not flavor['name']:
         logging.warn(
-            "skipping flavor '%s', since it is misconfigured" % flavor)
+            "skipping flavor '%s', since it has no name" % flavor)
+        return
+    if 'id' not in flavor or not flavor['id']:
+        logging.warn(
+            "skipping flavor '%s', since its id is missing" % flavor)
         return
 
-    # 'rename' some flavor attributes
-    if 'is_public' in flavor:
-        flavor['os-flavor-access:is_public'] = flavor.pop('is_public')
-    if 'disabled' in flavor:
-        flavor['OS-FLV-DISABLED:disabled'] = flavor.pop('disabled')
-    if 'ephemeral' in flavor:
-        flavor['OS-FLV-EXT-DATA:ephemeral'] = flavor.pop('ephemeral')
+    # wtf, flavors has no update(): needs to be dropped and re-created instead
+    create = False
+    try:
+        resource = nova.flavors.get(flavor['id'])
 
-    result = nova.flavors.list(name=flavor['name'])
-    if not result:
-        logging.info(
-            "create flavor '%s'" % flavor['name'])
-        nova.flavors.create(**flavor)
-    else:
-        resource = result[0]
-        for attr in flavor.keys():
-            if flavor[attr] != resource._info.get(attr, ''):
-                logging.info("%s differs. update flavor '%s'" %
-                             (attr, flavor['name']))
-                nova.flavors.update(resource.id, **flavor)
+        # 'rename' some attributes, since api and internal representation differ
+        flavor_cmp = flavor.copy()
+        if 'is_public' in flavor_cmp:
+            flavor_cmp['os-flavor-access:is_public'] = flavor_cmp.pop('is_public')
+        if 'disabled' in flavor_cmp:
+            flavor_cmp['OS-FLV-DISABLED:disabled'] = flavor_cmp.pop('disabled')
+        if 'ephemeral' in flavor_cmp:
+            flavor_cmp['OS-FLV-EXT-DATA:ephemeral'] = flavor_cmp.pop('ephemeral')
+
+        # check for delta
+        for attr in flavor_cmp.keys():
+            if flavor_cmp[attr] != getattr(resource, attr):
+                logging.info("deleting flavor '%s' to re-create, since '%s' differs" %
+                             (flavor['name'], attr))
+                resource.delete()
+                create = True
                 break
+    except novaexceptions.NotFound:
+        create = True
+
+    # (re-) create the flavor
+    if create:
+        logging.info("creating flavor '%s'" % flavor['name'])
+        flavor['flavorid'] = flavor.pop('id')
+        resource = nova.flavors.create(**flavor)
+
+    # take care of the flavors extra specs
+    if extra_specs and resource:
+        changed = False
+        keys = resource.get_keys()
+        for k,v in extra_specs.iteritems():
+            if v != keys.get(k, ''):
+                keys[k] = v
+                changed = True
+
+        if changed:
+            logging.info("updating extra-specs '%s' of flavor '%s'" % (keys, flavor['name']))
+            resource.set_keys(keys)
 
 
 def resolve_group_members(keystone):
