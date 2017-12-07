@@ -1670,6 +1670,17 @@ def seed_flavor(flavor, args, sess):
             "skipping flavor '%s', since its id is missing" % flavor)
         return
 
+    # https://github.com/kubernetes/kubernetes/issues/30213 forced us to use strings for 'largish' ints.
+    # convert them back before hitting the openstack api
+    flavor['ram'] = int(flavor['ram'])
+    flavor['disk'] = int(flavor['disk'])
+    flavor['vcpus'] = int(flavor['vcpus'])
+    if 'swap' in flavor:
+        flavor['swap'] = int(flavor['swap'])
+    if 'ephemeral' in flavor:
+        flavor['ephemeral'] = int(flavor['ephemeral'])
+
+    resource = None
     # wtf, flavors has no update(): needs to be dropped and re-created instead
     create = False
     try:
