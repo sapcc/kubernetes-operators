@@ -1,0 +1,77 @@
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: cinder-volume-vmware-{{ name }}
+  labels:
+    system: openstack
+    type: backend
+    component: cinder
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+        name: cinder-volume-vmware-{{ name }}
+  template:
+    metadata:
+      labels:
+        application: cinder
+        component: volume-vmware-{{ name }}
+        name: cinder-volume-vmware-{{ name }}
+      annotations:
+        configmap-etc-hash: {{ "vcenter_datacenter_cinder_configmap.yaml.j2" | render | sha256sum | quote }}
+        pod.beta.kubernetes.io/hostname: cinder-volume-vmware-{{ name }}
+    spec:
+      containers:
+        - name: cinder-volume-vmware-{{ name }}
+          image: {{ cinder_agent_image }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - dumb-init
+            - kubernetes-entrypoint
+          env:
+            - name: COMMAND
+              value: "cinder-volume --config-file /etc/cinder/cinder.conf --config-file /etc/cinder/volume.conf"
+            - name: NAMESPACE
+              value: {{ namespace }}
+            - name: SENTRY_DSN
+              value: {{ cinder_sentry_dsn }}
+            - name: PYTHONWARNINGS
+              value: "ignore:Unverified HTTPS request"
+          volumeMounts:
+            - name: etccinder
+              mountPath: /etc/cinder
+            - name: cinder-etc
+              mountPath: /etc/cinder/cinder.conf
+              subPath: cinder.conf
+              readOnly: true
+            - name: cinder-etc
+              mountPath: /etc/cinder/policy.json
+              subPath: policy.json
+              readOnly: true
+            - name: cinder-etc
+              mountPath: /etc/cinder/rootwrap.conf
+              subPath: rootwrap.conf
+              readOnly: true
+            - name: cinder-etc
+              mountPath: /etc/cinder/logging.conf
+              subPath: logging.conf
+              readOnly: true
+            - name: volume-config
+              mountPath: /etc/cinder/volume.conf
+              subPath: volume.conf
+              readOnly: true
+      volumes:
+        - name: etccinder
+          emptyDir: {}
+        - name: cinder-etc
+          configMap:
+            name: cinder-etc
+        - name: volume-config
+          configMap:
+            name:  volume-vmware-{{ name }}

@@ -1,0 +1,137 @@
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: nova-compute-{{ name }}
+  labels:
+    system: openstack
+    type: backend
+    component: nova
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+        name: nova-compute-{{ name }}
+  template:
+    metadata:
+      labels:
+        application: nova
+        component: compute-{{ name }}
+        name: nova-compute-{{ name }}
+      annotations:
+        configmap-etc-hash: {{ "vcenter_cluster_hypervisor_configmap.yaml.j2" | render | sha256sum | quote }}
+        pod.beta.kubernetes.io/hostname: nova-compute-{{ name }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9102"
+    spec:
+      containers:
+        - name: nova-compute-{{ name }}
+          image: {{ nova_agent_image }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - dumb-init
+            - kubernetes-entrypoint
+          env:
+            - name: COMMAND
+              value: nova-compute --config-file /etc/nova/nova.conf --config-file /etc/nova/hypervisor.conf
+            - name: NAMESPACE
+              value: {{ namespace }}
+            - name: SENTRY_DSN
+              value: {{ nova_sentry_dsn }}
+            - name: STATSD_HOST
+              value: "localhost"
+            - name: STATSD_PORT
+              value: "9125"
+            - name: PYTHONWARNINGS
+              value: "ignore:Unverified HTTPS request"
+          volumeMounts:
+            - mountPath: /etc/nova
+              name: etcnova
+            - mountPath: /etc/nova/nova.conf
+              name: nova-etc
+              subPath: nova.conf
+              readOnly: true
+            - mountPath: /etc/nova/policy.json
+              name: nova-etc
+              subPath: policy.json
+              readOnly: true
+            - mountPath: /etc/nova/logging.conf
+              name: nova-etc
+              subPath: logging.conf
+              readOnly: true
+            - mountPath: /etc/nova/hypervisor.conf
+              name: hypervisor-config
+              subPath: hypervisor.conf
+              readOnly: true
+        - name: neutron-dvs-agent
+          image: {{ neutron_agent_image }}
+          imagePullPolicy: IfNotPresent
+          command: ["dumb-init"]
+          args: ["neutron-dvs-agent", "--config-file", "/etc/neutron/neutron.conf", "--config-file", "/etc/neutron/plugins/ml2/ml2-conf.ini", "--config-file", "/etc/neutron/plugins/ml2/ml2-vmware.ini"]
+          env:
+            - name: SENTRY_DSN
+              value: {{ neutron_sentry_dsn }}
+            - name: STATSD_HOST
+              value: "localhost"
+            - name: STATSD_PORT
+              value: "9125"
+            - name: PYTHONWARNINGS
+              value: "ignore:Unverified HTTPS request"
+          volumeMounts:
+            - mountPath: /etc/neutron
+              name: etcneutron
+            - mountPath: /etc/neutron/neutron.conf
+              name: neutron-etc
+              subPath: neutron.conf
+              readOnly: true
+            - mountPath: /etc/neutron/api-paste.ini
+              name: neutron-etc
+              subPath: api-paste.ini
+              readOnly: true
+            - mountPath: /etc/neutron/policy.json
+              name: neutron-etc
+              subPath: neutron-policy.json
+              readOnly: true
+            - mountPath: /etc/neutron/logging.conf
+              name: neutron-etc
+              subPath: logging.conf
+              readOnly: true
+            - mountPath: /etc/neutron/plugins/ml2/ml2-conf.ini
+              name: neutron-etc
+              subPath: ml2-conf.ini
+              readOnly: true
+            - mountPath: /etc/neutron/plugins/ml2/ml2-vmware.ini
+              name: ml2-conf-vmware
+              subPath: ml2-vmware.ini
+              readOnly: true
+        - name: statsd
+          image: prom/statsd-exporter
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: statsd
+              containerPort: 9125
+              protocol: UDP
+            - name: metrics
+              containerPort: 9102
+      volumes:
+        - name: etcnova
+          emptyDir: {}
+        - name: nova-etc
+          configMap:
+            name: nova-etc
+        - name: hypervisor-config
+          configMap:
+            name: hypervisor-{{ name }}
+        - name: etcneutron
+          emptyDir: {}
+        - name: neutron-etc
+          configMap:
+            name: neutron-etc
+        - name: ml2-conf-vmware
+          configMap:
+            name: ml2-vmware-{{ name }}-ini
