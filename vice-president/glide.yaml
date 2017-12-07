@@ -4,6 +4,7 @@ import:
 - package: k8s.io/client-go
   version: df46f7f13b3da19b90b8b4f0d18b8adc6fbf28dc
 - package: github.com/sapcc/go-vice
+  version: bb7edbe9eb4ec1366dc711f6e956fd53fabd0e23
 - package: github.com/sirupsen/logrus
   version: master
 - package: github.com/Sirupsen/logrus

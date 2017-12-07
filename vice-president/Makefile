@@ -14,7 +14,7 @@ GOFILES  := $(wildcard $(GOFILES))
 
 GLIDE := $(shell command -v glide 2> /dev/null)
 
-.PHONY: all clean
+.PHONY: all clean vendor tests static-check
 
 all: bin/$(GOOS)/$(BINARY)
 
@@ -41,7 +41,7 @@ vendor:
 	ifndef GLIDE
 		echo "Cannot vendor. Glide is not installed. Please do so now."
 	else
-		glide install --strip-vendor --strip-vcs && glide update --strip-vendor --strip-vcs
+		glide install --strip-vendor --strip-vcs
 	endif
 
 generate-dummy-cert:

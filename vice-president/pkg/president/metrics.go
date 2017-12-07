@@ -155,12 +155,17 @@ func (m *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	if err != nil {
 		LogError("Unable to fetch token count: %v", err)
 	}
-	LogDebug("Got token count %#v", tokenCount)
+	if tokenCount == nil || tokenCount.Tokens == nil {
+		LogError("Fetched Token count could'nt parse it %#v",tokenCount)
+		return
+	}
 
 	for _, t := range tokenCount.Tokens {
 		if t.Ordered == 0 && t.Used == 0 && t.Remaining == 0 {
 			LogDebug("Token count for %#v is 0", t)
 		} else {
+			LogDebug("Got token count for %#v", t)
+
 			ch <- prometheus.MustNewConstMetric(
 				tokenCountRemainingDesc,
 				prometheus.GaugeValue,
