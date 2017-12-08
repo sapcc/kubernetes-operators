@@ -212,8 +212,8 @@ def redact(source, keys=('password', 'secret', 'userPassword', 'cam_password')):
             for attr in keys:
                 if attr in data:
                     if isinstance(data[attr], str):
-                          data[attr] = '********'
-            for k,v in data.iteritems():
+                        data[attr] = '********'
+            for k, v in data.iteritems():
                 _blankout(v, keys)
 
     result = copy.deepcopy(source)
@@ -694,7 +694,7 @@ def seed_project_flavors(project, flavors, args, sess):
     logging.debug("seeding flavors of project %s" % project.name)
 
     # grab a nova client
-    nova = novaclient.Client("2.1", session=sess, endpoint_type=args.interface)
+    nova = novaclient.Client("2.1", session=sess, endpoint_type=args.interface + 'URL')
     for flavorid in flavors:
         try:
             # validate flavor-id
@@ -1649,7 +1649,7 @@ def seed_domain(domain, args, sess):
 def seed_flavor(flavor, args, sess):
     logging.debug("seeding flavor %s" % flavor)
 
-    nova = novaclient.Client("2.1", session=sess, endpoint_type=args.interface)
+    nova = novaclient.Client("2.1", session=sess, endpoint_type=args.interface + 'URL')
 
     extra_specs = None
     if 'extra_specs' in flavor:
@@ -1705,7 +1705,7 @@ def seed_flavor(flavor, args, sess):
     if extra_specs and resource:
         changed = False
         keys = resource.get_keys()
-        for k,v in extra_specs.iteritems():
+        for k, v in extra_specs.iteritems():
             if v != keys.get(k, ''):
                 keys[k] = v
                 changed = True
