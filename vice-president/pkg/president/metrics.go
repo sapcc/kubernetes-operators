@@ -20,176 +20,88 @@
 package president
 
 import (
-	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sapcc/go-vice"
+)
+
+const (
+	MetricNamespace = "vice_president"
 )
 
 var enrollSuccessCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name: "vice_president_successful_enrollments",
-		Help: "Counter for successful certificate enrollments.",
+		Namespace: MetricNamespace,
+		Name:      "successful_enrollments",
+		Help:      "Counter for successful certificate enrollments.",
 	},
 	[]string{"ingress", "host", "sans"},
 )
 
 var enrollFailedCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name: "vice_president_failed_enrollments",
-		Help: "Counter for failed certificate enrollments.",
+		Namespace: MetricNamespace,
+		Name:      "failed_enrollments",
+		Help:      "Counter for failed certificate enrollments.",
 	},
 	[]string{"ingress", "host", "sans"},
 )
 
 var renewSuccessCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name: "vice_president_successful_renewals",
-		Help: "Counter for successful certificate renewals.",
+		Namespace: MetricNamespace,
+		Name:      "successful_renewals",
+		Help:      "Counter for successful certificate renewals.",
 	},
 	[]string{"ingress", "host", "sans"},
 )
 
 var renewFailedCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name: "vice_president_failed_renewals",
-		Help: "Counter for failed certificate renewals.",
+		Namespace: MetricNamespace,
+		Name:      "failed_renewals",
+		Help:      "Counter for failed certificate renewals.",
 	},
 	[]string{"ingress", "host", "sans"},
 )
 
 var pickupSuccessCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name: "vice_president_successful_pickups",
-		Help: "Counter for successful certificate pickups.",
+		Namespace: MetricNamespace,
+		Name:      "successful_pickups",
+		Help:      "Counter for successful certificate pickups.",
 	},
 	[]string{"ingress", "host", "sans"},
 )
 
 var pickupFailedCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name: "vice_president_failed_pickups",
-		Help: "Counter for failed certificate pickups.",
+		Namespace: MetricNamespace,
+		Name:      "failed_pickups",
+		Help:      "Counter for failed certificate pickups.",
 	},
 	[]string{"ingress", "host", "sans"},
 )
 
 var approveSuccessCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name: "vice_president_successful_approvals",
-		Help: "Counter for successful certificate approvals.",
+		Namespace: MetricNamespace,
+		Name:      "successful_approvals",
+		Help:      "Counter for successful certificate approvals.",
 	},
 	[]string{"ingress", "host", "sans"},
 )
 
 var approveFailedCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name: "vice_president_failed_approvals",
-		Help: "Counter for failed certificate approvals.",
+		Namespace: MetricNamespace,
+		Name:      "failed_approvals",
+		Help:      "Counter for failed certificate approvals.",
 	},
 	[]string{"ingress", "host", "sans"},
 )
-
-var tokenCountOrderedGauge = prometheus.NewGaugeVec(
-	prometheus.GaugeOpts{
-		Name: "vice_president_ordered_tokens",
-		Help: "Number of available certificate units",
-	},
-	[]string{"type"},
-)
-
-var tokenCountUsedGauge = prometheus.NewGaugeVec(
-	prometheus.GaugeOpts{
-		Name: "vice_president_used_tokens",
-		Help: "Number of available certificate units",
-	},
-	[]string{"type"},
-)
-
-var tokenCountRemainingGauge = prometheus.NewGaugeVec(
-	prometheus.GaugeOpts{
-		Name: "vice_president_remaining_tokens",
-		Help: "Number of available certificate units",
-	},
-	[]string{"type"},
-)
-
-// MetricsCollector ..
-type MetricsCollector struct {
-	viceClient *vice.Client
-}
-
-// NewMetricsCollector returns a new MetricsCollector
-func NewMetricsCollector(viceCertFilePath, viceKeyFilePath string) *MetricsCollector {
-	cert, err := tls.LoadX509KeyPair(viceCertFilePath, viceKeyFilePath)
-	if err != nil {
-		LogFatal("Couldn't load certificate from %s and/or key from %s for vice client: %v", viceCertFilePath, viceKeyFilePath, err)
-	}
-	return &MetricsCollector{
-		viceClient: vice.New(cert),
-	}
-}
-
-// Describe ..
-func (m *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
-	tokenCountOrderedGauge.Describe(ch)
-	tokenCountRemainingGauge.Describe(ch)
-	tokenCountUsedGauge.Describe(ch)
-}
-
-// Collect ..
-func (m *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
-	desCh := make(chan *prometheus.Desc, 1)
-	tokenCountRemainingGauge.Describe(desCh)
-	tokenCountRemainingDesc := <-desCh
-	tokenCountUsedGauge.Describe(desCh)
-	tokenCountUsedDesc := <-desCh
-	tokenCountOrderedGauge.Describe(desCh)
-	tokenCountOrderedDesc := <-desCh
-
-	tokenCount, err := m.viceClient.Certificates.GetTokenCount(context.TODO())
-	if err != nil {
-		LogError("Unable to fetch token count: %v", err)
-	}
-	if tokenCount == nil || tokenCount.Tokens == nil {
-		LogError("Fetched Token count could'nt parse it %#v",tokenCount)
-		return
-	}
-
-	for _, t := range tokenCount.Tokens {
-		if t.Ordered == 0 && t.Used == 0 && t.Remaining == 0 {
-			LogDebug("Token count for %#v is 0", t)
-		} else {
-			LogDebug("Got token count for %#v", t)
-
-			ch <- prometheus.MustNewConstMetric(
-				tokenCountRemainingDesc,
-				prometheus.GaugeValue,
-				float64(t.Remaining),
-				string(t.Type),
-			)
-
-			ch <- prometheus.MustNewConstMetric(
-				tokenCountUsedDesc,
-				prometheus.GaugeValue,
-				float64(t.Used),
-				string(t.Type),
-			)
-
-			ch <- prometheus.MustNewConstMetric(
-				tokenCountOrderedDesc,
-				prometheus.GaugeValue,
-				float64(t.Ordered),
-				string(t.Type),
-			)
-		}
-	}
-
-}
 
 // init failure metrics with 0. useful for alerting.
 func initializeFailureMetrics(labels map[string]string) {
@@ -200,6 +112,9 @@ func initializeFailureMetrics(labels map[string]string) {
 }
 
 func registerCollectors(collector prometheus.Collector) {
+	if collector != nil {
+		prometheus.MustRegister(collector)
+	}
 	prometheus.MustRegister(
 		enrollSuccessCounter,
 		enrollFailedCounter,
@@ -209,13 +124,16 @@ func registerCollectors(collector prometheus.Collector) {
 		pickupFailedCounter,
 		approveSuccessCounter,
 		approveFailedCounter,
-		collector,
 	)
 }
 
 // ExposeMetrics exposes the above defined metrics on <metricPort>:/metrics
-func ExposeMetrics(metricPort int, viceCertFilePath, viceKeyFilePath string) error {
-	registerCollectors(NewMetricsCollector(viceCertFilePath, viceKeyFilePath))
+func ExposeMetrics(metricPort int, isEnableAdditionalSymantecMetrics bool, viceCertFilePath, viceKeyFilePath string) error {
+	if isEnableAdditionalSymantecMetrics {
+		registerCollectors(NewSymantecMetricsCollector(viceCertFilePath, viceKeyFilePath))
+	} else {
+		registerCollectors(nil)
+	}
 	http.Handle("/metrics", promhttp.Handler())
 	LogInfo("Exposing metrics on localhost:%v/metrics ", metricPort)
 	return http.ListenAndServe(

@@ -131,7 +131,7 @@ func (vc *ViceCertificate) pickup(vp *Operator) error {
 	LogInfo("Picking up certificate for host %s", vc.Host)
 
 	if vc.TID == "" {
-		return fmt.Errorf("Cannot pick up a certificate for host %v without its Transaction ID",vc.Host)
+		return fmt.Errorf("Cannot pick up a certificate for host %v without its Transaction ID", vc.Host)
 	}
 
 	pickup, err := vp.ViceClient.Certificates.Pickup(
@@ -158,7 +158,7 @@ func (vc *ViceCertificate) approve(vp *Operator) error {
 	LogInfo("Approving certificate for host %s using TID %s", vc.Host, vc.TID)
 
 	if vc.TID == "" {
-		return fmt.Errorf("Cannot approve a certificate for host %s without its Transaction ID",vc.Host)
+		return fmt.Errorf("Cannot approve a certificate for host %s without its Transaction ID", vc.Host)
 	}
 
 	approval, err := vp.ViceClient.Certificates.Approve(
@@ -267,11 +267,11 @@ func (vc *ViceCertificate) DoesRemoteCertificateMatch() bool {
 	if cert.Equal(vc.Certificate) {
 		LogDebug("Remote certificate of host %v matches.", vc.Host)
 	} else {
-		LogInfo("Mismatching remote certificate. Expected:\n" +
-			"host %v but got %v \n" +
-			"SANs: %v but got %v \n" +
-			"valid from %v but got %v \n" +
-			"valid until %v but got %v \n",vc.Host, cert.Subject.CommonName, vc.GetSANs(), cert.DNSNames, vc.Certificate.NotBefore, cert.NotBefore, vc.Certificate.NotAfter, cert.NotAfter)
+		LogInfo("Mismatching remote certificate. Expected:\n"+
+			"host %v but got %v \n"+
+			"SANs: %v but got %v \n"+
+			"valid from %v but got %v \n"+
+			"valid until %v but got %v \n", vc.Host, cert.Subject.CommonName, vc.GetSANs(), cert.DNSNames, vc.Certificate.NotBefore, cert.NotBefore, vc.Certificate.NotAfter, cert.NotAfter)
 		return false
 	}
 

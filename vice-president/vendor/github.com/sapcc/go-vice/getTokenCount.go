@@ -15,10 +15,6 @@ type _TokenCount struct {
 	Remaining int              `xml:"remaining,attr,omitempty"`
 }
 
-type T struct {
-	Name string `xml:"type,attr"`
-}
-
 type TokenCount struct {
 	ViceResponse
 	Tokens []_TokenCount `xml:"TokenCount"`

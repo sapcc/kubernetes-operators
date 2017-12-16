@@ -56,6 +56,7 @@ type CertificatesService interface {
 	Approve(context.Context, *ApprovalRequest) (*Approval, error)
 	Renew(context.Context, *RenewRequest) (*Renewal, error)
 	GetTokenCount(context.Context) (*TokenCount, error)
+	GetOrganizationInfo(context.Context) (*OrganizationInfo, error)
 }
 
 type CertificatesServiceOp struct {

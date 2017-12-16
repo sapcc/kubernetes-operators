@@ -34,6 +34,17 @@ import (
 	"os"
 )
 
+func isAnyStringEmpty(s... string) bool {
+	if s != nil {
+		for _, str := range s {
+			if str == "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func checkError(err error) error {
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {

@@ -36,6 +36,7 @@ type Options struct {
 	IngressAnnotation string
 
 	MetricPort int
+	IsEnableAdditionalSymantecMetrics bool
 }
 
 // CheckOptions verifies the Options and sets default values, if necessary
@@ -63,6 +64,11 @@ func (o *Options) CheckOptions() error {
 	if o.MetricPort == 0 {
 		o.MetricPort = 9091
 		LogDebug("Metric port not provided. Using default port: 9091")
+	}
+	if o.IsEnableAdditionalSymantecMetrics == false {
+		LogDebug("Not exposing additional Symantec metrics")
+	} else {
+		LogDebug("Exposing additional Symantec metrics")
 	}
 
 	return nil

@@ -102,7 +102,7 @@ imports:
 - name: github.com/PuerkitoBio/urlesc
   version: 5bd2802263f21d8788851d5305584c82a5c75d7e
 - name: github.com/sapcc/go-vice
-  version: bb7edbe9eb4ec1366dc711f6e956fd53fabd0e23
+  version: 8dd32be3bcfaab4398c1583c94e81021d355e82e
 - name: github.com/sirupsen/logrus
   version: 89742aefa4b206dcf400792f3bd35b542998eb3b
 - name: github.com/Sirupsen/logrus

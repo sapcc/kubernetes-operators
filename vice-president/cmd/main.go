@@ -41,6 +41,7 @@ func init() {
 	pflag.StringVar(&options.IntermediateCertificate, "intermediate-cert", "/etc/vice-president/secrets/intermediate.cert", "A PEM encoded intermediate certificate.")
 	pflag.StringVar(&options.IngressAnnotation, "ingress-annotation", "vice-president", "Only an ingress with this annotation will be considered. Must be vice-president:true")
 	pflag.IntVar(&options.MetricPort, "metric-port", 9091, "Port on which Prometheus metrics are exposed.")
+	pflag.BoolVar(&options.IsEnableAdditionalSymantecMetrics, "enable-symantec-metrics", false, "Export additional symantec metrics")
 }
 
 func main() {
@@ -58,7 +59,7 @@ func main() {
 	wg := &sync.WaitGroup{} // Goroutines can add themselves to this to be waited on
 
 	go president.New(options).Run(10, stop, wg)
-	go president.ExposeMetrics(options.MetricPort,options.ViceCrtFile,options.ViceKeyFile)
+	go president.ExposeMetrics(options.MetricPort, options.IsEnableAdditionalSymantecMetrics, options.ViceCrtFile, options.ViceKeyFile)
 
 	<-sigs // Wait for signals (this hangs until a signal arrives)
 	log.Printf("Shutting down...")
