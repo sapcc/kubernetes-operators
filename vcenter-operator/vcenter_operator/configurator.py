@@ -56,11 +56,19 @@ class Configurator(object):
 
                 if service_instance:
                     atexit.register(Disconnect, service_instance)
+
+                    obj_type = vim.ClusterComputeResource
+                    view_ref = get_container_view(service_instance, obj_type=[obj_type])
+                    filter_spec = create_filter_spec(view_ref=view_ref,
+                                                     obj_type=obj_type,
+                                                     path_set=['name', 'parent', 'datastore', 'network'])
+
                     self.vcenters[host] = {'service_instance': service_instance,
                                            'username': self.username,
                                            'password': password,
                                            'host': host,
-                                           'name': name
+                                           'name': name,
+                                           'filter_spec': filter_spec
                                            }
 
             except vim.fault.InvalidLogin as e:
@@ -74,11 +82,7 @@ class Configurator(object):
     def _poll(self, host):
         vcenter_options = self.vcenters[host]
         service_instance = vcenter_options['service_instance']
-
-        obj_type = vim.ClusterComputeResource
-        view_ref = get_container_view(service_instance, obj_type=[obj_type])
-        filter_spec = create_filter_spec(view_ref=view_ref,
-                                         obj_type=obj_type, path_set=['name', 'parent', 'datastore', 'network'])
+        filter_spec = vcenter_options['filter_spec']
 
         availability_zones = set()
 
