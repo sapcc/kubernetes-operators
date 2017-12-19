@@ -35,7 +35,7 @@ type Options struct {
 
 	IngressAnnotation string
 
-	MetricPort int
+	MetricPort                        int
 	IsEnableAdditionalSymantecMetrics bool
 }
 

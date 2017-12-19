@@ -28,6 +28,7 @@ import (
 )
 
 const (
+	// MetricNamespace used as prefix for metrics
 	MetricNamespace = "vice_president"
 )
 

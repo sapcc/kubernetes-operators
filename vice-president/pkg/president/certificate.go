@@ -54,7 +54,7 @@ func (vc *ViceCertificate) enroll(vp *Operator) error {
 		return err
 	}
 
-	enrollment, err := vp.ViceClient.Certificates.Enroll(
+	enrollment, err := vp.viceClient.Certificates.Enroll(
 		context.TODO(),
 		&vice.EnrollRequest{
 			FirstName:          vp.VicePresidentConfig.FirstName,
@@ -94,7 +94,7 @@ func (vc *ViceCertificate) renew(vp *Operator) error {
 		return err
 	}
 
-	renewal, err := vp.ViceClient.Certificates.Renew(
+	renewal, err := vp.viceClient.Certificates.Renew(
 		context.TODO(),
 		&vice.RenewRequest{
 			FirstName:          vp.VicePresidentConfig.FirstName,
@@ -134,7 +134,7 @@ func (vc *ViceCertificate) pickup(vp *Operator) error {
 		return fmt.Errorf("Cannot pick up a certificate for host %v without its Transaction ID", vc.Host)
 	}
 
-	pickup, err := vp.ViceClient.Certificates.Pickup(
+	pickup, err := vp.viceClient.Certificates.Pickup(
 		context.TODO(),
 		&vice.PickupRequest{
 			TransactionID: vc.TID,
@@ -161,7 +161,7 @@ func (vc *ViceCertificate) approve(vp *Operator) error {
 		return fmt.Errorf("Cannot approve a certificate for host %s without its Transaction ID", vc.Host)
 	}
 
-	approval, err := vp.ViceClient.Certificates.Approve(
+	approval, err := vp.viceClient.Certificates.Approve(
 		context.TODO(),
 		&vice.ApprovalRequest{
 			TransactionID: vc.TID,

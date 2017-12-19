@@ -28,13 +28,13 @@ import (
 )
 
 const (
-	TokenCountOrdered   = "token_count_ordered"
-	TokenCountUsed      = "token_count_used"
-	TokenCountRemaining = "token_count_remaining"
-	OrganizationExpires = "organization_expires"
+	tokenCountOrdered   = "token_count_ordered"
+	tokenCountUsed      = "token_count_used"
+	tokenCountRemaining = "token_count_remaining"
+	organizationExpires = "organization_expires"
 )
 
-// MetricsCollector ..
+// SymantecMetricsCollector ..
 type SymantecMetricsCollector struct {
 	prometheus.Collector
 	viceClient *vice.Client
@@ -52,10 +52,10 @@ func NewSymantecMetricsCollector(viceCertFilePath, viceKeyFilePath string) *Syma
 	return &SymantecMetricsCollector{
 		viceClient: vice.New(cert),
 		metrics: map[string]*prometheus.Desc{
-			TokenCountOrdered:   newTokenCountMetricDesc("ordered", "Number of ordered certificate units", []string{"type"}),
-			TokenCountUsed:      newTokenCountMetricDesc("used", "Number of used certificate units", []string{"type"}),
-			TokenCountRemaining: newTokenCountMetricDesc("remaining", "Number of remaining certificate units", []string{"type"}),
-			OrganizationExpires: newOrgMetricDesc("expires", "Symantec organization expiration date", []string{"name", "status", "auth_status"}),
+			tokenCountOrdered:   newTokenCountMetricDesc("ordered", "Number of ordered certificate units", []string{"type"}),
+			tokenCountUsed:      newTokenCountMetricDesc("used", "Number of used certificate units", []string{"type"}),
+			tokenCountRemaining: newTokenCountMetricDesc("remaining", "Number of remaining certificate units", []string{"type"}),
+			organizationExpires: newOrgMetricDesc("expires", "Symantec organization expiration date", []string{"name", "status", "auth_status"}),
 		},
 	}
 }
@@ -112,21 +112,21 @@ func (m *SymantecMetricsCollector) Collect(ch chan<- prometheus.Metric) {
 			LogDebug("Got token count for %#v", t)
 
 			ch <- prometheus.MustNewConstMetric(
-				m.metrics[TokenCountOrdered],
+				m.metrics[tokenCountOrdered],
 				prometheus.GaugeValue,
 				float64(t.Ordered),
 				string(t.Type),
 			)
 
 			ch <- prometheus.MustNewConstMetric(
-				m.metrics[TokenCountUsed],
+				m.metrics[tokenCountUsed],
 				prometheus.GaugeValue,
 				float64(t.Used),
 				string(t.Type),
 			)
 
 			ch <- prometheus.MustNewConstMetric(
-				m.metrics[TokenCountRemaining],
+				m.metrics[tokenCountRemaining],
 				prometheus.GaugeValue,
 				float64(t.Remaining),
 				string(t.Type),
@@ -140,7 +140,7 @@ func (m *SymantecMetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	} else {
 		LogDebug("Got org info: %#v", org)
 		ch <- prometheus.MustNewConstMetric(
-			m.metrics[OrganizationExpires],
+			m.metrics[organizationExpires],
 			prometheus.GaugeValue,
 			float64(org.AuthExpires.Unix()),
 			org.Name,

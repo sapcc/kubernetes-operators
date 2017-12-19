@@ -163,7 +163,7 @@ func (s *TestSuite) SetupSuite() {
 		IntermediateCertificate: "fixtures/intermediate.pem",
 	})
 
-	s.VP.ViceClient.BaseURL, _ = url.Parse(fmt.Sprintf("http://localhost:%s", testPort))
+	s.VP.viceClient.BaseURL, _ = url.Parse(fmt.Sprintf("http://localhost:%s", testPort))
 
 	go s.setupMockServer(testPort)
 	time.Sleep(2 * time.Second)
@@ -230,13 +230,13 @@ func (s *TestSuite) respondWith(endpoint string, responseCode int, headers map[s
 
 // ResetIngressInformerStoreAndAddIngress clears the ingress informer store and adds the given ingress
 func (s *TestSuite) ResetIngressInformerStoreAndAddIngress(ingress *v1beta1.Ingress) error {
-	for _, v := range s.VP.IngressInformer.GetStore().List() {
-		if err := s.VP.IngressInformer.GetStore().Delete(v); err != nil {
+	for _, v := range s.VP.ingressInformer.GetStore().List() {
+		if err := s.VP.ingressInformer.GetStore().Delete(v); err != nil {
 			return err
 		}
 	}
 	if ingress != nil {
-		return s.VP.IngressInformer.GetStore().Add(ingress)
+		return s.VP.ingressInformer.GetStore().Add(ingress)
 	}
 	return nil
 }

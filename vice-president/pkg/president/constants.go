@@ -19,6 +19,8 @@
 
 package president
 
+import "time"
+
 const (
 	// CertificateValidityMonth defines how long certificates must be valid before a renewal is invoked (in month)
 	CertificateValidityMonth = 1
@@ -56,4 +58,7 @@ const (
 
 	// IngressStatePickup means that a certificate has to be picked up
 	IngressStatePickup = "pickup"
+
+	// BaseDelay defines the delay after which an ingress is added to the workqueue
+	BaseDelay = 5 * time.Second
 )

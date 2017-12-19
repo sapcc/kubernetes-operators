@@ -34,7 +34,7 @@ import (
 	"os"
 )
 
-func isAnyStringEmpty(s... string) bool {
+func isAnyStringEmpty(s ...string) bool {
 	if s != nil {
 		for _, str := range s {
 			if str == "" {

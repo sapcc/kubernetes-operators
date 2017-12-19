@@ -62,9 +62,10 @@ type Operator struct {
 
 	VicePresidentConfig VicePresidentConfig
 
-	Clientset       *kubernetes.Clientset
-	ViceClient      *vice.Client
-	IngressInformer cache.SharedIndexInformer
+	clientset       *kubernetes.Clientset
+	viceClient      *vice.Client
+	ingressInformer cache.SharedIndexInformer
+	secretInformer  cache.SharedIndexInformer
 
 	RootCertPool            *x509.CertPool
 	IntermediateCertificate *x509.Certificate
@@ -125,9 +126,9 @@ func New(options Options) *Operator {
 
 	operator := &Operator{
 		Options:                    options,
-		Clientset:                  clientset,
+		clientset:                  clientset,
 		VicePresidentConfig:        vicePresidentConfig,
-		ViceClient:                 viceClient,
+		viceClient:                 viceClient,
 		RootCertPool:               rootCertPool,
 		IntermediateCertificate:    intermediateCert,
 		ResyncPeriod:               resyncPeriod,
@@ -154,7 +155,28 @@ func New(options Options) *Operator {
 		UpdateFunc: operator.ingressUpdate,
 	})
 
-	operator.IngressInformer = IngressInformer
+	operator.ingressInformer = IngressInformer
+
+	SecretInformer := cache.NewSharedIndexInformer(
+		&cache.ListWatch{
+			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
+				return clientset.Secrets(v1.NamespaceAll).List(meta_v1.ListOptions{})
+			},
+			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
+				return clientset.Secrets(v1.NamespaceAll).Watch(meta_v1.ListOptions{})
+			},
+		},
+		&v1.Secret{},
+		resyncPeriod,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+	)
+
+	SecretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: operator.secretUpdate,
+		DeleteFunc: operator.secretDelete,
+	})
+
+	operator.secretInformer = SecretInformer
 
 	return operator
 }
@@ -168,12 +190,14 @@ func (vp *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGr
 
 	LogInfo("Ladies and Gentlemen, the Vice President! Renewing your Symantec certificates now in version %v\n", VERSION)
 
-	go vp.IngressInformer.Run(stopCh)
+	go vp.ingressInformer.Run(stopCh)
+	go vp.secretInformer.Run(stopCh)
 
 	LogInfo("Waiting for cache to sync...")
 	cache.WaitForCacheSync(
 		stopCh,
-		vp.IngressInformer.HasSynced,
+		vp.ingressInformer.HasSynced,
+		vp.secretInformer.HasSynced,
 	)
 	LogInfo("Cache primed. Ready for operations.")
 
@@ -218,13 +242,13 @@ func (vp *Operator) processNextWorkItem() bool {
 	}
 
 	LogError("%v failed with : %v", key, err)
-	vp.queue.AddAfter(key, 2*vp.CertificateRecheckInterval)
+	vp.queue.AddAfter(key, vp.CertificateRecheckInterval)
 
 	return true
 }
 
 func (vp *Operator) syncHandler(key string) error {
-	o, exists, err := vp.IngressInformer.GetStore().GetByKey(key)
+	o, exists, err := vp.ingressInformer.GetStore().GetByKey(key)
 	if checkError(err) != nil {
 		utilruntime.HandleError(fmt.Errorf("%v failed with : %v", key, err))
 		return err
@@ -374,7 +398,7 @@ func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host string, sans []st
 	vc := &ViceCertificate{Host: host, IntermediateCertificate: vp.IntermediateCertificate, Roots: vp.RootCertPool}
 	vc.SetSANs(sans)
 
-	secret, err := vp.Clientset.Secrets(ingress.GetNamespace()).Get(secretName, meta_v1.GetOptions{})
+	secret, err := vp.clientset.Secrets(ingress.GetNamespace()).Get(secretName, meta_v1.GetOptions{})
 
 	// does the secret exist?
 	if err != nil {
@@ -387,7 +411,7 @@ func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host string, sans []st
 				return nil, nil, fmt.Errorf("couldn't create secret %s/%s: %v", ingress.GetNamespace(), secretName, err)
 			}
 			// try to get secret again
-			secret, err := vp.Clientset.Secrets(ingress.GetNamespace()).Get(secretName, meta_v1.GetOptions{})
+			secret, err := vp.clientset.Secrets(ingress.GetNamespace()).Get(secretName, meta_v1.GetOptions{})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -603,7 +627,7 @@ func (vp *Operator) ingressAdd(obj interface{}) {
 		LogError("Couldn't add ingress %s/%s", i.GetNamespace(), i.GetName())
 	}
 	// need to add with some delay to avoid errors when ingress is added and secret is deleted at the same time
-	vp.queue.AddAfter(key, 5*time.Second)
+	vp.queue.AddAfter(key, BaseDelay)
 }
 
 func (vp *Operator) ingressUpdate(cur, old interface{}) {
@@ -617,7 +641,7 @@ func (vp *Operator) ingressUpdate(cur, old interface{}) {
 			LogError("Couldn't add ingress %s/%s", iCur.GetNamespace(), iCur.GetName())
 		}
 		// need to add with some delay to avoid errors when ingress is added and secret is deleted at the same time
-		vp.queue.AddAfter(key, 5*time.Second)
+		vp.queue.AddAfter(key, BaseDelay)
 		return
 	}
 	LogDebug("Nothing changed. No need to update ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
@@ -625,7 +649,7 @@ func (vp *Operator) ingressUpdate(cur, old interface{}) {
 
 // watch secret and wait for max. t minutes until it exists or got modified
 func (vp *Operator) waitForUpstreamSecret(secret *v1.Secret) error {
-	w, err := vp.Clientset.Secrets(secret.GetNamespace()).Watch(
+	w, err := vp.clientset.Secrets(secret.GetNamespace()).Watch(
 		meta_v1.SingleObject(
 			meta_v1.ObjectMeta{
 				Name: secret.GetName(),
@@ -656,7 +680,7 @@ func secretExists(event watch.Event) (bool, error) {
 
 func (vp *Operator) addUpstreamSecret(secret *v1.Secret) error {
 	LogDebug("Added upstream secret %s/%s", secret.GetNamespace(), secret.GetName())
-	s, err := vp.Clientset.Secrets(secret.GetNamespace()).Create(secret)
+	s, err := vp.clientset.Secrets(secret.GetNamespace()).Create(secret)
 	if checkError(err) != nil {
 		return err
 	}
@@ -669,7 +693,7 @@ func (vp *Operator) addUpstreamSecret(secret *v1.Secret) error {
 
 func (vp *Operator) deleteUpstreamSecret(secret *v1.Secret) error {
 	LogDebug("Deleted upstream secret %s/%s", secret.GetNamespace(), secret.GetName())
-	err := vp.Clientset.Secrets(secret.GetNamespace()).Delete(
+	err := vp.clientset.Secrets(secret.GetNamespace()).Delete(
 		secret.GetName(),
 		&meta_v1.DeleteOptions{},
 	)
@@ -682,7 +706,7 @@ func (vp *Operator) deleteUpstreamSecret(secret *v1.Secret) error {
 func (vp *Operator) updateUpstreamSecret(sCur, sOld *v1.Secret) error {
 	if vp.isSecretNeedsUpdate(sCur, sOld) {
 		LogDebug("Updated upstream secret %s/%s", sOld.GetNamespace(), sOld.GetName())
-		s, err := vp.Clientset.Secrets(sOld.GetNamespace()).Update(sCur)
+		s, err := vp.clientset.Secrets(sOld.GetNamespace()).Update(sCur)
 		if checkError(err) != nil {
 			return err
 		}
@@ -697,7 +721,7 @@ func (vp *Operator) updateUpstreamSecret(sCur, sOld *v1.Secret) error {
 }
 
 func (vp *Operator) checkCertificates() {
-	for _, o := range vp.IngressInformer.GetStore().List() {
+	for _, o := range vp.ingressInformer.GetStore().List() {
 		i := o.(*v1beta1.Ingress)
 		key, err := cache.MetaNamespaceKeyFunc(o)
 		if err != nil {
@@ -706,4 +730,45 @@ func (vp *Operator) checkCertificates() {
 		LogDebug("Added ingress %s/%s", i.GetNamespace(), i.GetName())
 		vp.queue.Add(key)
 	}
+}
+
+func (vp *Operator) secretUpdate(cur, old interface{}) {
+	sCur := cur.(*v1.Secret)
+	sOld := old.(*v1.Secret)
+	if vp.isSecretNeedsUpdate(sCur, sOld) {
+		if ingress := vp.isSecretReferencedByIngress(sCur); ingress != nil {
+			LogDebug("Secret %s/%s, referenced by ingress %s/%s, was updated. Requeueing ingress if not already queued.", sCur.GetNamespace(), sCur.GetName(), ingress.GetNamespace(), ingress.GetName())
+			key, err := cache.MetaNamespaceKeyFunc(ingress)
+			if err != nil {
+				LogError("Couldn't create key for ingress %s/%s: %v", ingress.GetNamespace(), ingress.GetName(), err)
+			}
+			vp.queue.AddAfter(key, BaseDelay)
+		}
+	}
+}
+
+func (vp *Operator) secretDelete(obj interface{}) {
+	secret := obj.(*v1.Secret)
+	if ingress := vp.isSecretReferencedByIngress(secret); ingress != nil {
+		LogDebug("Secret %s/%s, referenced by ingress %s/%s, was deleted. Requeueing ingress if not already queued.", secret.GetNamespace(), secret.GetName(), ingress.GetNamespace(), ingress.GetName())
+		key, err := cache.MetaNamespaceKeyFunc(ingress)
+		if err != nil {
+			LogError("Couldn't create key for ingress %s/%s: %v", ingress.GetNamespace(), ingress.GetName(), err)
+		}
+		vp.queue.AddAfter(key, BaseDelay)
+	}
+}
+
+func (vp *Operator) isSecretReferencedByIngress(secret *v1.Secret) *v1beta1.Ingress {
+	for _, iObj := range vp.ingressInformer.GetStore().List() {
+		ingress := iObj.(*v1beta1.Ingress)
+		if secret.GetNamespace() == ingress.GetNamespace() {
+			for _, tls := range ingress.Spec.TLS {
+				if secret.GetName() == tls.SecretName {
+					return ingress
+				}
+			}
+		}
+	}
+	return nil
 }
