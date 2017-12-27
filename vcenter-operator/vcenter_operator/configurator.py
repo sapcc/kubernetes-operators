@@ -96,7 +96,7 @@ class Configurator(object):
                 match = self.CLUSTER_MATCH.match(cluster_name)
 
                 if not match:
-                    LOG.warning("%s: Ignoring cluster %s", host, cluster_name)
+                    LOG.debug("%s: Ignoring cluster %s not matching naming scheme", host, cluster_name)
                     continue
 
                 parent = cluster['parent']
@@ -121,6 +121,11 @@ class Configurator(object):
                         cluster_options['bridge'] = match.group(0).lower()
                         cluster_options['physical'] = match.group(1).lower()
                         break
+
+                if not 'bridge' in cluster_options:
+                    LOG.warning("%s: Skipping cluster %s, cannot find bridge matching naming scheme", host,
+                                cluster_name)
+                    continue
 
                 cluster_state = self.clusters[cluster_name]
                 config_hash = hash(frozenset(cluster_options.items()))
