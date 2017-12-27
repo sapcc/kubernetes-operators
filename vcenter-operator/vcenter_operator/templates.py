@@ -1,7 +1,7 @@
-import logging
 import hashlib
+import logging
 
-from jinja2 import ChoiceLoader, Environment, FileSystemLoader, PackageLoader, contextfilter, environmentfilter
+from jinja2 import ChoiceLoader, Environment, FileSystemLoader, PackageLoader, contextfilter
 
 from masterpassword import MasterPassword
 
@@ -17,10 +17,16 @@ def _ini_escape(value):
 
 
 @contextfilter
-def _derive_password(ctx, username=None):
+def _derive_password(ctx, username=None, host=None):
     username = username or ctx['username']
+    host = host or ctx['host']
     mpw = MasterPassword(name=username, password=ctx['master_password'])
-    return mpw.derive('long', ctx['host']).replace("/", "")
+    password = mpw.derive('long', host).replace("/", "")
+
+    if host.startswith('vc-'):
+        return password.replace("/", "")
+
+    return password
 
 
 def _sha256sum(data):
