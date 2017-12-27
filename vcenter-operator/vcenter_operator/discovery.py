@@ -1,10 +1,12 @@
-import attr, logging, re, six
-from dns.query import xfr
-from dns.rdatatype import SOA, A, AAAA, CNAME, AXFR, IXFR
-from dns import tsigkeyring
-from kubernetes import client
+import logging
 from collections import defaultdict
 
+import attr
+import six
+from dns import tsigkeyring
+from dns.query import xfr
+from dns.rdatatype import SOA, A, AAAA, CNAME, AXFR
+from kubernetes import client
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ class DnsDiscovery(object):
         self.domain = domain
         self.serial = None
         self.rdtype = AXFR
-        self.keyname= 'tsig-key'
+        self.keyname = 'tsig-key'
 
         self.keyring = None
         rndc_key = global_options.get('tsig_key', None)
@@ -56,9 +58,10 @@ class DnsDiscovery(object):
                     return
 
     def remote_soa_serial(self):
-        for message in xfr(self.ip, self.domain, port=self.port, use_udp=False, rdtype=SOA, keyname=self.keyname, keyring=self.keyring):
+        for message in xfr(self.ip, self.domain, port=self.port, use_udp=False, rdtype=SOA, keyname=self.keyname,
+                           keyring=self.keyring):
             for answer in message.answer:
-                if answer.rdtype==SOA:
+                if answer.rdtype == SOA:
                     return answer[0].serial
         return None
 
@@ -72,7 +75,8 @@ class DnsDiscovery(object):
         for item in six.itervalues(self._patterns):
             item.accumulator = set()
 
-        for message in xfr(self.ip, self.domain, port=self.port, use_udp=False, rdtype=self.rdtype, keyname=self.keyname, keyring=self.keyring):
+        for message in xfr(self.ip, self.domain, port=self.port, use_udp=False, rdtype=self.rdtype,
+                           keyname=self.keyname, keyring=self.keyring):
             for answer in message.answer:
                 if answer.rdtype in [A, AAAA, CNAME] and answer.name:
                     for pattern, item in six.iteritems(self._patterns):

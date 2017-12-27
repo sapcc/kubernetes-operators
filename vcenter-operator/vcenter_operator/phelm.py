@@ -1,5 +1,9 @@
-import attr, re, yaml, six, sys, logging
-
+import attr
+import logging
+import re
+import six
+import sys
+import yaml
 from kubernetes import client
 
 log = logging.getLogger(__name__)
@@ -32,7 +36,7 @@ class DeploymentState(object):
             id = (item['apiVersion'], item['kind'], item['metadata']['name'])
             if id in self.items:
                 log.warning("Duplicate item #{}".format(id))
-            api = [ p.capitalize() for p in id[0].split('/', 1)]
+            api = [p.capitalize() for p in id[0].split('/', 1)]
             klass = getattr(client, "".join([api[-1], id[1]]))
             api_client = client.ApiClient()
             self.items[id] = api_client._ApiClient__deserialize_model(item, klass)
@@ -70,7 +74,7 @@ class DeploymentState(object):
                 continue
 
             if getattr(new_value, 'attribute_map', None):
-                if self._diff(new_value, old_value, level+1):
+                if self._diff(new_value, old_value, level + 1):
                     return True
             elif old_value != new_value:
                 # log.debug("{} {}: {} <> {}".format(level, key, old_item, new_item))

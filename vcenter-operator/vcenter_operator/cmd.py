@@ -1,13 +1,14 @@
 import argparse
 import logging
 import re
-import six
 import sys
-
 from time import sleep
+
+import six
 from kubernetes import config as k8s_config
-from .discovery import DnsDiscovery
+
 from .configurator import Configurator
+from .discovery import DnsDiscovery
 
 log = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ def main():
         _, context = k8s_config.list_kube_config_contexts()
         region = context['context']['cluster']
         domain = 'cc.{}.cloud.sap'.format(region)
-        global_options['own_namespace'] = 'kube-system' #context['context']['namespace']
+        global_options['own_namespace'] = 'kube-system'  # context['context']['namespace']
     except IOError:
         from os import environ
         environ['KUBERNETES_SERVICE_HOST'] = 'kubernetes.default'

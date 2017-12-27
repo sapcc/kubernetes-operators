@@ -1,21 +1,21 @@
 import atexit
 import logging
 import re
-import six
 import ssl
 import sys
-
 from collections import defaultdict, deque
-from kubernetes import client
 from os.path import commonprefix
-from pyVim.connect import SmartConnect, Disconnect
-from pyVmomi import vim
 from socket import error as socket_error
 
-from .vcenter_util import *
+import six
+from kubernetes import client
+from pyVim.connect import SmartConnect, Disconnect
+from pyVmomi import vim
+
 from .masterpassword import MasterPassword
-from .templates import env
 from .phelm import DeploymentState
+from .templates import env
+from .vcenter_util import *
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class Configurator(object):
                 if host in self.vcenters:
                     continue
 
-                password = self.mpw.derive('long', host).replace("/", "") # Vcenter doesn't accept / in password
+                password = self.mpw.derive('long', host).replace("/", "")  # Vcenter doesn't accept / in password
 
                 log.info("{}".format(host))
                 if hasattr(ssl, '_create_unverified_context'):
@@ -100,8 +100,8 @@ class Configurator(object):
             cluster_options = self.global_options.copy()
             cluster_options.update(vcenter_options)
             cluster_options.update(name=match.group(1).lower(),
-                    cluster_name=cluster_name,
-                    availability_zone=availability_zone)
+                                   cluster_name=cluster_name,
+                                   availability_zone=availability_zone)
 
             if cluster_options.get('pbm_enabled', 'false') != 'true':
                 datastores = cluster['datastore']
@@ -160,7 +160,8 @@ class Configurator(object):
 
     def poll(self):
         self.poll_config()
-        self.states.append(DeploymentState(namespace=self.global_options['namespace'], dry_run=(self.global_options.get('dry_run', 'False') == 'True')))
+        self.states.append(DeploymentState(namespace=self.global_options['namespace'],
+                                           dry_run=(self.global_options.get('dry_run', 'False') == 'True')))
         self._add_code('global', self.global_options)
 
         for host in six.iterkeys(self.vcenters):
