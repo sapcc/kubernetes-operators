@@ -1836,7 +1836,10 @@ def seed_config(config, args, sess):
 
     if "flavors" in config:
         for flavor in config['flavors']:
-            seed_flavor(flavor, args, sess)
+            try:
+                seed_flavor(flavor, args, sess)
+            except ClientException as e:
+                logging.error("Failed to seed flavor: %s" % e)
 
     if 'domains' in config:
         for domain in config['domains']:
