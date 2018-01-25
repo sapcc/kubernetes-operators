@@ -30,7 +30,6 @@ import (
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"github.com/golang/glog"
-
 )
 
 const openstackseedCRDName = seederv1.OpenstackSeedResourcePlural + "." + seederv1.GroupName

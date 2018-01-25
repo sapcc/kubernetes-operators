@@ -17,8 +17,8 @@ limitations under the License.
 package controller
 
 import (
-	"flag"
 	"context"
+	"flag"
 	"gopkg.in/yaml.v2"
 
 	"k8s.io/apimachinery/pkg/fields"
@@ -28,22 +28,22 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	seederv1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/seeder/apis/v1"
+	seederclient "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/seeder/client"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	seederclient "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/seeder/client"
 
-	"github.com/golang/glog"
+	"fmt"
 	"github.com/getsentry/raven-go"
+	"github.com/golang/glog"
+	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
-	"k8s.io/client-go/tools/clientcmd"
-	"fmt"
 )
 
 var (
-	VERSION = "0.0.1.dev"
+	VERSION      = "0.0.1.dev"
 	resyncPeriod = 5 * time.Minute
 )
 
@@ -90,7 +90,7 @@ func New(options Options) *SeederController {
 
 	// start a controller on instances of our custom resource
 	controller := &SeederController{
-		Options: options,
+		Options:      options,
 		SeederClient: seederClient,
 		SeederScheme: seederScheme,
 	}
@@ -140,10 +140,10 @@ func (c *SeederController) watchOpenstackSeeds(ctx context.Context) (cache.Contr
 
 	// Your custom resource event handlers.
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc:    c.onAdd,
-			UpdateFunc: c.onUpdate,
-			DeleteFunc: c.onDelete,
-		})
+		AddFunc:    c.onAdd,
+		UpdateFunc: c.onUpdate,
+		DeleteFunc: c.onDelete,
+	})
 
 	c.seedInformer = informer
 	go informer.Run(ctx.Done())

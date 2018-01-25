@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	VERSION = "0.0.1.dev"
+	VERSION      = "0.0.1.dev"
 	resyncPeriod = 5 * time.Minute
 )
 
@@ -40,7 +40,7 @@ type OpenstackOperator struct {
 	clientset    *kubernetes.Clientset
 	seederClient *rest.RESTClient
 
-	seedManager  *OpenstackSeedManager
+	seedManager *OpenstackSeedManager
 }
 
 func New(options Options) *OpenstackOperator {

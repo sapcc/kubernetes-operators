@@ -25,9 +25,9 @@ import (
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
-	seedercontroller "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/seeder/controller"
 	"github.com/getsentry/raven-go"
 	"github.com/golang/glog"
+	seedercontroller "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/seeder/controller"
 	"github.com/spf13/pflag"
 	"k8s.io/kubernetes/pkg/util/logs"
 )
@@ -46,7 +46,6 @@ func main() {
 	}
 	raven.DefaultClient.Transport = t
 
-
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
 	pflag.BoolVar(&options.DryRun, "dry-run", false, "Only pretend to seed.")
 	pflag.StringVar(&options.InterfaceType, "interface", "internal", "Openstack service interface type to use.")
@@ -60,4 +59,3 @@ func main() {
 
 	glog.Info("Shutting down...")
 }
-
