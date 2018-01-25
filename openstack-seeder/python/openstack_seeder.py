@@ -1649,70 +1649,73 @@ def seed_domain(domain, args, sess):
 def seed_flavor(flavor, args, sess):
     logging.debug("seeding flavor %s" % flavor)
 
-    nova = novaclient.Client("2.1", session=sess, endpoint_type=args.interface + 'URL')
-
-    extra_specs = None
-    if 'extra_specs' in flavor:
-        extra_specs = flavor.pop('extra_specs', None)
-        if not isinstance(extra_specs, dict):
-            logging.warn(
-                "skipping flavor '%s', since it has invalid extra_specs" % flavor)
-
-    flavor = sanitize(flavor, (
-        'id', 'name', 'ram', 'disk', 'vcpus', 'swap', 'rxtx_factor',
-        'is_public', 'disabled', 'ephemeral'))
-    if 'name' not in flavor or not flavor['name']:
-        logging.warn(
-            "skipping flavor '%s', since it has no name" % flavor)
-        return
-    if 'id' not in flavor or not flavor['id']:
-        logging.warn(
-            "skipping flavor '%s', since its id is missing" % flavor)
-        return
-
-    # wtf, flavors has no update(): needs to be dropped and re-created instead
-    create = False
     try:
-        resource = nova.flavors.get(flavor['id'])
+        nova = novaclient.Client("2.1", session=sess, endpoint_type=args.interface + 'URL')
 
-        # 'rename' some attributes, since api and internal representation differ
-        flavor_cmp = flavor.copy()
-        if 'is_public' in flavor_cmp:
-            flavor_cmp['os-flavor-access:is_public'] = flavor_cmp.pop('is_public')
-        if 'disabled' in flavor_cmp:
-            flavor_cmp['OS-FLV-DISABLED:disabled'] = flavor_cmp.pop('disabled')
-        if 'ephemeral' in flavor_cmp:
-            flavor_cmp['OS-FLV-EXT-DATA:ephemeral'] = flavor_cmp.pop('ephemeral')
+        extra_specs = None
+        if 'extra_specs' in flavor:
+            extra_specs = flavor.pop('extra_specs', None)
+            if not isinstance(extra_specs, dict):
+                logging.warn(
+                    "skipping flavor '%s', since it has invalid extra_specs" % flavor)
 
-        # check for delta
-        for attr in flavor_cmp.keys():
-            if flavor_cmp[attr] != getattr(resource, attr):
-                logging.info("deleting flavor '%s' to re-create, since '%s' differs" %
-                             (flavor['name'], attr))
-                resource.delete()
-                create = True
-            break
-    except novaexceptions.NotFound:
-        create = True
+        flavor = sanitize(flavor, (
+            'id', 'name', 'ram', 'disk', 'vcpus', 'swap', 'rxtx_factor',
+            'is_public', 'disabled', 'ephemeral'))
+        if 'name' not in flavor or not flavor['name']:
+            logging.warn(
+                "skipping flavor '%s', since it has no name" % flavor)
+            return
+        if 'id' not in flavor or not flavor['id']:
+            logging.warn(
+                "skipping flavor '%s', since its id is missing" % flavor)
+            return
 
-    # (re-) create the flavor
-    if create:
-        logging.info("creating flavor '%s'" % flavor['name'])
-        flavor['flavorid'] = flavor.pop('id')
-        resource = nova.flavors.create(**flavor)
+        # wtf, flavors has no update(): needs to be dropped and re-created instead
+        create = False
+        try:
+            resource = nova.flavors.get(flavor['id'])
 
-    # take care of the flavors extra specs
-    if extra_specs and resource:
-        changed = False
-        keys = resource.get_keys()
-        for k, v in extra_specs.iteritems():
-            if v != keys.get(k, ''):
-                keys[k] = v
-                changed = True
+            # 'rename' some attributes, since api and internal representation differ
+            flavor_cmp = flavor.copy()
+            if 'is_public' in flavor_cmp:
+                flavor_cmp['os-flavor-access:is_public'] = flavor_cmp.pop('is_public')
+            if 'disabled' in flavor_cmp:
+                flavor_cmp['OS-FLV-DISABLED:disabled'] = flavor_cmp.pop('disabled')
+            if 'ephemeral' in flavor_cmp:
+                flavor_cmp['OS-FLV-EXT-DATA:ephemeral'] = flavor_cmp.pop('ephemeral')
 
-        if changed:
-            logging.info("updating extra-specs '%s' of flavor '%s'" % (keys, flavor['name']))
-            resource.set_keys(keys)
+            # check for delta
+            for attr in flavor_cmp.keys():
+                if flavor_cmp[attr] != getattr(resource, attr):
+                    logging.info("deleting flavor '%s' to re-create, since '%s' differs" %
+                                 (flavor['name'], attr))
+                    resource.delete()
+                    create = True
+                break
+        except novaexceptions.NotFound:
+            create = True
+
+        # (re-) create the flavor
+        if create:
+            logging.info("creating flavor '%s'" % flavor['name'])
+            flavor['flavorid'] = flavor.pop('id')
+            resource = nova.flavors.create(**flavor)
+
+        # take care of the flavors extra specs
+        if extra_specs and resource:
+            changed = False
+            keys = resource.get_keys()
+            for k, v in extra_specs.iteritems():
+                if v != keys.get(k, ''):
+                    keys[k] = v
+                    changed = True
+
+            if changed:
+                logging.info("updating extra-specs '%s' of flavor '%s'" % (keys, flavor['name']))
+                resource.set_keys(keys)
+    except Exception as e:
+        logging.error("Failed to seed flavor %s: %s" % (flavor, e))
 
 
 def resolve_group_members(keystone):
