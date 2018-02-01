@@ -195,7 +195,6 @@ func LogFatal(msg string, args ...interface{}) {
 
 func doLog(logLevel string, msg string, args []interface{}) {
 	msg = strings.TrimPrefix(msg, "\n")
-	msg = strings.Replace(msg, "\n", "\\n", -1) //avoid multiline log messages
 	msg = fmt.Sprintf("%s: %s", logLevel, msg)
 	if logLevel == "FATAL" {
 		log.Fatalf(msg+"\n", args...)

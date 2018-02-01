@@ -168,7 +168,7 @@ func (vc *ViceCertificate) approve(vp *Operator) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("Couldn't approve certificate for host %s using TID %s", vc.Host, vc.TID)
+		return fmt.Errorf("Couldn't approve certificate for host %s using TID %s", vc.Host, vc.TID, err)
 	}
 
 	if approval.Certificate == "" {
@@ -269,7 +269,7 @@ func (vc *ViceCertificate) DoesRemoteCertificateMatch() bool {
 	} else {
 		LogInfo("Mismatching remote certificate. Expected:\n"+
 			"host %v but got %v \n"+
-			"SANs: %v but got %v \n"+
+			"SANs %v but got %v \n"+
 			"valid from %v but got %v \n"+
 			"valid until %v but got %v \n", vc.Host, cert.Subject.CommonName, vc.GetSANs(), cert.DNSNames, vc.Certificate.NotBefore, cert.NotBefore, vc.Certificate.NotAfter, cert.NotAfter)
 		return false

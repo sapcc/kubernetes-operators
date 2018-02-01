@@ -279,9 +279,10 @@ func (vp *Operator) syncHandler(key string) error {
 }
 
 func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host string, sans []string) error {
+	ingressKey := fmt.Sprintf("%s/%s", ingress.GetNamespace(), ingress.GetName())
 	// labels for prometheus metrics
 	labels := prometheus.Labels{
-		"ingress": fmt.Sprintf("%s/%s", ingress.GetNamespace(), ingress.GetName()),
+		"ingress": ingressKey,
 		"host":    host,
 		"sans":    strings.Join(sans, ","),
 	}
@@ -300,7 +301,7 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 		switch state {
 		case IngressStateEnroll:
 			if err := vp.enrollCertificate(viceCert); err != nil {
-				LogInfo("Couldn't enroll new certificate for ingress %s/%s and host %s: %s", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, err)
+				LogInfo("Couldn't enroll new certificate for ingress %s and host %s: %s", ingressKey, viceCert.Host, err)
 
 				enrollFailedCounter.With(labels).Inc()
 
@@ -312,7 +313,7 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 
 		case IngressStateRenew:
 			if err := vp.renewCertificate(viceCert); err != nil {
-				LogInfo("Couldn't renew certificate for ingress %s/%s, host %s using TID %s: %s.", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, viceCert.TID, err)
+				LogInfo("Couldn't renew certificate for ingress %s, host %s using TID %s: %s.", ingressKey, viceCert.Host, viceCert.TID, err)
 
 				renewFailedCounter.With(labels).Inc()
 
@@ -325,10 +326,10 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 
 		case IngressStateApprove:
 			if viceCert.Certificate != nil && viceCert.TID == "" {
-				LogInfo("Certificate for ingress %s/%s, host %s was automatically approved", ingress.GetNamespace(), ingress.GetName(), viceCert.Host)
+				LogInfo("Certificate for ingress %s, host %s was automatically approved", ingressKey, viceCert.Host)
 			} else {
 				if err := vp.approveCertificate(viceCert); err != nil {
-					LogInfo("Couldn't approve certificate for ingress %s/%s, host %s using TID %s: %s", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, viceCert.TID, err)
+					LogInfo("Couldn't approve certificate for ingress %s, host %s using TID %s: %s", ingressKey, viceCert.Host, viceCert.TID, err)
 					approveFailedCounter.With(labels).Inc()
 					return err
 				}
@@ -345,7 +346,7 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 
 		case IngressStatePickup:
 			if err := vp.pickupCertificate(viceCert); err != nil {
-				LogInfo("Couldn't pickup certificate for ingress %s/%s, host %s using TID %s: %s.", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, viceCert.TID, err)
+				LogInfo("Couldn't pickup certificate for ingress %s, host %s using TID %s: %s.", ingressKey, viceCert.Host, viceCert.TID, err)
 
 				pickupFailedCounter.With(labels).Inc()
 
@@ -379,7 +380,7 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 
 			// if a certificate was found, validate it
 			if viceCert.Certificate != nil {
-				nextState = vp.checkViceCertificate(viceCert)
+				nextState = vp.checkViceCertificate(viceCert, ingressKey)
 			}
 		}
 	}
@@ -434,8 +435,8 @@ func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host string, sans []st
 	return vc, secret, nil
 }
 
-// checkViceCertificate checks a given ViceCertificate and annotates the ingress accordingly
-func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate) string {
+// checkViceCertificate checks a given ViceCertificate and sets the state accordingly
+func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate, ingressKey string) string {
 	// does the secret contain the correct key for the certificate?
 	if !viceCert.DoesKeyAndCertificateTally() {
 		LogInfo("Certificate and Key don't match. Renewing")
@@ -480,7 +481,7 @@ func (vp *Operator) updateCertificateAndKeyInSecret(secret *v1.Secret, vc *ViceC
 // EnrollCertificate triggers the enrollment of a certificate
 func (vp *Operator) enrollCertificate(vc *ViceCertificate) error {
 	if err := vc.enroll(vp); err != nil {
-		LogError("Couldn't enroll certificate for host %s: %s", vc.Host, err)
+		LogError(err.Error())
 		return err
 	}
 	return nil
@@ -489,7 +490,7 @@ func (vp *Operator) enrollCertificate(vc *ViceCertificate) error {
 // RenewCertificate triggers the renewal of a certificate
 func (vp *Operator) renewCertificate(vc *ViceCertificate) error {
 	if err := vc.renew(vp); err != nil {
-		LogError("Couldn't renew certificate for host %s: %s", vc.Host, err)
+		LogError(err.Error())
 		return err
 	}
 	return nil
@@ -498,7 +499,7 @@ func (vp *Operator) renewCertificate(vc *ViceCertificate) error {
 // ApproveCertificate triggers the approval of a certificate
 func (vp *Operator) approveCertificate(vc *ViceCertificate) error {
 	if err := vc.approve(vp); err != nil {
-		LogError("Couldn't approve certificate for host %s: %s", vc.Host, err)
+		LogError(err.Error())
 		return err
 	}
 	return nil
