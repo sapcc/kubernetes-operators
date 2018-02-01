@@ -1693,7 +1693,8 @@ def seed_flavor(flavor, args, sess):
                     resource.delete()
                     create = True
                 break
-        except novaexceptions.NotFound:
+        # apparently a novaexceptions.NotFound doesn't do the job here..
+        except Exception:
             create = True
 
         # (re-) create the flavor
