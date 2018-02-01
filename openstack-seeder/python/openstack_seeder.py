@@ -1673,6 +1673,7 @@ def seed_flavor(flavor, args, sess):
 
         # wtf, flavors has no update(): needs to be dropped and re-created instead
         create = False
+        resource = None
         try:
             resource = nova.flavors.get(flavor['id'])
 
@@ -1693,8 +1694,7 @@ def seed_flavor(flavor, args, sess):
                     resource.delete()
                     create = True
                 break
-        # apparently a novaexceptions.NotFound doesn't do the job here..
-        except Exception:
+        except novaexceptions.NotFound:
             create = True
 
         # (re-) create the flavor
@@ -1705,14 +1705,18 @@ def seed_flavor(flavor, args, sess):
 
         # take care of the flavors extra specs
         if extra_specs and resource:
-            changed = False
-            keys = resource.get_keys()
-            for k, v in extra_specs.iteritems():
-                if v != keys.get(k, ''):
-                    keys[k] = v
-                    changed = True
+            set_extra_specs = False
+            try:
+                keys = resource.get_keys()
+                for k, v in extra_specs.iteritems():
+                    if v != keys.get(k, ''):
+                        keys[k] = v
+                        set_extra_specs = True
+            except novaexceptions.NotFound:
+                set_extra_specs = True
+                keys = extra_specs
 
-            if changed:
+            if set_extra_specs:
                 logging.info("updating extra-specs '%s' of flavor '%s'" % (keys, flavor['name']))
                 resource.set_keys(keys)
     except Exception as e:
