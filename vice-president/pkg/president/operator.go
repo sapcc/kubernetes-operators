@@ -482,7 +482,7 @@ func (vp *Operator) updateCertificateAndKeyInSecret(secret *v1.Secret, vc *ViceC
 
 func (vp *Operator) resetRateLimit() {
 	vp.rateLimitMap = sync.Map{}
-	apiRateLimitHitCounter.Reset()
+	apiRateLimitHitGauge.Reset()
 }
 
 func (vp *Operator) checkRateLimitForHostExceeded(viceCert *ViceCertificate) bool {
@@ -490,7 +490,7 @@ func (vp *Operator) checkRateLimitForHostExceeded(viceCert *ViceCertificate) boo
 		numRequests := n.(int)
 		if numRequests >= vp.VicePresidentConfig.RateLimit {
 			LogInfo("Limit of %v requests/hour for host %s reached. Skipping", vp.VicePresidentConfig.RateLimit, viceCert.Host)
-			apiRateLimitHitCounter.With(prometheus.Labels{
+			apiRateLimitHitGauge.With(prometheus.Labels{
 				"ingress": viceCert.GetIngressKey(),
 				"host":    viceCert.Host,
 				"sans":    viceCert.GetSANsString(),

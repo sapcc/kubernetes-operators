@@ -104,8 +104,8 @@ var approveFailedCounter = prometheus.NewCounterVec(
 	[]string{"ingress", "host", "sans"},
 )
 
-var apiRateLimitHitCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
+var apiRateLimitHitGauge = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
 		Namespace: MetricNamespace,
 		Name: "rate_limit_reached",
 		Help: "Maximum number of VICE API requests within 1h reached",
@@ -134,7 +134,7 @@ func registerCollectors(collector prometheus.Collector) {
 		pickupFailedCounter,
 		approveSuccessCounter,
 		approveFailedCounter,
-		apiRateLimitHitCounter,
+		apiRateLimitHitGauge,
 	)
 }
 
