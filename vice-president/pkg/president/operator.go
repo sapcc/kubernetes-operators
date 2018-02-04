@@ -20,19 +20,14 @@
 package president
 
 import (
-	"sync"
-	"time"
-
-	"crypto/x509"
-
+	"crypto/rsa"
 	"crypto/tls"
-
+	"crypto/x509"
 	"fmt"
 	"reflect"
-
 	"strings"
-
-	"crypto/rsa"
+	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/go-vice"
@@ -76,6 +71,9 @@ type Operator struct {
 	CertificateRecheckInterval time.Duration
 
 	queue workqueue.RateLimitingInterface
+
+	// stores mapping of { host string : numAPIRequests int}
+	rateLimitMap sync.Map
 }
 
 // New creates a new operator using the given options
@@ -133,7 +131,8 @@ func New(options Options) *Operator {
 		IntermediateCertificate:    intermediateCert,
 		ResyncPeriod:               resyncPeriod,
 		CertificateRecheckInterval: certificateRecheckInterval,
-		queue: workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(30*time.Second, 600*time.Second)),
+		rateLimitMap:               sync.Map{},
+		queue:                      workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(30*time.Second, 600*time.Second)),
 	}
 
 	IngressInformer := cache.NewSharedIndexInformer(
@@ -206,12 +205,16 @@ func (vp *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGr
 	}
 
 	ticker := time.NewTicker(vp.CertificateRecheckInterval)
+	tickerResetRateLimit := time.NewTicker(1 * time.Hour)
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
 				vp.checkCertificates()
 				LogInfo("Next check in %v", vp.CertificateRecheckInterval)
+			case <-tickerResetRateLimit.C:
+				vp.resetRateLimit()
+				LogInfo("Resetting rate limits")
 			case <-stopCh:
 				ticker.Stop()
 				return
@@ -262,7 +265,6 @@ func (vp *Operator) syncHandler(key string) error {
 	ingress := o.(*v1beta1.Ingress)
 
 	if vp.isTakeCareOfIngress(ingress) {
-
 		for _, tls := range ingress.Spec.TLS {
 
 			LogDebug("Checking ingress %v/%v: Hosts: %v, Secret: %v/%v", ingress.GetNamespace(), ingress.GetName(), tls.Hosts, ingress.GetNamespace(), tls.SecretName)
@@ -478,20 +480,46 @@ func (vp *Operator) updateCertificateAndKeyInSecret(secret *v1.Secret, vc *ViceC
 	return nil
 }
 
-// EnrollCertificate triggers the enrollment of a certificate
+func (vp *Operator) resetRateLimit() {
+	vp.rateLimitMap = sync.Map{}
+	apiRateLimitHitCounter.Reset()
+}
+
+func (vp *Operator) checkRateLimitForHostExceeded(viceCert *ViceCertificate) bool {
+	if n, ok := vp.rateLimitMap.LoadOrStore(viceCert.Host, 1); ok {
+		numRequests := n.(int)
+		if numRequests >= vp.VicePresidentConfig.RateLimit {
+			LogInfo("Limit of %v requests/hour for host %s reached. Skipping", vp.VicePresidentConfig.RateLimit, viceCert.Host)
+			apiRateLimitHitCounter.With(prometheus.Labels{
+				"ingress": viceCert.GetIngressKey(),
+				"host":    viceCert.Host,
+				"sans":    viceCert.GetSANsString(),
+			}).Inc()
+			return true
+		}
+		vp.rateLimitMap.Store(viceCert.Host, numRequests+1)
+	}
+	return false
+}
+
+// EnrollCertificate triggers the enrollment of a certificate if the rate limit is not exceeded
 func (vp *Operator) enrollCertificate(vc *ViceCertificate) error {
-	if err := vc.enroll(vp); err != nil {
-		LogError(err.Error())
-		return err
+	if !vp.checkRateLimitForHostExceeded(vc) {
+		if err := vc.enroll(vp); err != nil {
+			LogError(err.Error())
+			return err
+		}
 	}
 	return nil
 }
 
-// RenewCertificate triggers the renewal of a certificate
+// RenewCertificate triggers the renewal of a certificate if the rate limit is not exceeded
 func (vp *Operator) renewCertificate(vc *ViceCertificate) error {
-	if err := vc.renew(vp); err != nil {
-		LogError(err.Error())
-		return err
+	if vp.checkRateLimitForHostExceeded(vc) {
+		if err := vc.renew(vp); err != nil {
+			LogError(err.Error())
+			return err
+		}
 	}
 	return nil
 }

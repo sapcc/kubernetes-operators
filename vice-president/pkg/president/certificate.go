@@ -29,6 +29,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/sapcc/go-vice"
@@ -44,6 +45,7 @@ type ViceCertificate struct {
 	Host                    string
 	sans                    []string
 	TID                     string
+	ingressKey              string
 }
 
 func (vc *ViceCertificate) enroll(vp *Operator) error {
@@ -289,6 +291,11 @@ func (vc *ViceCertificate) GetSANs() []string {
 	return vc.sans
 }
 
+// GetSANsString returns the concatenated list of SANs
+func (vc *ViceCertificate) GetSANsString() string {
+	return strings.Join(vc.GetSANs(), ",")
+}
+
 // SetSANs set the SANs of the certificate. Also checks if the common name is part of the SANs.
 func (vc *ViceCertificate) SetSANs(sans []string) {
 	if contains(sans, vc.Host) != true {
@@ -312,6 +319,16 @@ func (vc *ViceCertificate) WithIntermediateCertificate() []*x509.Certificate {
 	return []*x509.Certificate{
 		vc.Certificate,
 	}
+}
+
+// SetIngressKey sets the ingress key <namespace>/<name>
+func (vc *ViceCertificate) SetIngressKey(ingressNamespace, ingressName string) {
+	vc.ingressKey = fmt.Sprintf("%s/%s", ingressNamespace, ingressName)
+}
+
+// GetIngressKey returns the ingress key <namespace>/<name>
+func (vc *ViceCertificate) GetIngressKey() string {
+	return vc.ingressKey
 }
 
 func contains(stringSlice []string, searchString string) bool {

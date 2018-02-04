@@ -51,6 +51,7 @@ type ViceConfig struct {
 type OptionalPresidentConfig struct {
 	ResyncPeriod             int `yaml:"resync_period_minutes"`
 	CertificateCheckInterval int `yaml:"certificate_check_interval_minutes"`
+	RateLimit                int `yaml:"rate_limit"`
 }
 
 // ReadConfig reads a given vice configuration file and returns the ViceConfig object and if applicable an error
@@ -92,5 +93,8 @@ func (c *VicePresidentConfig) checkConfig() {
 	}
 	if c.ResyncPeriod < 2 {
 		c.ResyncPeriod = 2
+	}
+	if c.RateLimit < -1 {
+		c.RateLimit = -1
 	}
 }

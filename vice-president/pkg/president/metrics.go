@@ -104,6 +104,15 @@ var approveFailedCounter = prometheus.NewCounterVec(
 	[]string{"ingress", "host", "sans"},
 )
 
+var apiRateLimitHitCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Namespace: MetricNamespace,
+		Name: "rate_limit_reached",
+		Help: "Maximum number of VICE API requests within 1h reached",
+	},
+	[]string{"ingress", "host", "sans"},
+)
+
 // init failure metrics with 0. useful for alerting.
 func initializeFailureMetrics(labels map[string]string) {
 	enrollFailedCounter.With(labels).Add(0.0)
@@ -125,6 +134,7 @@ func registerCollectors(collector prometheus.Collector) {
 		pickupFailedCounter,
 		approveSuccessCounter,
 		approveFailedCounter,
+		apiRateLimitHitCounter,
 	)
 }
 
