@@ -1,4 +1,4 @@
-VERSION=0.2.2
+VERSION=0.3.0
 LDFLAGS=-X github.com/sapcc/kubernetes-operators/externalip/pkg/operator.VERSION=$(VERSION)
 IMAGE   ?= sapcc/kube-externalip
 GOOS    ?= darwin

@@ -11,19 +11,17 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/watch"
+	informers_core_v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
 	utildbus "k8s.io/kubernetes/pkg/util/dbus"
-	utilexec "k8s.io/kubernetes/pkg/util/exec"
 	utiliptables "k8s.io/kubernetes/pkg/util/iptables"
+	utilexec "k8s.io/utils/exec"
 )
 
 const (
@@ -48,10 +46,11 @@ type Options struct {
 type Operator struct {
 	Options
 
-	clientset       *kubernetes.Clientset
-	serviceInformer cache.SharedIndexInformer
-	queue           workqueue.RateLimitingInterface
-	iptables        utiliptables.Interface
+	clientset         *kubernetes.Clientset
+	serviceInformer   cache.SharedIndexInformer
+	endpointsInformer cache.SharedIndexInformer
+	queue             workqueue.RateLimitingInterface
+	iptables          utiliptables.Interface
 }
 
 func New(options Options) *Operator {
@@ -63,32 +62,22 @@ func New(options Options) *Operator {
 	}
 
 	operator := &Operator{
-		Options:   options,
-		clientset: clientset,
-		queue:     workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		iptables:  utiliptables.New(utilexec.New(), utildbus.New(), utiliptables.ProtocolIpv4),
+		Options:           options,
+		clientset:         clientset,
+		queue:             workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		iptables:          utiliptables.New(utilexec.New(), utildbus.New(), utiliptables.ProtocolIpv4),
+		serviceInformer:   informers_core_v1.NewServiceInformer(clientset, "", resyncPeriod, nil),
+		endpointsInformer: informers_core_v1.NewEndpointsInformer(clientset, "", resyncPeriod, nil),
 	}
 
-	serviceInformer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{
-			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
-				return clientset.Services(v1.NamespaceAll).List(meta_v1.ListOptions{})
-			},
-			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
-				return clientset.Services(v1.NamespaceAll).Watch(meta_v1.ListOptions{})
-			},
-		},
-		&v1.Service{},
-		resyncPeriod,
-		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-	)
-
-	serviceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	operator.serviceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    operator.serviceAdd,
 		UpdateFunc: operator.serviceUpdate,
 		DeleteFunc: operator.serviceDelete,
 	})
-	operator.serviceInformer = serviceInformer
+	operator.endpointsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: operator.endpointsUpdate,
+	})
 
 	return operator
 }
@@ -116,9 +105,11 @@ func (op *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGr
 	glog.Infof("External IP operator started!  %v\n", VERSION)
 
 	go op.serviceInformer.Run(stopCh)
+	go op.endpointsInformer.Run(stopCh)
 
-	glog.Info("Waiting for cache to sync...")
+	glog.Info("Waiting for caches to sync...")
 	cache.WaitForCacheSync(stopCh, op.serviceInformer.HasSynced)
+	cache.WaitForCacheSync(stopCh, op.endpointsInformer.HasSynced)
 	glog.Info("Cache primed. Ready for operations.")
 
 	for i := 0; i < threadiness; i++ {
@@ -178,8 +169,25 @@ func (op *Operator) syncHandler(_ interface{}) error {
 	externalIPs := map[string]bool{}
 	for _, obj := range store.List() {
 		svc := obj.(*v1.Service)
+		if len(svc.Spec.ExternalIPs) == 0 {
+			continue
+		}
 		if _, ok := svc.Annotations[IgnoreSvcAnnotation]; ok {
 			glog.V(2).Infof("Skipping explicitly excluded svc %s", svc.Name)
+			continue
+		}
+		obj, exits, err := op.endpointsInformer.GetStore().Get(svc)
+		if !exits || err != nil {
+			glog.Warningf("Skipping service %s, endpoints not found: %s", svc.Name, err)
+			continue
+		}
+		endpoints := obj.(*v1.Endpoints)
+		activeAddresses := 0
+		for _, subset := range endpoints.Subsets {
+			activeAddresses += len(subset.Addresses)
+		}
+		if activeAddresses == 0 {
+			glog.V(2).Infof("Skipping service %s. No active endpoints", svc.Name)
 			continue
 		}
 		for _, ip := range svc.Spec.ExternalIPs {
@@ -230,11 +238,12 @@ func (op *Operator) syncHandler(_ interface{}) error {
 	// Get iptables-save output so we can check for existing chains and rules.
 	// This will be a map of chain name to chain with rules as stored in iptables-save/iptables-restore
 	existingFilterChains := make(map[utiliptables.Chain]string)
-	iptablesSaveRaw, err := op.iptables.Save(table)
+	iptablesSaveRaw := bytes.NewBuffer(nil)
+	err = op.iptables.SaveInto(table, iptablesSaveRaw)
 	if err != nil { // if we failed to get any rules
 		glog.Errorf("Failed to execute iptables-save, syncing all rules: %v", err)
 	} else { // otherwise parse the output
-		existingFilterChains = utiliptables.GetChainLines(table, iptablesSaveRaw)
+		existingFilterChains = utiliptables.GetChainLines(table, iptablesSaveRaw.Bytes())
 	}
 	filterChains := bytes.NewBuffer(nil)
 	filterRules := bytes.NewBuffer(nil)
@@ -384,6 +393,30 @@ func (op *Operator) serviceUpdate(cur, old interface{}) {
 		return
 	}
 	glog.Info("External IP configuration change detected for service ", curSvc.GetName())
+	op.queue.Add(true)
+}
+
+func (op *Operator) endpointsUpdate(cur, old interface{}) {
+	oldEndpoints := old.(*v1.Endpoints)
+	endpoints := cur.(*v1.Endpoints)
+
+	//Nothing to do if subsets are unchanged
+	if reflect.DeepEqual(oldEndpoints.Subsets, endpoints.Subsets) {
+		return
+	}
+
+	//Get service for updated endpoints
+	obj, exists, err := op.serviceInformer.GetStore().Get(endpoints)
+	if !exists || err != nil {
+		glog.Warningf("Can't find service for endpoints %s: %s", endpoints.GetName(), err)
+		return
+	}
+	svc := obj.(*v1.Service)
+	//Ignore services without external ips
+	if len(svc.Spec.ExternalIPs) == 0 {
+		return
+	}
+	glog.Infof("Endpoints changed for service %s", svc.GetName())
 	op.queue.Add(true)
 }
 

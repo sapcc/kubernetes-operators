@@ -31,6 +31,10 @@ func init() {
 
 func main() {
 
+	if f := flag.Lookup("logtostderr"); f != nil {
+		f.Value.Set("true") // log to stderr by default
+	}
+
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 
