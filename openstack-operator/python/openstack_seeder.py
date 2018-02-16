@@ -1207,6 +1207,8 @@ def seed_network_subnets(network, subnets, args, sess):
                         "%s differs. update subnet'%s/%s'" % (
                             attr, network['name'], subnet['name']))
                     # drop read-only attributes
+                    body['subnet'].pop('cidr', None)
+                    body['subnet'].pop('segment_id', None)
                     body['subnet'].pop('tenant_id', None)
                     body['subnet'].pop('network_id', None)
                     body['subnet'].pop('subnetpool_id', None)
@@ -1327,7 +1329,7 @@ def seed_project_designate_quota(project, config, args):
         designate_args.os_domain_id = None
         designate_args.os_domain_name = None
         plugin = cli.load_from_argparse_arguments(designate_args)
-        sess = session.Session(auth=plugin, user_agent='openstack-seeder')
+        sess = session.Session(auth=plugin, user_agent='openstack-seeder', verify=not args.insecure)
 
         designate = designateclient.Client(session=sess,
                                            endpoint_type=args.interface + 'URL',
@@ -1369,7 +1371,7 @@ def seed_project_dns_zones(project, zones, args):
         designate_args.os_domain_id = None
         designate_args.os_domain_name = None
         plugin = cli.load_from_argparse_arguments(designate_args)
-        sess = session.Session(auth=plugin, user_agent='openstack-seeder')
+        sess = session.Session(auth=plugin, user_agent='openstack-seeder', verify=not args.insecure)
 
         designate = designateclient.Client(session=sess,
                                            endpoint_type=args.interface + 'URL',
@@ -1500,7 +1502,7 @@ def seed_project_tsig_keys(project, keys, args):
         designate_args.os_domain_id = None
         designate_args.os_domain_name = None
         plugin = cli.load_from_argparse_arguments(designate_args)
-        sess = session.Session(auth=plugin, user_agent='openstack-seeder')
+        sess = session.Session(auth=plugin, user_agent='openstack-seeder', verify=not args.insecure)
         designate = designateclient.Client(session=sess,
                                            endpoint_type=args.interface + 'URL',
                                            all_projects=True)
@@ -1878,7 +1880,7 @@ def seed(args):
 
         if not args.dry_run:
             plugin = cli.load_from_argparse_arguments(args)
-            sess = session.Session(auth=plugin, user_agent='openstack-seeder')
+            sess = session.Session(auth=plugin, user_agent='openstack-seeder', verify=not args.insecure)
             seed_config(config, args, sess)
         return 0
     except Exception as e:
@@ -1897,6 +1899,10 @@ def main():
                         help='the keystone interface-type to use',
                         default='internal',
                         choices=['admin', 'public', 'internal'])
+    parser.add_argument('--insecure',
+                        help='do not verify SSL certificates',
+                        default=False,
+                        action='store_true')
     parser.add_argument("-l", "--log", dest="logLevel",
                         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR',
                                  'CRITICAL'], help="Set the logging level",
