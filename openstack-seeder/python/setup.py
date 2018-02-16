@@ -2,17 +2,14 @@ from setuptools import setup
 
 setup(
     name='openstack_seeder',
-    version='0.1.0',
+    version='0.1.1',
     packages='.',
-    dependency_links=[
-        'git+https://github.com/sapcc/python-designateclient.git@master-m3#egg=python-designateclient',
-    ],
     install_requires=[
-        'python-keystoneclient==3.10.0',
-        'python-novaclient==9.0.0',
-        'python-neutronclient==6.3.0',
-        'python-designateclient',
-        'python-swiftclient==3.3.0',
+        'python-keystoneclient==3.15.0',
+        'python-novaclient==10.1.0',
+        'python-neutronclient==6.7.0',
+        'python-designateclient==2.9.0',
+        'python-swiftclient==3.5.0',
         'PyYAML==3.12',
         'raven',
     ],
