@@ -1186,7 +1186,7 @@ def seed_network_subnets(network, subnets, args, sess):
                     network['name'], subnet))
             continue
 
-        if 'gateway_ip' in subnet and subnet['gateway_ip'] in ['', 'null']:
+        if 'gateway_ip' in subnet and subnet['gateway_ip'] == 'null':
             subnet['gateway_ip'] = None
 
         body = {'subnet': subnet.copy()}
