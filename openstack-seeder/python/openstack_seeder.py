@@ -1285,7 +1285,7 @@ def seed_swift_containers(project, containers, conn):
             if 'metadata' in container:
                 for meta in container['metadata'].keys():
                     header = 'x-container-%s' % meta
-                    headers[header] = str(container['metadata'][meta]).lower()
+                    headers[header] = str(container['metadata'][meta])
             try:
                 # see if the container already exists
                 result = conn.head_container(container['name'])
