@@ -19,12 +19,10 @@
 
 package fusion
 
-import "time"
-
 const (
-  // PrometheusConfigMapAnnotation is used to identify the configmap used by Prometheus
-  PrometheusConfigMapAnnotation = "prometheus.io/configmap"
+	// PrometheusConfigMapAnnotation is used to identify the configmap used by Prometheus
+	PrometheusConfigMapAnnotation = "prometheus.io/configmap"
 
-  // PrometheusCfgKey ...
-  PrometheusCfgKey = "prometheus.yaml"
+	// PrometheusCfgKey ...
+	PrometheusCfgKey = "prometheus.yaml"
 )

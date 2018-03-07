@@ -79,12 +79,12 @@ func ruleOrAlertGroupContains(rg []rulefmt.Rule, rule rulefmt.Rule) bool {
 		name = rule.Alert
 	}
 
-  for _, rule := range rg {
-    if rule.Record == name || rule.Alert == name {
-      return true
-    }
-  }
-  return false
+	for _, rule := range rg {
+		if rule.Record == name || rule.Alert == name {
+			return true
+		}
+	}
+	return false
 }
 
 func fuseMaps(dstMap, srcMap map[string]string) (errs []error) {
@@ -92,7 +92,7 @@ func fuseMaps(dstMap, srcMap map[string]string) (errs []error) {
 		// key does not exist -> just add
 		if !mapContains(dstMap, srcK) {
 			dstMap[srcK] = srcV
-		// key exists -> merge rules
+			// key exists -> merge rules
 		} else {
 			sRg, err := parseRules([]byte(srcV))
 			if err != nil {
@@ -104,7 +104,7 @@ func fuseMaps(dstMap, srcMap map[string]string) (errs []error) {
 				errs = append(errs, err)
 				return
 			}
-			if e := fuseRuleGroups(dRg,sRg); e != nil {
+			if e := fuseRuleGroups(dRg, sRg); e != nil {
 				errs = append(errs, e...)
 				return
 			}
@@ -128,11 +128,11 @@ func fuseRuleGroups(dst, src *rulefmt.RuleGroups) (errs []error) {
 						LogInfo("not adding to rulegroup %s, due to invalid rule: %s", drg.Name, rule.Record)
 						errs = append(errs, e...)
 					} else {
-            rg := dst.Groups[k].Rules
-					  if !ruleOrAlertGroupContains(rg, rule) {
-              LogDebug("adding to rulegroup %s: rule %s", drg.Name, rule.Record)
-              dst.Groups[k].Rules = append(drg.Rules, rule)
-            }
+						rg := dst.Groups[k].Rules
+						if !ruleOrAlertGroupContains(rg, rule) {
+							LogDebug("adding to rulegroup %s: rule %s", drg.Name, rule.Record)
+							dst.Groups[k].Rules = append(drg.Rules, rule)
+						}
 					}
 				}
 				// add if no rulegroup with this name just append

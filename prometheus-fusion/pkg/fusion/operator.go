@@ -32,7 +32,6 @@ import (
 	"k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 )
 
 var (
@@ -50,7 +49,6 @@ type Operator struct {
 	ResyncPeriod  time.Duration
 	RecheckPeriod time.Duration
 
-	queue workqueue.RateLimitingInterface
 	prometheusConfigmapData map[string]string
 }
 

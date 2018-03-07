@@ -47,7 +47,7 @@ func setMetricMergeFailedCounter(namespace, name string) {
 	cmMergeFailedCounter.With(
 		prometheus.Labels{
 			"namespace": namespace,
-			"name": name,
+			"name":      name,
 		},
 	).Inc()
 }

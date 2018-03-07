@@ -63,7 +63,7 @@ func TestFuseRuleGroups(t *testing.T) {
 				Rules: []rulefmt.Rule{
 					{
 						Record: "prometheus_sum",
-						Expr: "sum(prometheus)",
+						Expr:   "sum(prometheus)",
 					},
 				},
 			},
@@ -78,7 +78,7 @@ func TestFuseRuleGroups(t *testing.T) {
 					Rules: []rulefmt.Rule{
 						{
 							Record: "prometheus_rate",
-							Expr: "rate(prometheus_total[5m])",
+							Expr:   "rate(prometheus_total[5m])",
 						},
 					},
 				},
@@ -91,7 +91,7 @@ func TestFuseRuleGroups(t *testing.T) {
 					Rules: []rulefmt.Rule{
 						{
 							Record: "prometheus_rate",
-							Expr: "rate(prometheus_total[5m])",
+							Expr:   "rate(prometheus_total[5m])",
 						},
 					},
 				},
@@ -107,11 +107,11 @@ func TestFuseRuleGroups(t *testing.T) {
 					Rules: []rulefmt.Rule{
 						{
 							Record: "prometheus_sum",
-							Expr: "sum(prometheus)",
+							Expr:   "sum(prometheus)",
 						},
 						{
 							Record: "prometheus_rate",
-							Expr: "rate(prometheus_total[5m])",
+							Expr:   "rate(prometheus_total[5m])",
 						},
 					},
 				},
@@ -124,11 +124,11 @@ func TestFuseRuleGroups(t *testing.T) {
 					Rules: []rulefmt.Rule{
 						{
 							Record: "prometheus_sum",
-							Expr: "sum(prometheus)",
+							Expr:   "sum(prometheus)",
 						},
 						{
 							Record: "prometheus_rate",
-							Expr: "rate(prometheus_total[5m])",
+							Expr:   "rate(prometheus_total[5m])",
 						},
 					},
 				},
@@ -137,7 +137,7 @@ func TestFuseRuleGroups(t *testing.T) {
 					Rules: []rulefmt.Rule{
 						{
 							Record: "prometheus_rate",
-							Expr: "rate(prometheus_total[5m])",
+							Expr:   "rate(prometheus_total[5m])",
 						},
 					},
 				},
@@ -146,7 +146,7 @@ func TestFuseRuleGroups(t *testing.T) {
 	}
 
 	for k, rg := range testRg {
-		errs := fuseRuleGroups(promRg,rg)
+		errs := fuseRuleGroups(promRg, rg)
 		assert.Empty(t, errs)
 		assert.Equal(t, expectedRg[k], promRg)
 	}
@@ -168,16 +168,16 @@ func TestParseValidateFuseAndMarshal(t *testing.T) {
 		},
 		{
 			RulesPrometheus: "groups:\n- name: fuse.rules\n  rules:\n  - record: prometheus_rate\n    expr: rate(prometheus_total[5m])",
-			AlertsCritical: CriticalAlertGroup,
+			AlertsCritical:  CriticalAlertGroup,
 		},
 	}
 
-	for i,data := range testData {
+	for i, data := range testData {
 		promCmData := map[string]string{
 			RulesPrometheus: "groups:\n- name: fuse.rules\n  rules:\n  - record: prometheus_rate\n    expr: rate(prometheus_total[5m])",
 		}
 
-		errs := fuseMaps(promCmData,data)
+		errs := fuseMaps(promCmData, data)
 		assert.Empty(t, errs)
 
 		assert.Equal(t, expectedData[i], promCmData)
