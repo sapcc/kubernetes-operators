@@ -2,6 +2,7 @@ package operator
 
 import (
 	"fmt"
+	"net/url"
 
 	sentry "github.com/atlassian/go-sentry-api"
 	"github.com/golang/glog"
@@ -61,5 +62,12 @@ func (op *Operator) ensureClientKey(project, label string) (sentry.Key, error) {
 		}
 	}
 	glog.Infof("Create client key %s for %s/%s", label, *proj.Slug, *org.Slug)
-	return op.sentryClient.CreateClientKey(org, proj, label)
+	clientKey, err := op.sentryClient.CreateClientKey(org, proj, label)
+	if err != nil {
+		return clientKey, err
+	}
+	if _, err := url.Parse(clientKey.DSN.Secret); err != nil {
+		return clientKey, fmt.Errorf("Invalid DSN (sentry not configured yet?): %s", err)
+	}
+	return clientKey, nil
 }

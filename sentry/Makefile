@@ -1,4 +1,4 @@
-VERSION=0.1.4
+VERSION=0.1.5
 LDFLAGS=-X github.com/sapcc/kubernetes-operators/sentry/pkg/operator.VERSION=$(VERSION)
 IMAGE   ?= sapcc/kube-sentry
 GOOS    ?= darwin
