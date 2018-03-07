@@ -1,6 +1,5 @@
 package: github.com/sapcc/kubernetes-operators/coo
 import:
-- package: github.com/golang/glog
 - package: github.com/spf13/pflag
 - package: gopkg.in/yaml.v1
 - package: k8s.io/api
@@ -31,6 +30,4 @@ import:
   subpackages:
   - common
   - prometheus
-- package: "github.com/imdario/mergo"
-  version: 0.3.2
 - package: gopkg.in/yaml.v2
