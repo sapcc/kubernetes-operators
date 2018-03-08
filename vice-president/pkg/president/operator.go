@@ -172,7 +172,6 @@ func New(options Options) *Operator {
 	)
 
 	SecretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: operator.secretUpdate,
 		DeleteFunc: operator.secretDelete,
 	})
 
@@ -729,21 +728,6 @@ func (vp *Operator) checkCertificates() {
 		}
 		LogDebug("Added ingress %s/%s", i.GetNamespace(), i.GetName())
 		vp.queue.Add(key)
-	}
-}
-
-func (vp *Operator) secretUpdate(cur, old interface{}) {
-	sCur := cur.(*v1.Secret)
-	sOld := old.(*v1.Secret)
-	if vp.isSecretNeedsUpdate(sCur, sOld) {
-		if ingress := vp.isSecretReferencedByIngress(sCur); ingress != nil {
-			LogDebug("Secret %s/%s, referenced by ingress %s/%s, was updated. Requeueing ingress if not already queued.", sCur.GetNamespace(), sCur.GetName(), ingress.GetNamespace(), ingress.GetName())
-			key, err := cache.MetaNamespaceKeyFunc(ingress)
-			if err != nil {
-				LogError("Couldn't create key for ingress %s/%s: %v", ingress.GetNamespace(), ingress.GetName(), err)
-			}
-			vp.queue.AddAfter(key, BaseDelay)
-		}
 	}
 }
 
