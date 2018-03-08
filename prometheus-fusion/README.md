@@ -1,6 +1,6 @@
 # Prometheus Fusion
 
-[![Docker Repository](https://img.shields.io/docker/pulls/sapcc/coo.svg?maxAge=604800)](https://hub.docker.com/r/sapcc/prometheus-fusion/)
+[![Docker Repository](https://img.shields.io/docker/pulls/sapcc/prometheus-fusion.svg?maxAge=604800)](https://hub.docker.com/r/sapcc/prometheus-fusion/)
 
 If you're on Kubernetes and using helm to manage resources you might have wondered why your application-specific Prometheus recording rules or alerts have to reside in the central Prometheus chart and not with the application?
 This operator helps you untangling that.

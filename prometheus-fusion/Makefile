@@ -12,7 +12,7 @@ PACKAGES := $(shell find $(SRCDIRS) -type d)
 GOFILES  := $(addsuffix /*.go,$(PACKAGES))
 GOFILES  := $(wildcard $(GOFILES))
 
-GLIDE := $(shell command -v glide 2> /dev/null)
+GLIDE := $(shell command -v glide;)
 
 .PHONY: all clean vendor tests static-check
 
@@ -41,6 +41,6 @@ vendor:
 	ifndef GLIDE
 		echo "Cannot vendor. Glide is not installed. Please do so now."
 	else
-		glide install --strip-vendor --strip-vcs
+		glide install --stip-vendor --strip-vcs
 		glide-vc --only-code --no-tests
 	endif
