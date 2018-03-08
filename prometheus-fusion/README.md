@@ -9,7 +9,7 @@ This operator helps you untangling that.
 
 - Automatic and periodically discovery of Configmaps containing Prometheus recording rules and alerts using Kubernetes API
 - Collect rules and alerts and validates them
-- Generates Configmap for Prometheus
+- Generates Configmap for Prometheus containing all discovered valid rules
 
 # Usage
 
@@ -33,3 +33,33 @@ Note: The flags `--prom-cm-namesapce` and `--prom-cm-name` are optional, if you 
 # Limits
 
 It's outside of the operators scope to signal Prometheus to reload its configuration after it was changed. However this is solved by [jimmidyson/configmap-reload](https://github.com/jimmidyson/configmap-reload).
+
+# Example
+
+Deploy the following Configmap to inject `KubernetesApiServerAllDown` alert in the `apiserver.alert` group.  
+The operator will merge this to the Configmap, which is mounted by the Prometheus Pod.
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apiserver-alerts
+  namespace: kube-monitoring
+  annotations:
+    prometheus.io/rule: "true"
+data:
+  apiserver.alerts: |
+    groups:
+    - name: apiserver.alerts
+      rules:
+      - alert: KubernetesApiServerAllDown
+        expr: absent(up{job="kube-system/apiserver"} == 1)
+        for: 10m
+        labels:
+          tier: kubernetes
+          service: k8s
+          severity: critical
+          context: apiserver
+        annotations:
+          description: Kubernetes API is unavailable!
+          summary: All apiservers are down. Kubernetes API is unavailable!
+```
