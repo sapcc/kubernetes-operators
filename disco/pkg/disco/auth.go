@@ -38,19 +38,14 @@ type AuthOpts struct {
 	token             string `yaml:"-"`
 }
 
-func newOpenStackServiceClient(authURL string) (*gophercloud.ServiceClient, error) {
-	provider, err := openstack.NewClient(authURL)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not initialize openstack client: %v")
-	}
-	return &gophercloud.ServiceClient{
-		ProviderClient: provider,
-		Endpoint:       authURL,
-	}, nil
+func newAuthenticatedProviderClient(ao AuthOpts) (provider *gophercloud.ProviderClient, err error) {
+	defer func() {
+		if err != nil {
+			ao.Password = "<password"
+			LogDebug("tried to obtain token using opts %#v", ao)
+		}
+	}()
 
-}
-
-func getToken(ao AuthOpts) (string, error) {
 	opts := &tokens.AuthOptions{
 		IdentityEndpoint: ao.AuthURL,
 		Username:         ao.Username,
@@ -63,34 +58,29 @@ func getToken(ao AuthOpts) (string, error) {
 		},
 	}
 
-	client, err := newOpenStackServiceClient(
-		ao.AuthURL,
-	)
+	provider, err = openstack.NewClient(ao.AuthURL)
 	if err != nil {
-		return "", err
+		return nil, errors.Wrap(err, "could not initialize openstack client: %v")
 	}
 
-	token, err := tokens.Create(client, opts).ExtractToken()
+	provider.UseTokenLock()
+
+	err = openstack.AuthenticateV3(provider, opts, gophercloud.EndpointOpts{})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return token.ID, nil
+	if provider.TokenID == "" {
+		return nil, errors.New("token is empty. authentication failed")
+	}
+	return
 }
 
-func newOpenStackDesignateClient(ao AuthOpts) (*gophercloud.ServiceClient, error) {
-	if ao.token == "" {
-		return nil, errors.New("no token obtained. authentication required")
-	}
 
-	provider, err := openstack.AuthenticatedClient(
-		gophercloud.AuthOptions{
-			IdentityEndpoint: ao.AuthURL,
-			TokenID:          ao.token,
-		},
-	)
+func newOpenStackDesignateClient(ao AuthOpts) (*gophercloud.ServiceClient, error) {
+	provider, err := newAuthenticatedProviderClient(ao)
 	if err != nil {
-		return nil, errors.New("unable to create designate client with given token")
+		return nil, errors.Wrap(err, "failed to initialize provider client")
 	}
 
 	return openstack.NewDNSV2(

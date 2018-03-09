@@ -1,7 +1,8 @@
-package: github.com/sapcc/kubernetes-operators/coo
+package: github.com/sapcc/kubernetes-operators/disco
 import:
 - package: github.com/golang/glog
 - package: github.com/gophercloud/gophercloud
+  version: fe864ba585e153c296567b9ab4bbb1345d05900a
   subpackages:
   - openstack
   - openstack/dns/v2/recordsets

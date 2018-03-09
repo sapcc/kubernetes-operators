@@ -13,7 +13,7 @@ const (
 	// DefaultRecheckPeriod in minutes
 	DefaultRecheckPeriod = 5
 
-	// DefaultResynPeriod in minutes
+	// DefaultResyncPeriod in minutes
 	DefaultResyncPeriod = 2
 
 	// DefaultThreadiness in minutes

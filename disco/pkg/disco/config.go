@@ -27,22 +27,28 @@ import (
 	yaml "gopkg.in/yaml.v1"
 )
 
-// Config to define the parameters when talking to the Symantec VICE API
+// Config ...
 type Config struct {
-	AuthOpts `yaml:"auth"`
+	AuthOpts `yaml:",inline"`
 }
 
 // ReadConfig reads a given configuration file and returns the ViceConfig object and if applicable an error
-func ReadConfig(filePath string) (cfg Config, err error) {
+func ReadConfig(filePath string) (*Config, error) {
+	cfg := Config{}
 	cfgBytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return cfg, errors.Wrap(err, "could not read configuration file")
+		return nil, errors.Wrap(err, "could not read configuration file")
 	}
 	err = yaml.Unmarshal(cfgBytes, &cfg)
 	if err != nil {
-		return cfg, errors.Wrap(err, "could not parse configuration")
+		return nil, errors.Wrap(err, "could not parse configuration")
 	}
-	return cfg, cfg.checkConfig()
+
+	if err := cfg.checkConfig(); err != nil {
+		return nil, err
+	}
+
+	return &cfg, nil
 }
 
 func (c *Config) checkConfig() error {

@@ -1,5 +1,5 @@
-hash: 1df5abd596212352eaf4a10ce0ce219fa76fcfd7b75792529984752da833befd
-updated: 2018-01-26T16:00:58.325975+01:00
+hash: 5e43db0418097f84a97409002f75f6f291086215333e8f5fac9957759757c9ca
+updated: 2018-03-10T01:03:14.556728+01:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -51,7 +51,7 @@ imports:
   - compiler
   - extensions
 - name: github.com/gophercloud/gophercloud
-  version: 8183543f90d1aef267a5ecc209f2e0715b355acb
+  version: fe864ba585e153c296567b9ab4bbb1345d05900a
   subpackages:
   - openstack
   - openstack/dns/v2/recordsets
@@ -89,6 +89,8 @@ imports:
   - pbutil
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
+- name: github.com/pkg/errors
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/prometheus/client_golang
   version: c5b7fccd204277076155f10851dad72b76a49317
   subpackages:
@@ -158,7 +160,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
 - name: k8s.io/api
-  version: 006a217681ae70cbacdd66a5e2fca1a61a8ff28e
+  version: acf347b865f29325eb61f4cd2df11e86e073a5ee
   subpackages:
   - admissionregistration/v1alpha1
   - admissionregistration/v1beta1

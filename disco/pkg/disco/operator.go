@@ -46,7 +46,7 @@ var (
 // Operator is the CNAME operator (disco)
 type Operator struct {
 	Options
-	Config
+	*Config
 
 	dnsV2Client     *gophercloud.ServiceClient
 	clientset       *kubernetes.Clientset
@@ -56,6 +56,7 @@ type Operator struct {
 	ResyncPeriod    time.Duration
 	RecheckInterval time.Duration
 
+	//TODO: sync.Map{zone:records}
 	recordsetList []recordsets.RecordSet
 
 	queue workqueue.RateLimitingInterface
@@ -71,7 +72,7 @@ func New(options Options) *Operator {
 
 	discoConfig, err := ReadConfig(options.ConfigPath)
 	if err != nil {
-		LogFatal("Could get configuration: %v. Aborting.", err)
+		LogFatal(err.Error())
 	}
 
 	resyncPeriod := time.Duration(options.ResyncPeriod) * time.Minute
@@ -86,12 +87,6 @@ func New(options Options) *Operator {
 	if err != nil {
 		LogFatal("Couldn't create Kubernetes client: %v", err)
 	}
-
-	token, err := getToken(discoConfig.AuthOpts)
-	if err != nil {
-		LogFatal("Could not obtain token: %v", err)
-	}
-	discoConfig.AuthOpts.token = token
 
 	dnsV2Client, err := newOpenStackDesignateClient(discoConfig.AuthOpts)
 	if err != nil {
@@ -206,6 +201,7 @@ func (disco *Operator) handleError(err error, key interface{}) {
 	}
 
 	disco.queue.Forget(key)
+
 	// Report to an external entity that, even after several retries, we could not successfully process this key
 	runtime.HandleError(err)
 	LogInfo("Dropping pod %q out of the queue: %v", key, err)

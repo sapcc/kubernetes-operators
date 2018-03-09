@@ -27,7 +27,8 @@ func addSuffixIfRequired(s string) string {
 
 func listDesignateZones(dnsV2Client *gophercloud.ServiceClient, opts zones.ListOpts) (zoneList []zones.Zone, err error) {
 	pages := 0
-	err = zones.List(dnsV2Client, opts).EachPage(func(page pagination.Page) (bool, error) {
+	list := zones.List(dnsV2Client, opts)
+	err = list.EachPage(func(page pagination.Page) (bool, error) {
 		pages++
 		z, err := zones.ExtractZones(page)
 		if err != nil {
@@ -73,8 +74,8 @@ func listDesignateRecordsetsForZone(dnsV2Client *gophercloud.ServiceClient, zone
 	return recordsetList, nil
 }
 
-func createDesignateRecordset(dnsV2Client *gophercloud.ServiceClient, zoneID, rsName string, records []string, recordsetTTL int, rsType string) error {
-	LogInfo("would create recordset name: %s, type: %s, records: %v, ttl: %v in zone %s ", rsName, rsType, records, recordsetTTL, zoneID)
+func createDesignateRecordset(dnsV2Client *gophercloud.ServiceClient, zoneID, rsName string, records []string, rsTTL int, rsType string) error {
+	LogInfo("would create recordset name: %s, type: %s, records: %v, ttl: %v in zone %s ", rsName, rsType, records, rsTTL, zoneID)
 	//TODO:
 	//rs, err := recordsets.Create(dnsV2Client, zoneID, recordsets.CreateOpts{
 	//	Name:    rsName,

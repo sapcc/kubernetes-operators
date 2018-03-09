@@ -43,9 +43,9 @@ func init() {
 	pflag.IntVar(&options.MetricPort, "metric-port", disco.DefaultMetricPort, "Metrics are exposed on this port")
 	pflag.IntVar(&options.RecheckPeriod, "recheck-period", disco.DefaultRecheckPeriod, "RecheckPeriod[min] defines the base period after which configmaps are checked again")
 	pflag.IntVar(&options.ResyncPeriod, "resync-period", disco.DefaultResyncPeriod, "ResyncPeriod[min] defines the base period after which the cache is resynced")
-	pflag.IntVar(&options.RecordsetTTL, "recordset-ttl", disco.DefaultRecordsetTTL, "The default Recordset TTL in seconds")
-	pflag.StringVar(&options.Record, "default-record", "", "Default record used for the CNAME")
-	pflag.StringVar(&options.ZoneName, "zone-name", "", "Name of the zone")
+	pflag.IntVar(&options.RecordsetTTL, "recordset-ttl", disco.DefaultRecordsetTTL, "The Recordset TTL in seconds")
+	pflag.StringVar(&options.Record, "record", "", "Default record data used for the CNAME")
+	pflag.StringVar(&options.ZoneName, "zone-name", "", "Name of the zone in which the recordset will be created")
 }
 
 func main() {
