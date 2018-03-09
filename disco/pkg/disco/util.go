@@ -20,37 +20,22 @@
 package disco
 
 import (
-	"strings"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
-	"bytes"
 	"fmt"
 	"log"
 	"os"
+	"strings"
+
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
-func isAnyStringEmpty(s ...string) bool {
-	if s != nil {
-		for _, str := range s {
-			if str == "" {
-				return true
-			}
-		}
+func newClientConfig(options Options) (*rest.Config, error) {
+	rules := clientcmd.NewDefaultClientConfigLoadingRules()
+	overrides := &clientcmd.ConfigOverrides{}
+	if options.KubeConfig != "" {
+		rules.ExplicitPath = options.KubeConfig
 	}
-	return false
-}
-
-func checkError(err error) error {
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("Does already exist")
-		} else if apierrors.IsNotFound(err) {
-			return fmt.Errorf("Not found")
-		}
-		return err
-	}
-	return nil
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
 }
 
 func isDebug() bool {
@@ -113,13 +98,4 @@ func doLog(logLevel string, msg string, args []interface{}) {
 	} else {
 		log.Println(msg)
 	}
-}
-
-func removeSpecialCharactersFromPEM(pem []byte) []byte {
-	specialChars := []string{"\"", "^@", "\x00", "0"}
-	var result []byte
-	for _, c := range specialChars {
-		result = bytes.TrimLeft(pem, fmt.Sprintf("%q\n", c))
-	}
-	return result
 }

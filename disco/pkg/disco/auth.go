@@ -20,11 +20,10 @@
 package disco
 
 import (
-	"fmt"
-
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/tokens"
+	"github.com/pkg/errors"
 )
 
 // AuthOpts ...
@@ -42,7 +41,7 @@ type AuthOpts struct {
 func newOpenStackServiceClient(authURL string) (*gophercloud.ServiceClient, error) {
 	provider, err := openstack.NewClient(authURL)
 	if err != nil {
-		return nil, fmt.Errorf("could not initialize openstack client: %v", err)
+		return nil, errors.Wrap(err, "could not initialize openstack client: %v")
 	}
 	return &gophercloud.ServiceClient{
 		ProviderClient: provider,
@@ -81,17 +80,17 @@ func getToken(ao AuthOpts) (string, error) {
 
 func newOpenStackDesignateClient(ao AuthOpts) (*gophercloud.ServiceClient, error) {
 	if ao.token == "" {
-		return nil, fmt.Errorf("no token obtained. authentication required")
+		return nil, errors.New("no token obtained. authentication required")
 	}
 
 	provider, err := openstack.AuthenticatedClient(
 		gophercloud.AuthOptions{
 			IdentityEndpoint: ao.AuthURL,
-			TokenID:         ao.token,
+			TokenID:          ao.token,
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create designate client with given token")
+		return nil, errors.New("unable to create designate client with given token")
 	}
 
 	return openstack.NewDNSV2(

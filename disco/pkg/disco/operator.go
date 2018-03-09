@@ -25,11 +25,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
-	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
-	"github.com/gophercloud/gophercloud/pagination"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -68,21 +66,25 @@ func New(options Options) *Operator {
 	LogInfo("Starting DISCO in version %v\n", VERSION)
 
 	if err := options.CheckOptions(); err != nil {
-		LogInfo(err.Error())
+		LogFatal(err.Error())
 	}
 
 	discoConfig, err := ReadConfig(options.ConfigPath)
 	if err != nil {
-		LogFatal("Could get configuration: %s. Aborting.", err)
+		LogFatal("Could get configuration: %v. Aborting.", err)
 	}
 
 	resyncPeriod := time.Duration(options.ResyncPeriod) * time.Minute
 	recheckInterval := time.Duration(options.RecheckPeriod) * time.Minute
 
-	kubeConfig := newClientConfig(options)
+	kubeConfig, err := newClientConfig(options)
+	if err != nil {
+		LogFatal("Couldn't create Kubernetes client config: %v", err)
+	}
+
 	clientset, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
-		LogFatal("Couldn't create Kubernetes client: %s", err)
+		LogFatal("Couldn't create Kubernetes client: %v", err)
 	}
 
 	token, err := getToken(discoConfig.AuthOpts)
@@ -212,13 +214,12 @@ func (disco *Operator) handleError(err error, key interface{}) {
 
 func (disco *Operator) syncHandler(key string) error {
 	o, exists, err := disco.ingressInformer.GetStore().GetByKey(key)
-	if checkError(err) != nil {
-		runtime.HandleError(fmt.Errorf("%v failed with : %v", key, err))
-		return err
+	if err != nil {
+		return errors.Wrapf(err, "%v failed with : %v", key)
 	}
 
 	if !exists {
-		LogInfo("Deleted ingress %#v", key)
+		LogInfo("Deleted ingress %v", key)
 		return nil
 	}
 
@@ -264,17 +265,13 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 	}
 	initializeFailureMetrics(labels)
 
-	var recordsetList []recordsets.RecordSet
-
 	//TODO: maybe use https://github.com/patrickmn/go-cache instead of listing recordsets every time
-	zone, err := disco.getDesignateZoneByName(
-		fmt.Sprintf(DefaultZoneName, disco.AuthOpts.RegionName),
-	)
+	zone, err := getDesignateZoneByName(disco.dnsV2Client, disco.ZoneName)
 	if err != nil {
 		return err
 	}
 
-	recordsetList, err = disco.listDesignateRecordsetsForZone(zone)
+	recordsetList, err := listDesignateRecordsetsForZone(disco.dnsV2Client, zone)
 	if err != nil {
 		return err
 	}
@@ -285,81 +282,17 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		}
 	}
 
-	if err := disco.createDesignateRecordset(
+	if err := createDesignateRecordset(
+		disco.dnsV2Client,
 		zone.ID,
 		addSuffixIfRequired(host),
-		[]string{fmt.Sprintf(DefaultRecordsetIngressRecord, disco.AuthOpts.RegionName)},
+		[]string{disco.Record},
+		disco.RecordsetTTL,
 		RecordsetType.CNAME,
 	); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-func (disco *Operator) listDesignateRecordsetsForZone(zone zones.Zone) (recordsetList []recordsets.RecordSet, err error) {
-	pages := 0
-	err = recordsets.ListByZone(disco.dnsV2Client, zone.ID, recordsets.ListOpts{}).EachPage(func(page pagination.Page) (bool, error) {
-		pages++
-		r, err := recordsets.ExtractRecordSets(page)
-		if err != nil {
-			return false, err
-		}
-		recordsetList = r
-		return true, nil
-	})
-	if err != nil {
-		LogInfo("Failed to list recordsets in zone %s. %s.", zone.ID, err.Error())
-		return nil, err
-	}
-	return recordsetList, nil
-}
-
-func (disco *Operator) getDesignateZoneByName(zoneName string) (zones.Zone, error) {
-	zoneList, err := disco.listDesignateZones(zones.ListOpts{Name: addSuffixIfRequired(zoneName)})
-	if err != nil {
-		return zones.Zone{}, err
-	}
-	if len(zoneList) == 0 {
-		return zones.Zone{}, fmt.Errorf("No zone with name %s found", zoneName)
-	}
-	if len(zoneList) > 1 {
-		return zones.Zone{}, fmt.Errorf("Multiple zones with name %s found", zoneName)
-	}
-	return zoneList[0], nil
-}
-
-func (disco *Operator) listDesignateZones(opts zones.ListOpts) (zoneList []zones.Zone, err error) {
-	pages := 0
-	err = zones.List(disco.dnsV2Client, opts).EachPage(func(page pagination.Page) (bool, error) {
-		pages++
-		z, err := zones.ExtractZones(page)
-		if err != nil {
-			return false, err
-		}
-		zoneList = z
-		return true, nil
-	})
-	if err != nil {
-		glog.Infof("Failed to list zones %s.", err.Error())
-		return nil, err
-	}
-	return zoneList, nil
-}
-
-func (disco *Operator) createDesignateRecordset(zoneID, rsName string, records []string, rsType string) error {
-	LogInfo("would create recordset name: %s, type: %s, records: %v, ttl: %v in zone %s ", rsName, rsType, records, disco.RecordsetTTL, zoneID)
-	//TODO:
-	//rs, err := recordsets.Create(disco.dnsV2Client, zoneID, recordsets.CreateOpts{
-	//	Name:    rsName,
-	//	Records: records,
-	//	TTL:     disco.RecordsetTTL,
-	//	Type:    rsType,
-	//}).Extract()
-	//if err != nil {
-	//	return fmt.Errorf("Could not create recordset name: %s, type: %s, records: %v, ttl: %v in zone %s. Error: %#v ", rs.Name, rs.Type, rs.Records, rs.TTL, rs.ZoneID, err)
-	//}
-	//LogInfo("Created recordset name: %s, type: %s, records: %v, ttl: %v in zone %s ", rs.Name, rs.Type, rs.Records, rs.TTL, rs.ZoneID)
 	return nil
 }
 

@@ -44,8 +44,8 @@ func init() {
 	pflag.IntVar(&options.RecheckPeriod, "recheck-period", disco.DefaultRecheckPeriod, "RecheckPeriod[min] defines the base period after which configmaps are checked again")
 	pflag.IntVar(&options.ResyncPeriod, "resync-period", disco.DefaultResyncPeriod, "ResyncPeriod[min] defines the base period after which the cache is resynced")
 	pflag.IntVar(&options.RecordsetTTL, "recordset-ttl", disco.DefaultRecordsetTTL, "The default Recordset TTL in seconds")
-	pflag.StringVar(&options.DefaultRecord, "default-record", "", "Default record used for the CNAME")
-	pflag.StringVar(&options.DefaultZoneName, "zone-name", "", "Name of the zone")
+	pflag.StringVar(&options.Record, "default-record", "", "Default record used for the CNAME")
+	pflag.StringVar(&options.ZoneName, "zone-name", "", "Name of the zone")
 }
 
 func main() {

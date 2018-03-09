@@ -19,9 +19,7 @@
 
 package disco
 
-import (
-	"errors"
-)
+import "github.com/pkg/errors"
 
 // Options to configure your disco operator
 type Options struct {
@@ -33,8 +31,8 @@ type Options struct {
 	ResyncPeriod      int
 	RecheckPeriod     int
 	RecordsetTTL      int
-	DefaultRecord     string
-	DefaultZoneName   string
+	Record            string
+	ZoneName          string
 }
 
 func (o *Options) applyDefaultsIfNotSet() {

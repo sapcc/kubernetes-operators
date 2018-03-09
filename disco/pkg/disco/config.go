@@ -20,14 +20,11 @@
 package disco
 
 import (
-	"errors"
-	"fmt"
 	"io/ioutil"
 	"strings"
 
+	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 // Config to define the parameters when talking to the Symantec VICE API
@@ -39,26 +36,13 @@ type Config struct {
 func ReadConfig(filePath string) (cfg Config, err error) {
 	cfgBytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return cfg, fmt.Errorf("read configuration file: %s", err.Error())
+		return cfg, errors.Wrap(err, "could not read configuration file")
 	}
 	err = yaml.Unmarshal(cfgBytes, &cfg)
 	if err != nil {
-		return cfg, fmt.Errorf("parse configuration: %s", err.Error())
+		return cfg, errors.Wrap(err, "could not parse configuration")
 	}
 	return cfg, cfg.checkConfig()
-}
-
-func newClientConfig(options Options) *rest.Config {
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	overrides := &clientcmd.ConfigOverrides{}
-	if options.KubeConfig != "" {
-		rules.ExplicitPath = options.KubeConfig
-	}
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
-	if err != nil {
-		LogFatal("Couldn't get Kubernetes default config: %s", err)
-	}
-	return config
 }
 
 func (c *Config) checkConfig() error {
@@ -85,7 +69,7 @@ func (c *Config) checkConfig() error {
 		errs = append(errs, "OS_PROJECT_DOMAIN_NAME")
 	}
 	if len(errs) > 0 {
-		return errors.New("missing "+strings.Join(errs, ", "))
+		return errors.New("missing " + strings.Join(errs, ", "))
 	}
 	return nil
 }

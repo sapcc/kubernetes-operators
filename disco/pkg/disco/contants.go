@@ -10,12 +10,6 @@ const (
 	// DefaultRecordsetTTL is the default TTL for a recordset
 	DefaultRecordsetTTL = 1800
 
-	// DefaultRecordsetIngressRecord is the default record used for a CNAME
-	DefaultRecordsetIngressRecord = "ingress.%s.cloud.sap."
-
-	// DefaultZoneName is the default zone name for a CNAME
-	DefaultZoneName = "%s.cloud.sap."
-
 	// DefaultRecheckPeriod in minutes
 	DefaultRecheckPeriod = 5
 
