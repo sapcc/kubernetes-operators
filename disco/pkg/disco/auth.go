@@ -35,13 +35,12 @@ type AuthOpts struct {
 	Password          string `yaml:"password"`
 	ProjectName       string `yaml:"project_name"`
 	ProjectDomainName string `yaml:"project_domain_name"`
-	token             string `yaml:"-"`
 }
 
 func newAuthenticatedProviderClient(ao AuthOpts) (provider *gophercloud.ProviderClient, err error) {
 	defer func() {
 		if err != nil {
-			ao.Password = "<password"
+			ao.Password = "<password hidden>"
 			LogDebug("tried to obtain token using opts %#v", ao)
 		}
 	}()
@@ -80,7 +79,7 @@ func newAuthenticatedProviderClient(ao AuthOpts) (provider *gophercloud.Provider
 func newOpenStackDesignateClient(ao AuthOpts) (*gophercloud.ServiceClient, error) {
 	provider, err := newAuthenticatedProviderClient(ao)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize provider client")
+		return nil, err
 	}
 
 	return openstack.NewDNSV2(
