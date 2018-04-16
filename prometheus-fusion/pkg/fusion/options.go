@@ -25,6 +25,7 @@ type Options struct {
 	ConfigmapAnnotation          string
 	PrometheusConfigMapNamespace string
 	PrometheusConfigMapName      string
+	PreservedConfigmapKeys       []string
 	MetricPort                   int
 	ResyncPeriod                 int
 	RecheckPeriod                int

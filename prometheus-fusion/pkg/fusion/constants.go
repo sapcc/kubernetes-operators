@@ -22,7 +22,4 @@ package fusion
 const (
 	// PrometheusConfigMapAnnotation is used to identify the configmap used by Prometheus
 	PrometheusConfigMapAnnotation = "prometheus.io/configmap"
-
-	// PrometheusCfgKey ...
-	PrometheusCfgKey = "prometheus.yaml"
 )

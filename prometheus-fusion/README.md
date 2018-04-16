@@ -23,6 +23,7 @@ Usage of prometheus-fusion:
       --prom-cm-name string              Name of the prometheus configmap (optional)
       --prom-cm-namespace string         Namespace of the prometheus configmap (optional)
       --cm-annotation string             Only configmaps with this annotation will be considered (default "prometheus.io/rule")
+      --preserve-cm-keys []string        Preserved keys and values of Prometheus configmap (default [prometheus.yaml", "prometheus.yml])
       --kubeconfig string                Path to kubeconfig file with authorization and master location information (optional)
       --metric-port int                  Port on which Prometheus metrics are exposed (default 9091)
       --recheck-period int               RecheckPeriod[min] defines the base period after which configmaps are checked again (default 5)
@@ -43,7 +44,6 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: apiserver-alerts
-  namespace: kube-monitoring
   annotations:
     prometheus.io/rule: "true"
 data:

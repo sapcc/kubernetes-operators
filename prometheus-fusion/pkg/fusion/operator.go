@@ -229,7 +229,7 @@ func (fusion *Operator) collectRules() error {
 			if errs := fuseMaps(fusion.prometheusConfigmapData, cm.Data); errs != nil {
 				return fmt.Errorf("Failed to merge rules of configmap %s/%s: %v ", cm.GetNamespace(), cm.GetName(), errs)
 			}
-			LogInfo("collected rules from configmap %s/%s", cm.GetNamespace(), cm.GetName())
+			LogInfo("Collected rules from configmap %s/%s", cm.GetNamespace(), cm.GetName())
 		}
 	}
 	return nil
@@ -246,12 +246,15 @@ func (fusion *Operator) generatePrometheusConfigmap() error {
 		return err
 	}
 
-	// preserve prometheus configuration if in same file
-	promCfg := curCM.Data[PrometheusCfgKey]
-
 	newCM := curCM.DeepCopy()
 	newCM.Data = fusion.prometheusConfigmapData
-	newCM.Data[PrometheusCfgKey] = promCfg
+
+	// preserve prometheus configuration if in same file
+	for _, key := range fusion.PreservedConfigmapKeys {
+		if data, ok := curCM.Data[key]; ok {
+			newCM.Data[key] = data
+		}
+	}
 
 	if fusion.isConfigMapNeedsUpdate(curCM, newCM) {
 		LogInfo("generating prometheus configmap and updating upstream")

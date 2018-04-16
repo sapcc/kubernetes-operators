@@ -37,8 +37,9 @@ var options fusion.Options
 func init() {
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information")
 	pflag.StringVar(&options.ConfigmapAnnotation, "cm-annotation", "prometheus.io/rule", "Only configmaps with this annotation will be considered")
-	pflag.StringVar(&options.PrometheusConfigMapNamespace, "prom-cm-namespace", "", "Namespace of the prometheus configmap")
+	pflag.StringVar(&options.PrometheusConfigMapNamespace, "prom-cm-namespace", "", "Namespace of the Prometheus configmap")
 	pflag.StringVar(&options.PrometheusConfigMapName, "prom-cm-name", "", "Name of the prometheus configmap")
+	pflag.StringArrayVar(&options.PreservedConfigmapKeys, "preserve-cm-keys", []string{"prometheus.yaml", "prometheus.yml"}, "Preserved keys and values of Prometheus configmap")
 	pflag.IntVar(&options.MetricPort, "metric-port", 9091, "Port on which Prometheus metrics are exposed")
 	pflag.IntVar(&options.RecheckPeriod, "recheck-period", 5, "RecheckPeriod[min] defines the base period after which configmaps are checked again")
 	pflag.IntVar(&options.ResyncPeriod, "resync-period", 2, "ResyncPeriod[min] defines the base period after which the cache is resynced")
