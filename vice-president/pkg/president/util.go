@@ -20,10 +20,6 @@
 package president
 
 import (
-	"strings"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
 	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
@@ -31,7 +27,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
+	"strings"
+
+	"golang.org/x/crypto/ocsp"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func isAnyStringEmpty(s ...string) bool {
@@ -215,4 +216,78 @@ func removeSpecialCharactersFromPEM(pem []byte) []byte {
 		result = bytes.TrimLeft(pem, fmt.Sprintf("%q\n", c))
 	}
 	return result
+}
+
+func contains(stringSlice []string, searchString string) bool {
+	for _, value := range stringSlice {
+		if value == searchString {
+			return true
+		}
+	}
+	return false
+}
+
+func ocspRevokationReasonToString(status int) string {
+	switch status {
+	case ocsp.Unspecified:
+		return "unspecified"
+	case ocsp.KeyCompromise:
+		return "key compromise"
+	case ocsp.CACompromise:
+		return "ca compromise"
+	case ocsp.AffiliationChanged:
+		return "affiliation changed"
+	case ocsp.Superseded:
+		return "superseded"
+	case ocsp.CessationOfOperation:
+		return "cessation of operation"
+	case ocsp.CertificateHold:
+		return "certificate hold"
+	}
+	return "unknown"
+}
+
+func ocspStatusToString(status int) string {
+	switch status {
+	case ocsp.Good:
+		return "good"
+	case ocsp.Revoked:
+		return "revoked"
+	case ocsp.Unknown:
+		return "unknown"
+	case ocsp.ServerFailed:
+		return "server failed"
+	}
+	return "unknown"
+}
+
+func downloadAndPersistFile(CAURI string, filePath string) ([]byte, error) {
+	resp, err := http.Get(CAURI)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer out.Close()
+
+	bytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = out.Write(bytes)
+	if err != nil {
+		return bytes, err
+	}
+
+	return bytes, nil
+}
+
+func getFileNameFromURI(URI string) string {
+	f := strings.Split(URI, "/")
+	return f[len(f)-1]
 }

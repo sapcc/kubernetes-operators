@@ -20,19 +20,14 @@
 package president
 
 import (
-	"sync"
-	"time"
-
-	"crypto/x509"
-
+	"crypto/rsa"
 	"crypto/tls"
-
+	"crypto/x509"
 	"fmt"
 	"reflect"
-
 	"strings"
-
-	"crypto/rsa"
+	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/go-vice"
@@ -458,6 +453,13 @@ func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate) string {
 		LogInfo("Certificate for host %s will expire in %s month. Renewing", viceCert.Host, vp.CertificateRecheckInterval)
 		return IngressStateRenew
 	}
+
+	if viceCert.IsRevoked() {
+		LogInfo("Enrolling new certificate after revocation", viceCert.Host)
+		//TODO: just log for now
+		// return IngressStateEnroll
+	}
+
 	LogInfo("Certificate for host %s is valid until %s", viceCert.Host, viceCert.Certificate.NotAfter.UTC())
 	return IngressStateApproved
 }
