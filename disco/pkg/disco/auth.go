@@ -75,7 +75,6 @@ func newAuthenticatedProviderClient(ao AuthOpts) (provider *gophercloud.Provider
 	return
 }
 
-
 func newOpenStackDesignateClient(ao AuthOpts) (*gophercloud.ServiceClient, error) {
 	provider, err := newAuthenticatedProviderClient(ao)
 	if err != nil {

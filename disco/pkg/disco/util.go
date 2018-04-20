@@ -25,6 +25,7 @@ import (
 	"os"
 	"strings"
 
+	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -97,4 +98,28 @@ func doLog(logLevel string, msg string, args []interface{}) {
 	} else {
 		log.Println(msg)
 	}
+}
+
+func ingressHasDiscoFinalizer(ingress *v1beta1.Ingress) bool {
+	for _, fin := range ingress.GetFinalizers() {
+		if fin == DiscoFinalizer {
+			return true
+		}
+	}
+	return false
+}
+
+func ingressHasDeletionTimestamp(ingress *v1beta1.Ingress) bool {
+	if ingress.GetDeletionTimestamp() != nil {
+		return true
+	}
+	return false
+}
+
+// addSuffixIfRequired ensures the recordset name ends with '.'
+func addSuffixIfRequired(s string) string {
+	if !strings.HasSuffix(s, ".") {
+		return s + "."
+	}
+	return s
 }

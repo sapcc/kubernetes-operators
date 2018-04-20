@@ -18,4 +18,7 @@ const (
 
 	// DefaultThreadiness in minutes
 	DefaultThreadiness = 1
+
+	// DiscoFinalizer as seen on the ingress
+	DiscoFinalizer = "disco"
 )
