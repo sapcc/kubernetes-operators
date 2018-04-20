@@ -56,15 +56,38 @@ var recordsetCreationFailedCounter = prometheus.NewCounterVec(
 	[]string{"ingress", "host"},
 )
 
+var recordsetDeletionSuccessCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Namespace: MetricNamespace,
+		Subsystem: MetricRecordset,
+		Name: "succesful_deletions",
+		Help: "Counter for successful recordset deletions",
+	},
+	[]string{"ingress", "host"},
+)
+
+var recordsetDeletionFailedCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Namespace: MetricNamespace,
+		Subsystem: MetricRecordset,
+		Name: "failed_deletions",
+		Help: "Counter for failed recordset deletions",
+	},
+	[]string{"ingress", "host"},
+)
+
 // init failure metrics with 0. useful for alerting.
 func initializeFailureMetrics(labels map[string]string) {
 	recordsetCreationFailedCounter.With(labels).Add(0.0)
+	recordsetDeletionFailedCounter.With(labels).Add(0.0)
 }
 
 func registerCollectors() {
 	prometheus.MustRegister(
 		recordsetCreationSuccessCounter,
 		recordsetCreationFailedCounter,
+		recordsetDeletionSuccessCounter,
+		recordsetDeletionFailedCounter,
 	)
 }
 

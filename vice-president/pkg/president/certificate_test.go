@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 
-	"github.com/stretchr/testify/assert"
 	"k8s.io/kubernetes/pkg/util/slice"
 )
 
@@ -21,8 +20,8 @@ func (s *TestSuite) TestSetSANS() {
 	vc1 := ViceCertificate{Host: host}
 	vc1.SetSANs(sansWithoutHost)
 
-	assert.Equal(s.T(), slice.SortStrings(vc.sans), slice.SortStrings(sansWithHost))
-	assert.Equal(s.T(), slice.SortStrings(vc1.sans), slice.SortStrings(sansWithHost))
+	s.Equal( slice.SortStrings(vc.sans), slice.SortStrings(sansWithHost))
+	s.Equal( slice.SortStrings(vc1.sans), slice.SortStrings(sansWithHost))
 
 }
 
@@ -35,7 +34,7 @@ func (s *TestSuite) TestGetSANS() {
 	}
 
 	for viceCert, expectedSANS := range testViceCertificates {
-		assert.Equal(s.T(),
+		s.Equal(
 			slice.SortStrings(expectedSANS),
 			slice.SortStrings(viceCert.GetSANs()),
 		)
@@ -45,15 +44,15 @@ func (s *TestSuite) TestGetSANS() {
 func (s *TestSuite) TestCertificateAndHostMatch() {
 
 	s.ViceCert.Host = "invalid.com"
-	assert.False(s.T(), s.ViceCert.DoesCertificateAndHostMatch())
+	s.False(s.ViceCert.DoesCertificateAndHostMatch())
 
 	s.ViceCert.Host = "example.com"
-	assert.True(s.T(), s.ViceCert.DoesCertificateAndHostMatch())
+	s.True(s.ViceCert.DoesCertificateAndHostMatch())
 
 	san := "www.my-example.com"
 	s.ViceCert.SetSANs([]string{san})
-	assert.True(s.T(), s.ViceCert.DoesCertificateAndHostMatch())
-	assert.Contains(s.T(), s.ViceCert.Certificate.DNSNames, san)
+	s.True(s.ViceCert.DoesCertificateAndHostMatch())
+	s.Contains(s.ViceCert.Certificate.DNSNames, san)
 }
 
 func (s *TestSuite) TestDoesKeyAndCertificateTally() {
@@ -63,15 +62,15 @@ func (s *TestSuite) TestDoesKeyAndCertificateTally() {
 		s.T().Errorf("Couldn't generate random key. %s", err.Error())
 	}
 
-	assert.True(s.T(), s.ViceCert.DoesKeyAndCertificateTally())
+	s.True(s.ViceCert.DoesKeyAndCertificateTally())
 
 	s.ViceCert.PrivateKey = randomKey
-	assert.False(s.T(), s.ViceCert.DoesKeyAndCertificateTally())
+	s.False(s.ViceCert.DoesKeyAndCertificateTally())
 
 }
 
 func (s *TestSuite) TestDoesCertificateExpireSoon() {
 
-	assert.True(s.T(), s.ViceCert.DoesCertificateExpireSoon())
+	s.True(s.ViceCert.DoesCertificateExpireSoon())
 
 }

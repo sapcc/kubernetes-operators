@@ -39,6 +39,7 @@ func init() {
 	pflag.StringVar(&options.ViceCrtFile, "vice-cert", "/etc/vice-president/secrets/vice.cert", "A PEM encoded certificate file.")
 	pflag.StringVar(&options.ViceKeyFile, "vice-key", "/etc/vice-president/secrets/vice.key", "A PEM encoded private key file.")
 	pflag.StringVar(&options.IntermediateCertificate, "intermediate-cert", "/etc/vice-president/secrets/intermediate.cert", "A PEM encoded intermediate certificate.")
+	pflag.StringVar(&options.RootCACertificate, "ca-cert", "/etc/vice-president/secrets/ca.cert", "A PEM encoded root CA certificate. (optional. will attempt to download if not found)")
 	pflag.StringVar(&options.IngressAnnotation, "ingress-annotation", "vice-president", "Only an ingress with this annotation will be considered. Must be vice-president:true")
 	pflag.IntVar(&options.MetricPort, "metric-port", 9091, "Port on which Prometheus metrics are exposed.")
 	pflag.BoolVar(&options.IsEnableAdditionalSymantecMetrics, "enable-symantec-metrics", false, "Export additional symantec metrics")

@@ -32,6 +32,7 @@ type Options struct {
 	ViceCrtFile string
 
 	IntermediateCertificate string
+	RootCACertificate string
 
 	IngressAnnotation string
 

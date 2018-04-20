@@ -25,7 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -48,7 +47,7 @@ type Operator struct {
 	Options
 	*Config
 
-	dnsV2Client     *gophercloud.ServiceClient
+	dnsV2Client     *DNSV2Client
 	clientset       *kubernetes.Clientset
 	ingressInformer cache.SharedIndexInformer
 
@@ -72,7 +71,7 @@ func New(options Options) *Operator {
 
 	discoConfig, err := ReadConfig(options.ConfigPath)
 	if err != nil {
-		LogFatal(err.Error())
+		LogFatal("Failed to read config: %v", err)
 	}
 
 	resyncPeriod := time.Duration(options.ResyncPeriod) * time.Minute
@@ -88,7 +87,7 @@ func New(options Options) *Operator {
 		LogFatal("Couldn't create Kubernetes client: %v", err)
 	}
 
-	dnsV2Client, err := newOpenStackDesignateClient(discoConfig.AuthOpts)
+	dnsV2Client, err := NewDNSV2ClientFromAuthOpts(discoConfig.AuthOpts)
 	if err != nil {
 		LogFatal("Unable to create designate v2 client: %v", err)
 	}
@@ -225,7 +224,6 @@ func (disco *Operator) syncHandler(key string) error {
 		for _, rule := range ingress.Spec.Rules {
 			if rule.Host != "" {
 				LogDebug("Checking ingress %v/%v: Hosts: %v", ingress.GetNamespace(), ingress.GetName(), rule.Host)
-				//TODO: SANs?
 				return disco.checkRecords(ingress, rule.Host)
 			}
 		}
@@ -262,33 +260,54 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 	initializeFailureMetrics(labels)
 
 	//TODO: maybe use https://github.com/patrickmn/go-cache instead of listing recordsets every time
-	zone, err := getDesignateZoneByName(disco.dnsV2Client, disco.ZoneName)
+	zone, err := disco.dnsV2Client.getDesignateZoneByName(disco.ZoneName)
 	if err != nil {
 		return err
 	}
 
-	recordsetList, err := listDesignateRecordsetsForZone(disco.dnsV2Client, zone)
+	recordsetList, err := disco.dnsV2Client.listDesignateRecordsetsForZone(zone)
 	if err != nil {
 		return err
 	}
 
+	var recordsetID string
 	for _, rs := range recordsetList {
 		if host == rs.Name {
-			return nil
+			recordsetID = rs.ID
 		}
 	}
 
-	if err := createDesignateRecordset(
-		disco.dnsV2Client,
+	// add finalizer before creating anything. return an
+	if err := disco.ensureDiscoFinalizerExists(ingress); err != nil {
+		return errors.Wrapf(err, "will not create recordset. failed to add finalizer %v", DiscoFinalizer)
+	}
+
+	// there was an attempt to delete the ingress. cleanup recordset
+	if ingressHasDeletionTimestamp(ingress) {
+		if err := disco.dnsV2Client.deleteDesignateRecordset(host, recordsetID, zone.ID); err != nil {
+			recordsetDeletionFailedCounter.With(labels).Inc()
+			return err
+		}
+		recordsetDeletionSuccessCounter.With(labels).Inc()
+		return disco.ensureDiscoFinalizerRemoved(ingress)
+	}
+
+	if recordsetID != "" {
+		LogDebug("recordset for host %v in zone %v already exists", host, zone.Name)
+		return nil
+	}
+
+	if err := disco.dnsV2Client.createDesignateRecordset(
 		zone.ID,
 		addSuffixIfRequired(host),
 		[]string{disco.Record},
 		disco.RecordsetTTL,
 		RecordsetType.CNAME,
 	); err != nil {
+		recordsetCreationFailedCounter.With(labels).Inc()
 		return err
 	}
-
+	recordsetCreationSuccessCounter.With(labels).Inc()
 	return nil
 }
 
@@ -317,6 +336,11 @@ func (disco *Operator) ingressUpdate(old, new interface{}) {
 	LogDebug("Nothing changed. No need to update ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
 }
 
+func (disco *Operator) updateUpstreamIngress(ingress *v1beta1.Ingress) error {
+	_, err := disco.clientset.ExtensionsV1beta1().Ingresses(ingress.GetNamespace()).Update(ingress)
+	return err
+}
+
 func (disco *Operator) isIngressNeedsUpdate(iNew, iOld *v1beta1.Ingress) bool {
 	if !reflect.DeepEqual(iOld.Spec, iNew.Spec) || !reflect.DeepEqual(iOld.GetAnnotations(), iNew.GetAnnotations()) {
 		return true
@@ -326,16 +350,35 @@ func (disco *Operator) isIngressNeedsUpdate(iNew, iOld *v1beta1.Ingress) bool {
 
 func (disco *Operator) ingressDelete(obj interface{}) {
 	i := obj.(*v1beta1.Ingress)
-	if len(i.Spec.Rules) > 0 {
-		rules := []string{}
-		for _, rule := range i.Spec.Rules {
-			rules = append(rules, rule.Host)
-		}
-		LogInfo("Ingress %s/%s was deleted and contains rules for hosts: %v", i.GetNamespace(), i.GetName(), rules)
-
-		//TODO: How about deleting CNAMEs?
-
-		return
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		LogError("Couldn't add ingress %s/%s", i.GetNamespace(), i.GetName())
 	}
-	LogInfo("Ingress %s/%s was deleted and didn't contain rules for hosts", i.GetNamespace(), i.GetName())
+	disco.queue.AddRateLimited(key)
+	LogInfo("Ingress %s/%s was deleted", i.GetNamespace(), i.GetName())
+}
+
+func (disco *Operator) ensureDiscoFinalizerExists(ingress *v1beta1.Ingress) error {
+	// add finalizer if not present and ingress was not deleted
+	if !ingressHasDiscoFinalizer(ingress) && !ingressHasDeletionTimestamp(ingress) {
+		copy := ingress.DeepCopy()
+		copy.Finalizers = append(copy.GetFinalizers(), DiscoFinalizer)
+		return disco.updateUpstreamIngress(copy)
+	}
+	return nil
+}
+
+func (disco *Operator) ensureDiscoFinalizerRemoved(ingress *v1beta1.Ingress) error {
+	// do not remove finalizer if DeletionTimestamp is not set
+	if ingressHasDiscoFinalizer(ingress) && !ingressHasDeletionTimestamp(ingress) {
+		copy := ingress.DeepCopy()
+		for i, fin := range copy.GetFinalizers() {
+			if fin == DiscoFinalizer {
+				// delete but preserve order
+				copy.Finalizers = append(copy.Finalizers[:i], copy.Finalizers[i+1:]...)
+				return disco.updateUpstreamIngress(copy)
+			}
+		}
+	}
+	return nil
 }

@@ -20,6 +20,7 @@
 package president
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -28,10 +29,13 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/sapcc/go-vice"
+	"golang.org/x/crypto/ocsp"
 )
 
 // ViceCertificate contains all properties requires by the Symantec VICE API
@@ -44,6 +48,8 @@ type ViceCertificate struct {
 	Host                    string
 	sans                    []string
 	TID                     string
+	CACertificate           *x509.Certificate
+	ocspServers             []string
 }
 
 func (vc *ViceCertificate) enroll(vp *Operator) error {
@@ -314,11 +320,88 @@ func (vc *ViceCertificate) WithIntermediateCertificate() []*x509.Certificate {
 	}
 }
 
-func contains(stringSlice []string, searchString string) bool {
-	for _, value := range stringSlice {
-		if value == searchString {
+// IsRevoked checks whether the certificate was revoked using OCSP (Online Certificate Status Protocol)
+func (vc *ViceCertificate) IsRevoked() bool {
+	if err := vc.getRootCA(); err != nil {
+		LogError(err.Error())
+		return false
+	}
+
+	if err := vc.getOCSPURIs(); err != nil {
+		LogError(err.Error())
+		return false
+	}
+
+	for _, uri := range vc.ocspServers {
+		ocspResponse, err := vc.issueOCSPRequest(uri)
+		if err != nil {
+			LogError(err.Error())
+			return false
+		}
+
+		if ocspResponse.Status == ocsp.Revoked {
+			LogInfo("certificate for host %s was revoked at %v. reason: %v", vc.Host, ocspResponse.RevokedAt, ocspRevokationReasonToString(ocspResponse.RevocationReason))
 			return true
 		}
+		LogDebug("certificate for host %v is %v", vc.Host, ocspStatusToString(ocspResponse.Status))
 	}
+
 	return false
+}
+
+func (vc *ViceCertificate) issueOCSPRequest(ocspURI string) (*ocsp.Response, error) {
+	ocspRequest, e := ocsp.CreateRequest(vc.Certificate, vc.CACertificate, nil)
+	if e != nil {
+		LogError(e.Error())
+	}
+	ocspRequestReader := bytes.NewReader(ocspRequest)
+	httpResponse, err := http.Post(ocspURI, "application/ocsp-request", ocspRequestReader)
+	defer httpResponse.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	ocspResponseBytes, err := ioutil.ReadAll(httpResponse.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return ocsp.ParseResponse(ocspResponseBytes, vc.CACertificate)
+}
+
+func (vc *ViceCertificate) getOCSPURIs() error {
+	ocspServers := vc.Certificate.OCSPServer
+	if ocspServers != nil {
+		vc.ocspServers = ocspServers
+		return nil
+	}
+	return fmt.Errorf("failed to get OCSP URIs. certificate OCSP URI is %v", ocspServers)
+}
+
+func (vc *ViceCertificate) getRootCA() error {
+	caIssuerURIList := vc.Certificate.IssuingCertificateURL
+	if caIssuerURIList == nil || len(caIssuerURIList) == 0 {
+		return fmt.Errorf("failed to get CA Issuer URI. certificate CA Issuer URI is %v", vc.Certificate.IssuingCertificateURL)
+	}
+
+	caIssuerURI := caIssuerURIList[0]
+	fileName := getFileNameFromURI(caIssuerURI)
+	filePath := TmpPath + fileName
+
+	var certByte []byte
+	certByte, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		certByte, err = downloadAndPersistFile(caIssuerURI, filePath)
+		if err != nil {
+			return err
+		}
+	}
+
+	ca, err := x509.ParseCertificate(certByte)
+	if err != nil {
+		return err
+	}
+
+	vc.CACertificate = ca
+	return nil
 }

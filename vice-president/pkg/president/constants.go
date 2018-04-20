@@ -61,4 +61,7 @@ const (
 
 	// BaseDelay defines the delay after which an ingress is added to the workqueue
 	BaseDelay = 5 * time.Second
+
+	// TmpPath points to tmp
+	TmpPath = "/tmp/"
 )
