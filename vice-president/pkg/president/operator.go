@@ -455,7 +455,7 @@ func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate) string {
 	}
 
 	if viceCert.IsRevoked() {
-		LogInfo("Enrolling new certificate after revocation", viceCert.Host)
+		LogInfo("Enrolling new certificate after revocation for host %s", viceCert.Host)
 		return IngressStateEnroll
 	}
 
