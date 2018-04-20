@@ -32,6 +32,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/sapcc/go-vice"
@@ -270,17 +271,11 @@ func (vc *ViceCertificate) DoesRemoteCertificateMatch() bool {
 	defer conn.Close()
 
 	cert := conn.ConnectionState().PeerCertificates[0]
-	if cert.Equal(vc.Certificate) {
-		LogDebug("Remote certificate of host %v matches.", vc.Host)
-	} else {
-		LogInfo("Mismatching remote certificate. Expected:\n"+
-			"host %v but got %v \n"+
-			"SANs: %v but got %v \n"+
-			"valid from %v but got %v \n"+
-			"valid until %v but got %v \n", vc.Host, cert.Subject.CommonName, vc.GetSANs(), cert.DNSNames, vc.Certificate.NotBefore, cert.NotBefore, vc.Certificate.NotAfter, cert.NotAfter)
+
+	if err := vc.compareRemoteCert(cert); err != nil {
+		LogInfo(err.Error())
 		return false
 	}
-
 	return true
 }
 
@@ -403,5 +398,28 @@ func (vc *ViceCertificate) getRootCA() error {
 	}
 
 	vc.CACertificate = ca
+	return nil
+}
+
+func (vc *ViceCertificate) compareRemoteCert(remoteCert *x509.Certificate) error {
+	if vc.Host != remoteCert.Subject.CommonName {
+		return fmt.Errorf("mismatching host. expected %s, got %s", vc.Host, remoteCert.Subject.CommonName)
+	}
+	sort.Strings(vc.GetSANs())
+	gotSANs := sort.StringSlice(remoteCert.DNSNames)
+	sort.Strings(gotSANs)
+
+	if !isStringSlicesEqual(vc.GetSANs(), gotSANs) {
+		return fmt.Errorf("mismatching SANs. expected %v, got %v", vc.GetSANs(), gotSANs)
+	}
+
+	if !vc.Certificate.NotBefore.Equal(remoteCert.NotBefore) {
+		return fmt.Errorf("mismatching validity: notBefore. expected %v, got %v", vc.Certificate.NotBefore, remoteCert.NotBefore)
+	}
+
+	if !vc.Certificate.NotAfter.Equal(remoteCert.NotAfter) {
+		return fmt.Errorf("mismatching validity: notAfter. expected %v, got %v", vc.Certificate.NotAfter, remoteCert.NotAfter)
+	}
+
 	return nil
 }

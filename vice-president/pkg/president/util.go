@@ -196,7 +196,6 @@ func LogFatal(msg string, args ...interface{}) {
 
 func doLog(logLevel string, msg string, args []interface{}) {
 	msg = strings.TrimPrefix(msg, "\n")
-	msg = strings.Replace(msg, "\n", "\\n", -1) //avoid multiline log messages
 	msg = fmt.Sprintf("%s: %s", logLevel, msg)
 	if logLevel == "FATAL" {
 		log.Fatalf(msg+"\n", args...)
@@ -290,4 +289,13 @@ func downloadAndPersistFile(CAURI string, filePath string) ([]byte, error) {
 func getFileNameFromURI(URI string) string {
 	f := strings.Split(URI, "/")
 	return f[len(f)-1]
+}
+
+func isStringSlicesEqual(a, b []string) bool {
+	for _, k := range a {
+		if !contains(b, k) {
+			return false
+		}
+	}
+	return true
 }
