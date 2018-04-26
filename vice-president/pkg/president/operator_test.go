@@ -20,15 +20,12 @@
 package president
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"io/ioutil"
 	"path"
 	"testing"
 
-	"crypto/rand"
-	"crypto/rsa"
-
-	"io/ioutil"
-
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
@@ -66,8 +63,8 @@ func (s *TestSuite) TestGetCertificateFromSecret() {
 		s.T().Errorf("Couldn't get certificate from secret: %s", err.Error())
 	}
 
-	assert.Equal(s.T(), s.Cert, certificate)
-	assert.Equal(s.T(), s.Key, privateKey)
+	s.Assert().Equal(s.Cert, certificate)
+	s.Assert().Equal(s.Key, privateKey)
 
 }
 
@@ -90,8 +87,8 @@ func (s *TestSuite) TestUpdateCertificateInSecret() {
 		s.T().Error(err)
 	}
 
-	assert.Equal(s.T(), s.ViceCert.Certificate, certificate)
-	assert.Equal(s.T(), s.ViceCert.PrivateKey, privateKey)
+	s.Assert().Equal(s.ViceCert.Certificate, certificate)
+	s.Assert().Equal(s.ViceCert.PrivateKey, privateKey)
 }
 
 func (s *TestSuite) TestEnrollCertificate() {
@@ -100,7 +97,7 @@ func (s *TestSuite) TestEnrollCertificate() {
 		s.T().Error(err)
 	}
 
-	assert.Equal(s.T(), "87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.TID)
+	s.Assert().Equal("87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.TID)
 }
 
 func (s *TestSuite) TestRenewCertificate() {
@@ -109,7 +106,7 @@ func (s *TestSuite) TestRenewCertificate() {
 		s.T().Error(err)
 	}
 
-	assert.Equal(s.T(), "87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.TID)
+	s.Assert().Equal("87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.TID)
 }
 
 func (s *TestSuite) TestApproveCertificate() {
@@ -148,7 +145,7 @@ func (s *TestSuite) TestGenerateWriteReadPrivateKey() {
 		s.T().Error(err)
 	}
 
-	assert.Equal(s.T(), key, rKey)
+	s.Assert().Equal(key, rKey)
 
 }
 
@@ -174,7 +171,7 @@ func (s *TestSuite) TestIngressVicePresidentialAnnotation() {
 	}
 
 	for expectedBool, ingress := range testData {
-		assert.Equal(s.T(), expectedBool, s.VP.isTakeCareOfIngress(ingress))
+		s.Assert().Equal(expectedBool, s.VP.isTakeCareOfIngress(ingress))
 	}
 
 }
@@ -231,5 +228,32 @@ func (s *TestSuite) TestWriteCertificateChain() {
 	}
 
 	//FIXME: actually this should equal
-	assert.NotEqual(s.T(), expectedChainPEM, removeSpecialCharactersFromPEM(chainPEM))
+	s.Assert().Equal(expectedChainPEM, removeSpecialCharactersFromPEM(chainPEM))
+}
+
+func (s *TestSuite) TestRateLimitExceeded() {
+	// set rate limit
+	s.VP.VicePresidentConfig.RateLimit = 2
+	hostName := "rateLimitedHost"
+	vc := &ViceCertificate{
+		Host: hostName,
+	}
+	vc.SetIngressKey(Namespace, IngressName)
+
+	s.Assert().NoError(s.VP.enrollCertificate(vc))
+	nReq, ok := s.VP.rateLimitMap.Load(hostName)
+	s.Assert().True(ok)
+	s.Assert().Equal(1, nReq.(int))
+
+	s.Assert().NoError(s.VP.enrollCertificate(vc))
+	nReq, ok = s.VP.rateLimitMap.Load(hostName)
+	s.Assert().True(ok)
+	s.Assert().Equal(2, nReq.(int))
+
+	// 3rd enrollment is expected to be skipped since the limit of 2 requests for the host was reached.
+	// this is logged and the number of requests is not incremented
+	s.Assert().NoError(s.VP.enrollCertificate(vc))
+	nReq, ok = s.VP.rateLimitMap.Load(hostName)
+	s.Assert().True(ok)
+	s.Assert().Equal(2, nReq.(int))
 }

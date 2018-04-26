@@ -33,6 +33,7 @@ import (
 	"net"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/sapcc/go-vice"
@@ -51,6 +52,19 @@ type ViceCertificate struct {
 	TID                     string
 	CACertificate           *x509.Certificate
 	ocspServers             []string
+	ingressKey              string
+}
+
+// NewViceCertificate returns a new vice certificate
+func NewViceCertificate(host, ingressNamespace, ingressName string, sans []string, intermediateCertificate *x509.Certificate, roots *x509.CertPool) *ViceCertificate {
+	vc := &ViceCertificate{
+		Host: host,
+		IntermediateCertificate: intermediateCertificate,
+		Roots: roots,
+	}
+	vc.SetSANs(sans)
+	vc.SetIngressKey(ingressNamespace, ingressName)
+	return vc
 }
 
 func (vc *ViceCertificate) enroll(vp *Operator) error {
@@ -290,6 +304,11 @@ func (vc *ViceCertificate) GetSANs() []string {
 	return vc.sans
 }
 
+// GetSANsString returns the concatenated list of SANs
+func (vc *ViceCertificate) GetSANsString() string {
+	return strings.Join(vc.GetSANs(), ",")
+}
+
 // SetSANs set the SANs of the certificate. Also checks if the common name is part of the SANs.
 func (vc *ViceCertificate) SetSANs(sans []string) {
 	if contains(sans, vc.Host) != true {
@@ -422,4 +441,14 @@ func (vc *ViceCertificate) compareRemoteCert(remoteCert *x509.Certificate) error
 	}
 
 	return nil
+}
+
+// SetIngressKey sets the ingress key <namespace>/<name>
+func (vc *ViceCertificate) SetIngressKey(ingressNamespace, ingressName string) {
+	vc.ingressKey = fmt.Sprintf("%s/%s", ingressNamespace, ingressName)
+}
+
+// GetIngressKey returns the ingress key <namespace>/<name>
+func (vc *ViceCertificate) GetIngressKey() string {
+	return vc.ingressKey
 }

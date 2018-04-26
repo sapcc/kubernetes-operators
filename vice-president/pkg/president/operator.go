@@ -71,6 +71,9 @@ type Operator struct {
 	CertificateRecheckInterval time.Duration
 
 	queue workqueue.RateLimitingInterface
+
+	// stores mapping of { host <string> : numAPIRequests <int>}
+	rateLimitMap sync.Map
 }
 
 // New creates a new operator using the given options
@@ -128,7 +131,8 @@ func New(options Options) *Operator {
 		IntermediateCertificate:    intermediateCert,
 		ResyncPeriod:               resyncPeriod,
 		CertificateRecheckInterval: certificateRecheckInterval,
-		queue: workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(30*time.Second, 600*time.Second)),
+		queue:        workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(30*time.Second, 600*time.Second)),
+		rateLimitMap: sync.Map{},
 	}
 
 	IngressInformer := cache.NewSharedIndexInformer(
@@ -200,12 +204,16 @@ func (vp *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGr
 	}
 
 	ticker := time.NewTicker(vp.CertificateRecheckInterval)
+	tickerResetRateLimit := time.NewTicker(1 * time.Hour)
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
 				vp.checkCertificates()
 				LogInfo("Next check in %v", vp.CertificateRecheckInterval)
+			case <-tickerResetRateLimit.C:
+				vp.resetRateLimits()
+				LogInfo("Resetting all rate limits")
 			case <-stopCh:
 				ticker.Stop()
 				return
@@ -294,7 +302,7 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 		switch state {
 		case IngressStateEnroll:
 			if err := vp.enrollCertificate(viceCert); err != nil {
-				LogInfo("Couldn't enroll new certificate for ingress %s/%s and host %s: %s", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, err)
+				LogInfo("Couldn't enroll new certificate for ingress %s and host %s: %s", viceCert.GetIngressKey(), viceCert.Host, err)
 
 				enrollFailedCounter.With(labels).Inc()
 
@@ -306,7 +314,7 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 
 		case IngressStateRenew:
 			if err := vp.renewCertificate(viceCert); err != nil {
-				LogInfo("Couldn't renew certificate for ingress %s/%s, host %s using TID %s: %s.", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, viceCert.TID, err)
+				LogInfo("Couldn't renew certificate for ingress %s, host %s using TID %s: %s.", viceCert.GetIngressKey(), viceCert.Host, viceCert.TID, err)
 
 				renewFailedCounter.With(labels).Inc()
 
@@ -319,10 +327,10 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 
 		case IngressStateApprove:
 			if viceCert.Certificate != nil && viceCert.TID == "" {
-				LogInfo("Certificate for ingress %s/%s, host %s was automatically approved", ingress.GetNamespace(), ingress.GetName(), viceCert.Host)
+				LogInfo("Certificate for ingress %s, host %s was automatically approved", viceCert.GetIngressKey(), viceCert.Host)
 			} else {
 				if err := vp.approveCertificate(viceCert); err != nil {
-					LogInfo("Couldn't approve certificate for ingress %s/%s, host %s using TID %s: %s", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, viceCert.TID, err)
+					LogInfo("Couldn't approve certificate for ingress %s, host %s using TID %s: %s", viceCert.GetIngressKey(), viceCert.Host, viceCert.TID, err)
 					approveFailedCounter.With(labels).Inc()
 					return err
 				}
@@ -339,7 +347,7 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 
 		case IngressStatePickup:
 			if err := vp.pickupCertificate(viceCert); err != nil {
-				LogInfo("Couldn't pickup certificate for ingress %s/%s, host %s using TID %s: %s.", ingress.GetNamespace(), ingress.GetName(), viceCert.Host, viceCert.TID, err)
+				LogInfo("Couldn't pickup certificate for ingress %s, host %s using TID %s: %s.", viceCert.GetIngressKey(), viceCert.Host, viceCert.TID, err)
 
 				pickupFailedCounter.With(labels).Inc()
 
@@ -389,9 +397,7 @@ func (vp *Operator) isTakeCareOfIngress(ingress *v1beta1.Ingress) bool {
 
 func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host string, sans []string, secretName string) (*ViceCertificate, *v1.Secret, error) {
 
-	vc := &ViceCertificate{Host: host, IntermediateCertificate: vp.IntermediateCertificate, Roots: vp.RootCertPool}
-	vc.SetSANs(sans)
-
+	vc := NewViceCertificate(host, ingress.GetNamespace(), ingress.GetName(), sans, vp.IntermediateCertificate, vp.RootCertPool)
 	secret, err := vp.clientset.Secrets(ingress.GetNamespace()).Get(secretName, meta_v1.GetOptions{})
 
 	// does the secret exist?
@@ -477,8 +483,11 @@ func (vp *Operator) updateCertificateAndKeyInSecret(secret *v1.Secret, vc *ViceC
 	return nil
 }
 
-// EnrollCertificate triggers the enrollment of a certificate
+// EnrollCertificate triggers the enrollment of a certificate if the rate limit is not exceeded
 func (vp *Operator) enrollCertificate(vc *ViceCertificate) error {
+	if vp.checkRateLimitForHostExceeded(vc) {
+		return nil
+	}
 	if err := vc.enroll(vp); err != nil {
 		LogError("Couldn't enroll certificate for host %s: %s", vc.Host, err)
 		return err
@@ -486,8 +495,11 @@ func (vp *Operator) enrollCertificate(vc *ViceCertificate) error {
 	return nil
 }
 
-// RenewCertificate triggers the renewal of a certificate
+// RenewCertificate triggers the renewal of a certificate if the rate limit is not exceeded
 func (vp *Operator) renewCertificate(vc *ViceCertificate) error {
+	if vp.checkRateLimitForHostExceeded(vc) {
+		return nil
+	}
 	if err := vc.renew(vp); err != nil {
 		LogError("Couldn't renew certificate for host %s: %s", vc.Host, err)
 		return err
@@ -756,4 +768,29 @@ func (vp *Operator) isSecretReferencedByIngress(secret *v1.Secret) *v1beta1.Ingr
 		}
 	}
 	return nil
+}
+
+func (vp *Operator) resetRateLimits() {
+	vp.rateLimitMap = sync.Map{}
+	apiRateLimitHitGauge.Reset()
+}
+
+func (vp *Operator) checkRateLimitForHostExceeded(viceCert *ViceCertificate) bool {
+	if vp.VicePresidentConfig.RateLimit == -1 {
+		return false
+	}
+	if n, ok := vp.rateLimitMap.LoadOrStore(viceCert.Host, 1); ok {
+		numRequests := n.(int)
+		if numRequests >= vp.VicePresidentConfig.RateLimit {
+			LogInfo("Limit of %v requests/hour for host %s reached. Skipping", vp.VicePresidentConfig.RateLimit, viceCert.Host)
+			apiRateLimitHitGauge.With(prometheus.Labels{
+				"ingress": viceCert.GetIngressKey(),
+				"host":    viceCert.Host,
+				"sans":    viceCert.GetSANsString(),
+			}).Set(1.0)
+			return true
+		}
+		vp.rateLimitMap.Store(viceCert.Host, numRequests+1)
+	}
+	return false
 }
