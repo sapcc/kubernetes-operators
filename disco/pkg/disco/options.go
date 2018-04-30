@@ -19,7 +19,9 @@
 
 package disco
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+)
 
 // Options to configure your disco operator
 type Options struct {
@@ -45,6 +47,9 @@ func (o *Options) applyDefaultsIfNotSet() {
 	if o.Threadiness <= 0 {
 		o.Threadiness = 1
 	}
+	o.IngressAnnotation = trimQuotesAndSpace(o.IngressAnnotation)
+	o.ZoneName = trimQuotesAndSpace(o.ZoneName)
+	o.Record = trimQuotesAndSpace(o.Record)
 }
 
 // CheckOptions verifies the Options and sets default values, if necessary

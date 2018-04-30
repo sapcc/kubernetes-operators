@@ -59,23 +59,22 @@ func newAuthenticatedProviderClient(ao AuthOpts) (provider *gophercloud.Provider
 
 	provider, err = openstack.NewClient(ao.AuthURL)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not initialize openstack client: %v")
+		return nil, errors.Wrapf(err, "could not initialize openstack client: %v")
 	}
-
 	provider.UseTokenLock()
 
 	err = openstack.AuthenticateV3(provider, opts, gophercloud.EndpointOpts{})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "openstack authentication failed")
 	}
 
 	if provider.TokenID == "" {
-		return nil, errors.New("token is empty. authentication failed")
+		return nil, errors.New("token is empty. openstack authentication failed")
 	}
-	return
+	return provider, err
 }
 
-func newOpenStackDesignateClient(ao AuthOpts) (*gophercloud.ServiceClient, error) {
+func NewOpenStackDesignateClient(ao AuthOpts) (*gophercloud.ServiceClient, error) {
 	provider, err := newAuthenticatedProviderClient(ao)
 	if err != nil {
 		return nil, err
@@ -83,6 +82,6 @@ func newOpenStackDesignateClient(ao AuthOpts) (*gophercloud.ServiceClient, error
 
 	return openstack.NewDNSV2(
 		provider,
-		gophercloud.EndpointOpts{Availability: gophercloud.AvailabilityPublic},
+		gophercloud.EndpointOpts{Region: ao.RegionName, Availability: gophercloud.AvailabilityPublic},
 	)
 }
