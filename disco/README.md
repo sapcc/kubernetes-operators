@@ -5,8 +5,6 @@
 
 The DISCO operator automatically discovers Ingresses in the Kubernetes cluster and creates corresponding CNAMEs in OpenStack Desginate. 
 
-Current status: **Beta**
-
 ## Features
 
   - Discovers required CNAMEs via Kubernetes API  
@@ -28,6 +26,25 @@ metadata:
   annotations:
     disco: "true"
 ```
+
+**Fine-tuning:**  
+
+The operator has to be configured with a default record.
+However, this can also be set on the ingress using the following annotation:
+```
+disco/record: < record >
+```
+
+Per default type of all records will be `CNAME`.
+This can be set to one of `A`, `SOA`, `NS`, `CNAME` using the following annotation:
+```
+disco/record-type: <record type>
+```
+
+Moreover, a description can be provided via the annotation:
+```
+disco/record-description: < description >
+``` 
 
 ## Configuration
 
@@ -94,4 +111,26 @@ Usage of disco:
 -v, --v Level                          log level for V logs
     --vmodule moduleSpec               comma-separated list of pattern=N settings for file-filtered logging
     --zone-name string                 Name of the zone in which the recordset will be created
+```
+
+## Limitations
+
+If an Ingress defines multiple hosts, as shown below, deleting one rule will currently not trigger the deletion of the record in Designate.
+```
+spec:
+  rules:
+  - host: party.subdomain.tld
+    http:
+      paths:
+      - backend:
+          serviceName: party-service
+          servicePort: 80
+        path: /
+  - host: disco.subdomain.tld
+    http:
+      paths:
+      - backend:
+          serviceName: disco-service
+          servicePort: 80
+        path: /
 ```

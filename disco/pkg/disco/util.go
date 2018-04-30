@@ -39,6 +39,18 @@ func newClientConfig(options Options) (*rest.Config, error) {
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
 }
 
+var LogLevel = struct {
+	DEBUG,
+	INFO,
+	ERROR,
+	FATAL string
+}{
+	"DEBUG",
+	"INFO",
+	"ERROR",
+	"FATAL",
+}
+
 func isDebug() bool {
 	if os.Getenv("DEBUG") == "1" {
 		return true
@@ -49,7 +61,7 @@ func isDebug() bool {
 // LogInfo logs info messages
 func LogInfo(msg string, args ...interface{}) {
 	doLog(
-		"INFO",
+		LogLevel.INFO,
 		msg,
 		args,
 	)
@@ -58,7 +70,7 @@ func LogInfo(msg string, args ...interface{}) {
 // LogError logs error messages
 func LogError(msg string, args ...interface{}) {
 	doLog(
-		"ERROR",
+		LogLevel.ERROR,
 		msg,
 		args,
 	)
@@ -68,7 +80,7 @@ func LogError(msg string, args ...interface{}) {
 func LogDebug(msg string, args ...interface{}) {
 	if isDebug() {
 		doLog(
-			"DEBUG",
+			LogLevel.DEBUG,
 			msg,
 			args,
 		)
@@ -77,19 +89,17 @@ func LogDebug(msg string, args ...interface{}) {
 
 // LogFatal logs debug messages, if DEBUG is enabled
 func LogFatal(msg string, args ...interface{}) {
-	if isDebug() {
-		doLog(
-			"FATAL",
-			msg,
-			args,
-		)
-	}
+	doLog(
+		LogLevel.FATAL,
+		msg,
+		args,
+	)
 }
 
 func doLog(logLevel string, msg string, args []interface{}) {
 	msg = strings.TrimPrefix(msg, "\n")
 	msg = fmt.Sprintf("%s: %s", logLevel, msg)
-	if logLevel == "FATAL" {
+	if logLevel == LogLevel.FATAL {
 		log.Fatalf(msg+"\n", args...)
 		return
 	}
@@ -122,4 +132,25 @@ func addSuffixIfRequired(s string) string {
 		return s + "."
 	}
 	return s
+}
+
+func mergeMaps(src, dst map[string]string) map[string]string {
+	if src == nil {
+		return dst
+	}
+	if dst == nil {
+		return src
+	}
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+func trimQuotesAndSpace(s string) string {
+	if s == "" {
+		return s
+	}
+	st := strings.Trim(s, `"`)
+	return strings.TrimSpace(st)
 }

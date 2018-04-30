@@ -20,5 +20,14 @@ const (
 	DefaultThreadiness = 1
 
 	// DiscoFinalizer as seen on the ingress
-	DiscoFinalizer = "disco"
+	DiscoFinalizer = "disco.extensions/v1beta1"
+
+	// DiscoAnnotationRecord allows setting a different record than the default per ingress
+	DiscoAnnotationRecord = "disco/record"
+
+	// DiscoAnnotationRecordType allows setting the record type. Must be CNAME, A, NS, SOA. Default: CNAME
+	DiscoAnnotationRecordType = "disco/record-type"
+
+	// DiscoAnnotationRecordDescription allows setting the records description
+	DiscoAnnotationRecordDescription = "disco/record-description"
 )

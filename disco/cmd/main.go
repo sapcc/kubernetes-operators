@@ -45,7 +45,7 @@ func init() {
 	pflag.IntVar(&options.ResyncPeriod, "resync-period", disco.DefaultResyncPeriod, "ResyncPeriod[min] defines the base period after which the cache is resynced")
 	pflag.IntVar(&options.RecordsetTTL, "recordset-ttl", disco.DefaultRecordsetTTL, "The Recordset TTL in seconds")
 	pflag.StringVar(&options.Record, "record", "", "Default record data used for the CNAME")
-	pflag.StringVar(&options.ZoneName, "zone-name", "", "Name of the zone in which the recordset will be created")
+	pflag.StringVar(&options.ZoneName, "zone-name", "", "Name of the openstack zone in which the recordset will be created")
 }
 
 func main() {
