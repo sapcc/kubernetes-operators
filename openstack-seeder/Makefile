@@ -33,7 +33,7 @@ clean:
 	rm -rf bin/*
 
 vendor:
-	glide install --strip-vendor --strip-vcs && glide update --strip-vendor --strip-vcs
+	glide install --strip-vendor && glide update --strip-vendor
 
 linux:  bin/linux/openstack-seeder
 darwin: bin/darwin/openstack-seeder

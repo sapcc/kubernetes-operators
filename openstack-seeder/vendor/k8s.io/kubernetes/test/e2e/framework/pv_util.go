@@ -690,6 +690,14 @@ func createPD(zone string) (string, error) {
 			return "", err
 		}
 
+		if zone == "" && TestContext.CloudConfig.MultiZone {
+			zones, err := gceCloud.GetAllZonesFromCloudProvider()
+			if err != nil {
+				return "", err
+			}
+			zone, _ = zones.PopAny()
+		}
+
 		tags := map[string]string{}
 		err = gceCloud.CreateDisk(pdName, gcecloud.DiskTypeSSD, zone, 10 /* sizeGb */, tags)
 		if err != nil {
@@ -721,16 +729,11 @@ func createPD(zone string) (string, error) {
 			return "", err
 		}
 
-		if azureCloud.BlobDiskController == nil {
-			return "", fmt.Errorf("BlobDiskController is nil, it's not expected.")
-		}
-
-		diskUri, err := azureCloud.BlobDiskController.CreateBlobDisk(pdName, "standard_lrs", 1, false)
+		_, diskURI, _, err := azureCloud.CreateVolume(pdName, "" /* account */, "" /* sku */, "" /* location */, 1 /* sizeGb */)
 		if err != nil {
 			return "", err
 		}
-
-		return diskUri, nil
+		return diskURI, nil
 	} else {
 		return "", fmt.Errorf("provider does not support volume creation")
 	}
@@ -775,11 +778,7 @@ func deletePD(pdName string) error {
 		if err != nil {
 			return err
 		}
-		if azureCloud.BlobDiskController == nil {
-			return fmt.Errorf("BlobDiskController is nil, it's not expected.")
-		}
-		diskName := pdName[(strings.LastIndex(pdName, "/") + 1):]
-		err = azureCloud.BlobDiskController.DeleteBlobDisk(diskName, false)
+		err = azureCloud.DeleteVolume(pdName)
 		if err != nil {
 			Logf("failed to delete Azure volume %q: %v", pdName, err)
 			return err

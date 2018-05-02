@@ -107,7 +107,7 @@ type ProjectSpec struct {
 	Name            string                `json:"name" yaml:"name"`                                         // project name
 	Description     string                `json:"description,omitempty" yaml:"description,omitempty"`       // project description
 	Enabled         *bool                 `json:"enabled,omitempty" yaml:"enabled,omitempty"`               // boolean flag to indicate if the project is enabled
-	ParentId        string                `json:"parent_id,omitempty" yaml:"parent_id,omitempty"`           // (optional) parent project id
+	Parent          string                `json:"parent,omitempty" yaml:"parent,omitempty"`                 // (optional) parent project id
 	IsDomain        *bool                 `json:"is_domain,omitempty" yaml:"is_domain,omitempty"`           // is the project actually a domain?
 	Endpoints       []ProjectEndpointSpec `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`           // list of project endpoint filters
 	RoleAssignments []RoleAssignmentSpec  `json:"roles,omitempty" yaml:"roles,omitempty"`                   // list of project-role-assignments

@@ -39,8 +39,9 @@ import (
 )
 
 const (
-	defaultFSType             = "ext4"
-	defaultStorageAccountType = storage.StandardLRS
+	defaultFSType                   = "ext4"
+	defaultStorageAccountType       = storage.StandardLRS
+	defaultAzureDataDiskCachingMode = v1.AzureDataDiskCachingNone
 )
 
 type dataDisk struct {
@@ -61,7 +62,7 @@ var (
 		string(api.AzureDedicatedBlobDisk),
 		string(api.AzureManagedDisk))
 
-	supportedStorageAccountTypes = sets.NewString("Premium_LRS", "Standard_LRS")
+	supportedStorageAccountTypes = sets.NewString("Premium_LRS", "Standard_LRS", "Standard_GRS", "Standard_RAGRS")
 )
 
 func getPath(uid types.UID, volName string, host volume.VolumeHost) string {
@@ -144,7 +145,7 @@ func normalizeStorageAccountType(storageAccountType string) (storage.SkuName, er
 
 func normalizeCachingMode(cachingMode v1.AzureDataDiskCachingMode) (v1.AzureDataDiskCachingMode, error) {
 	if cachingMode == "" {
-		return v1.AzureDataDiskCachingReadWrite, nil
+		return defaultAzureDataDiskCachingMode, nil
 	}
 
 	if !supportedCachingModes.Has(string(cachingMode)) {
@@ -192,6 +193,28 @@ func listAzureDiskPath(io ioHandler) []string {
 	}
 	glog.V(12).Infof("Azure sys disks paths: %v", azureDiskList)
 	return azureDiskList
+}
+
+// getDiskLinkByDevName get disk link by device name from devLinkPath, e.g. /dev/disk/azure/, /dev/disk/by-id/
+func getDiskLinkByDevName(io ioHandler, devLinkPath, devName string) (string, error) {
+	dirs, err := io.ReadDir(devLinkPath)
+	glog.V(12).Infof("azureDisk - begin to find %s from %s", devName, devLinkPath)
+	if err == nil {
+		for _, f := range dirs {
+			diskPath := devLinkPath + f.Name()
+			glog.V(12).Infof("azureDisk - begin to Readlink: %s", diskPath)
+			link, linkErr := io.Readlink(diskPath)
+			if linkErr != nil {
+				glog.Warningf("azureDisk - read link (%s) error: %v", diskPath, linkErr)
+				continue
+			}
+			if libstrings.HasSuffix(link, devName) {
+				return diskPath, nil
+			}
+		}
+		return "", fmt.Errorf("device name(%s) is not found under %s", devName, devLinkPath)
+	}
+	return "", fmt.Errorf("read %s error: %v", devLinkPath, err)
 }
 
 func scsiHostRescan(io ioHandler) {
@@ -266,15 +289,25 @@ func findDiskByLunWithConstraint(lun int, io ioHandler, exe exec.Interface, azur
 				dir := path.Join(sys_path, name, "block")
 				if dev, err := io.ReadDir(dir); err == nil {
 					found := false
+					devName := dev[0].Name()
 					for _, diskName := range azureDisks {
-						glog.V(12).Infof("azure disk - validating disk %q with sys disk %q", dev[0].Name(), diskName)
-						if string(dev[0].Name()) == diskName {
+						glog.V(12).Infof("azureDisk - validating disk %q with sys disk %q", devName, diskName)
+						if devName == diskName {
 							found = true
 							break
 						}
 					}
 					if !found {
-						return "/dev/" + dev[0].Name(), nil
+						devLinkPaths := []string{"/dev/disk/azure/scsi1/", "/dev/disk/by-id/"}
+						for _, devLinkPath := range devLinkPaths {
+							diskPath, err := getDiskLinkByDevName(io, devLinkPath, devName)
+							if err == nil {
+								glog.V(4).Infof("azureDisk - found %s by %s under %s", diskPath, devName, devLinkPath)
+								return diskPath, nil
+							}
+							glog.Warningf("azureDisk - getDiskLinkByDevName by %s under %s failed, error: %v", devName, devLinkPath, err)
+						}
+						return "/dev/" + devName, nil
 					}
 				}
 			}

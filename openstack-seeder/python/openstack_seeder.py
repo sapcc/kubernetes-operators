@@ -597,6 +597,19 @@ def seed_projects(domain, projects, args, sess):
                     domain.name, project))
             continue
 
+        # resolve parent project if specified
+        if 'parent' in project:
+            parent_id = get_project_id(domain.name, project['parent'], keystone)
+            if not parent_id:
+                logging.warn(
+                    "skipping project '%s/%s', since its parent project is missing" % (
+                        domain.name, project))
+                continue
+            else:
+                project['parent_id'] = parent_id
+
+        project.pop('parent', None)
+
         result = keystone.projects.list(domain=domain.id,
                                         name=project['name'])
         if not result:
