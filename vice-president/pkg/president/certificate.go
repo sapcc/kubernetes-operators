@@ -69,7 +69,7 @@ func NewViceCertificate(host, ingressNamespace, ingressName string, sans []strin
 
 func (vc *ViceCertificate) enroll(vp *Operator) error {
 
-	LogInfo("Enrolling certificate for host %s", vc.Host)
+	LogInfo("enrolling certificate for host %s", vc.Host)
 
 	if err := vc.createCSR(vp); err != nil {
 		return err
@@ -91,13 +91,13 @@ func (vc *ViceCertificate) enroll(vp *Operator) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("Couldn't enroll new certificate for host %v using CSR %v: %s", vc.Host, string(vc.CSR), err)
+		return fmt.Errorf("couldn't enroll new certificate for host %v using CSR %v: %s", vc.Host, string(vc.CSR), err)
 	}
 
 	// enrollment will only contain a cert if automatic approval is enabled
 	if enrollment.Certificate != "" {
 		if vc.Certificate, err = readCertificateFromPEM([]byte(enrollment.Certificate)); err != nil {
-			return fmt.Errorf("Failed to read certificate for host %v: %s", vc.Host, err)
+			return fmt.Errorf("failed to read certificate for host %v: %s", vc.Host, err)
 		}
 	}
 
@@ -108,37 +108,47 @@ func (vc *ViceCertificate) enroll(vp *Operator) error {
 }
 
 func (vc *ViceCertificate) renew(vp *Operator) error {
-
-	LogInfo("Renewing certificate for host %s", vc.Host)
+	LogInfo("renewing certificate for host %s", vc.Host)
 
 	if err := vc.createCSR(vp); err != nil {
 		return err
 	}
 
+	oc, err := writeCertificatesToPEM([]*x509.Certificate{vc.Certificate})
+	if err != nil {
+		return fmt.Errorf("failed to create certificate for host %s: %v", vc.Host, err)
+	}
+	b64EncByte, err := base64Encode(oc)
+	if err != nil {
+		return err
+	}
+	originalCertificate := string(b64EncByte)
+
 	renewal, err := vp.viceClient.Certificates.Renew(
 		context.TODO(),
 		&vice.RenewRequest{
-			FirstName:          vp.VicePresidentConfig.FirstName,
-			LastName:           vp.VicePresidentConfig.LastName,
-			Email:              vp.VicePresidentConfig.EMail,
-			CSR:                string(vc.CSR),
-			SubjectAltNames:    vc.GetSANs(),
-			OriginalChallenge:  vp.VicePresidentConfig.DefaultChallenge,
-			Challenge:          vp.VicePresidentConfig.DefaultChallenge,
-			CertProductType:    vice.CertProductType.Server,
-			ServerType:         vice.ServerType.OpenSSL,
-			ValidityPeriod:     vice.ValidityPeriod.OneYear,
-			SignatureAlgorithm: vice.SignatureAlgorithm.SHA256WithRSAEncryption,
+			FirstName:           vp.VicePresidentConfig.FirstName,
+			LastName:            vp.VicePresidentConfig.LastName,
+			Email:               vp.VicePresidentConfig.EMail,
+			CSR:                 string(vc.CSR),
+			SubjectAltNames:     vc.GetSANs(),
+			OriginalChallenge:   vp.VicePresidentConfig.DefaultChallenge,
+			Challenge:           vp.VicePresidentConfig.DefaultChallenge,
+			OriginalCertificate: originalCertificate,
+			CertProductType:     vice.CertProductType.Server,
+			ServerType:          vice.ServerType.OpenSSL,
+			ValidityPeriod:      vice.ValidityPeriod.OneYear,
+			SignatureAlgorithm:  vice.SignatureAlgorithm.SHA256WithRSAEncryption,
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("Couldn't renew certificate for host %v using CSR %v: %s", vc.Host, string(vc.CSR), err)
+		return fmt.Errorf("couldn't renew certificate for host %v using CSR %v: %s", vc.Host, string(vc.CSR), err)
 	}
 
 	// renewal will only contain a cert if automatic approval is enabled
 	if renewal.Certificate != "" {
 		if vc.Certificate, err = readCertificateFromPEM([]byte(renewal.Certificate)); err != nil {
-			return fmt.Errorf("Failed to read certificate for host %v: %v", vc.Host, err)
+			return fmt.Errorf("failed to read certificate for host %v: %v", vc.Host, err)
 		}
 	}
 
@@ -149,10 +159,10 @@ func (vc *ViceCertificate) renew(vp *Operator) error {
 }
 
 func (vc *ViceCertificate) pickup(vp *Operator) error {
-	LogInfo("Picking up certificate for host %s", vc.Host)
+	LogInfo("picking up certificate for host %s", vc.Host)
 
 	if vc.TID == "" {
-		return fmt.Errorf("Cannot pick up a certificate for host %v without its Transaction ID", vc.Host)
+		return fmt.Errorf("cannot pick up a certificate for host %v without its Transaction ID", vc.Host)
 	}
 
 	pickup, err := vp.viceClient.Certificates.Pickup(
@@ -162,12 +172,12 @@ func (vc *ViceCertificate) pickup(vp *Operator) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("Couldn't pickup certificate for host %v with TID %s", vc.Host, vc.TID)
+		return fmt.Errorf("couldn't pickup certificate for host %v with TID %s", vc.Host, vc.TID)
 	}
 
 	pickedUpCert, err := readCertificateFromPEM([]byte(pickup.Certificate))
 	if err != nil {
-		return fmt.Errorf("Failed to read certificate for host %v: %v", vc.Host, err)
+		return fmt.Errorf("failed to read certificate for host %v: %v", vc.Host, err)
 	}
 	vc.Certificate = pickedUpCert
 
@@ -176,10 +186,10 @@ func (vc *ViceCertificate) pickup(vp *Operator) error {
 
 func (vc *ViceCertificate) approve(vp *Operator) error {
 
-	LogInfo("Approving certificate for host %s using TID %s", vc.Host, vc.TID)
+	LogInfo("approving certificate for host %s using TID %s", vc.Host, vc.TID)
 
 	if vc.TID == "" {
-		return fmt.Errorf("Cannot approve a certificate for host %s without its Transaction ID", vc.Host)
+		return fmt.Errorf("cannot approve a certificate for host %s without its Transaction ID", vc.Host)
 	}
 
 	approval, err := vp.viceClient.Certificates.Approve(
@@ -189,16 +199,16 @@ func (vc *ViceCertificate) approve(vp *Operator) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("Couldn't approve certificate for host %s using TID %s", vc.Host, vc.TID)
+		return fmt.Errorf("couldn't approve certificate for host %s using TID %s", vc.Host, vc.TID)
 	}
 
 	if approval.Certificate == "" {
-		return fmt.Errorf("Approval didn't contain a certificate for host %s using TID %s", vc.Host, vc.TID)
+		return fmt.Errorf("approval didn't contain a certificate for host %s using TID %s", vc.Host, vc.TID)
 	}
 
 	approvedCert, err := readCertificateFromPEM([]byte(approval.Certificate))
 	if err != nil {
-		return fmt.Errorf("Failed to read certificate for host %s: %v", vc.Host, err)
+		return fmt.Errorf("failed to read certificate for host %s: %v", vc.Host, err)
 	}
 	vc.Certificate = approvedCert
 
@@ -208,7 +218,7 @@ func (vc *ViceCertificate) approve(vp *Operator) error {
 func (vc *ViceCertificate) createCSR(vp *Operator) error {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return fmt.Errorf("Couldn't generate private key: %s", err)
+		return fmt.Errorf("couldn't generate private key: %s", err)
 	}
 
 	csr, err := vice.CreateCSR(
@@ -225,7 +235,7 @@ func (vc *ViceCertificate) createCSR(vp *Operator) error {
 		key,
 	)
 	if err != nil {
-		return fmt.Errorf("Couldn't create CSR: %s", err)
+		return fmt.Errorf("couldn't create CSR: %s", err)
 	}
 
 	vc.CSR = csr
@@ -238,7 +248,7 @@ func (vc *ViceCertificate) createCSR(vp *Operator) error {
 // DoesCertificateAndHostMatch checks that a given certificate is for the correct host
 func (vc *ViceCertificate) DoesCertificateAndHostMatch() bool {
 	if err := vc.Certificate.VerifyHostname(vc.Host); err != nil {
-		LogError("Failed to verify certificate for host %s: %s", vc.Host, err.Error())
+		LogError("failed to verify certificate for host %s: %s", vc.Host, err.Error())
 		return false
 	}
 	return true
@@ -263,7 +273,7 @@ func (vc *ViceCertificate) DoesKeyAndCertificateTally() bool {
 	}
 
 	if _, err := tls.X509KeyPair(pem.EncodeToMemory(&certBlock), pem.EncodeToMemory(&keyBlock)); err != nil {
-		LogInfo("Certificate and Key don't match: %s ", err)
+		LogInfo("certificate and Key don't match: %s ", err)
 		return false
 	}
 	return true
@@ -271,7 +281,6 @@ func (vc *ViceCertificate) DoesKeyAndCertificateTally() bool {
 
 // DoesRemoteCertificateMatch connects to the URL, does the TLS handshake and checks if the certificates match
 func (vc *ViceCertificate) DoesRemoteCertificateMatch() bool {
-
 	conn, err := tls.DialWithDialer(
 		&net.Dialer{Timeout: 2 * time.Second},
 		"tcp",
@@ -279,7 +288,7 @@ func (vc *ViceCertificate) DoesRemoteCertificateMatch() bool {
 		&tls.Config{InsecureSkipVerify: true},
 	)
 	if err != nil {
-		LogError("Couldn't fetch remote certificate for %v: %v. Skipping", vc.Host, err)
+		LogError("couldn't fetch remote certificate for %v: %v. Skipping", vc.Host, err)
 		return true
 	}
 	defer conn.Close()
@@ -349,7 +358,7 @@ func (vc *ViceCertificate) IsRevoked() bool {
 	for _, uri := range vc.ocspServers {
 		ocspResponse, err := vc.issueOCSPRequest(uri)
 		if err != nil {
-			LogError(err.Error())
+			LogError("ocsp check for host %s failed: %v", vc.Host, err.Error())
 			return false
 		}
 

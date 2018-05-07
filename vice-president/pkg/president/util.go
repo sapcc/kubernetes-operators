@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -196,7 +197,6 @@ func LogFatal(msg string, args ...interface{}) {
 }
 
 func doLog(logLevel string, msg string, args []interface{}) {
-	msg = strings.TrimPrefix(msg, "\n")
 	msg = fmt.Sprintf("%s: %s", logLevel, msg)
 	if logLevel == "FATAL" {
 		log.Fatalf(msg+"\n", args...)
@@ -312,4 +312,14 @@ func ingressGetSecretKeysFromAnnotation(ingress *v1beta1.Ingress) (tlsKeySecretK
 		tlsCertSecretKey = certSecretkey
 	}
 	return tlsKeySecretKey, tlsCertSecretKey
+}
+
+func base64Encode(toBeEncoded []byte) ([]byte, error) {
+	encLen := base64.StdEncoding.EncodedLen(len(toBeEncoded))
+	b64Encoded := make([]byte, encLen)
+	base64.StdEncoding.Encode(b64Encoded, toBeEncoded)
+	if b64Encoded == nil {
+		return nil, fmt.Errorf("base64 encoding failed. input was: %v", string(toBeEncoded))
+	}
+	return b64Encoded, nil
 }

@@ -29,7 +29,12 @@ which can be useful in case of an error.
 ## Usage
 
 A [helm chart](https://github.com/sapcc/helm-charts/tree/master/system/kube-system/charts/vice-president/) can be used to bring the vice president to your cluster.  
-Note that the vice president considers only ingresses that are annotated with `vice-president: "true"`.
+Note that the vice president considers only ingresses that are annotated with 
+```
+metadata:
+  annotations:
+    vice-president: "true"
+```
 Other ingresses are ignored. See [example ingress](./example/vice-presidential-ingress.yaml).
 
 The following configuration and certificates are required.  
@@ -45,6 +50,21 @@ Usage of vice-president:
       --kubeconfig             string  Path to kubeconfig file with authorization and master location information. Optional if vice president is deployed in a cluster.
       --ingress-annotation 	   string  Only an ingress with this annotation will be considered. (default: { "vice-president": true } )
       --metric-listen-address  string  Port on which Prometheus metrics are exposed. (default ":9091")
+```
+
+Moreover the operator stores the TLS key and certificate in the secret using the following format:
+```
+...
+data:
+  tls.crt: < x509.Certificate >
+  tls.key: < rsa.PrivateKey >
+```
+The keys `tls.crt`,`tls.key` can be adjusted by setting an annotation. Example:
+```
+metadata:
+  annotations:
+    vice-president/tls-cert-secret-key: "ssl.cert"
+    vice-president/tls-key-secret-key:  "ssl.key"
 ```
 
 ## Debug

@@ -370,7 +370,7 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 		default:
 			// check the secret. does it exist? does it contain a certificate and a key?
 			// if not create empty secret in namespace of ingress and set to enrolling state
-			v, s, err := vp.checkSecret(ingress, host, sans, secretName)
+			v, s, err := vp.checkSecret(ingress, host, sans, secretName, tlsKeySecretKey, tlsCertSecretKey)
 			if err != nil || v.Certificate == nil {
 				if s == nil {
 					// This is bad. Return an error here to allow requeueing the ingress after some time.
@@ -397,7 +397,7 @@ func (vp *Operator) isTakeCareOfIngress(ingress *v1beta1.Ingress) bool {
 	return false
 }
 
-func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host string, sans []string, secretName string) (*ViceCertificate, *v1.Secret, error) {
+func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host string, sans []string, secretName, tlsKeySecretKey, tlsCertSecretKey string) (*ViceCertificate, *v1.Secret, error) {
 
 	vc := NewViceCertificate(host, ingress.GetNamespace(), ingress.GetName(), sans, vp.IntermediateCertificate, vp.RootCertPool)
 	secret, err := vp.clientset.Secrets(ingress.GetNamespace()).Get(secretName, meta_v1.GetOptions{})
@@ -422,8 +422,6 @@ func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host string, sans []st
 		LogError("Couldn't get secret %s/%s: %v", ingress.GetNamespace(), secretName, err)
 		return nil, nil, err
 	}
-
-	tlsKeySecretKey, tlsCertSecretKey := ingressGetSecretKeysFromAnnotation(ingress)
 
 	// does the certificate exist? can it be decoded and parsed from the secret?
 	cert, key, err := vp.getCertificateAndKeyFromSecret(secret, tlsKeySecretKey, tlsCertSecretKey)
@@ -545,29 +543,30 @@ func (vp *Operator) createEmptySecret(nameSpace, secretName string, labels map[s
 
 // GetCertificateAndKeyFromSecret extracts the certificate and private key from a given secrets spec
 func (vp *Operator) getCertificateAndKeyFromSecret(secret *v1.Secret, tlsKeySecretKey, tlsCertSecretKey string) (*x509.Certificate, *rsa.PrivateKey, error) {
-	var certificate *x509.Certificate
-	var privateKey *rsa.PrivateKey
+	var (
+		certificate *x509.Certificate
+		privateKey  *rsa.PrivateKey
+	)
 
 	if secret.Data == nil {
-		return nil, nil, fmt.Errorf("secrets %s/%s has no data", secret.GetNamespace(), secret.GetName())
+		return nil, nil, fmt.Errorf("secret %s/%s is empty", secret.GetNamespace(), secret.GetName())
 	}
 
-	// do not just return on error. we might be able to pickup the certificate if the key still exists.
-	if c, ok := secret.Data[tlsCertSecretKey]; ok {
-		cert, err := readCertificateFromPEM(c)
-		if err != nil {
-			LogError(err.Error())
-		} else {
-			certificate = cert
-		}
-	}
-
-	if k, ok := secret.Data[tlsKeySecretKey]; ok {
+	if k, ok := secret.Data[tlsKeySecretKey]; ok && len(k) > 0 {
 		key, err := readPrivateKeyFromPEM(k)
 		if err != nil {
-			LogError(err.Error())
+			return nil, nil, fmt.Errorf("no tls key found in secret %s/%s", secret.GetNamespace(), secret.GetName())
 		}
 		privateKey = key
+	}
+
+	// key exists and we might be able to pickup the certificate.
+	if c, ok := secret.Data[tlsCertSecretKey]; ok && len(c) > 0 {
+		cert, err := readCertificateFromPEM(c)
+		if err != nil {
+			return nil, privateKey, err
+		}
+		certificate = cert
 	}
 
 	if certificate == nil && privateKey == nil {
