@@ -64,4 +64,10 @@ const (
 
 	// TmpPath points to tmp
 	TmpPath = "/tmp/"
+
+	// AnnotationTLSKeySecretKey the key to use in the secret for the tls key
+	AnnotationTLSKeySecretKey = "vice-president/tls-key-secret-key"
+
+	// AnnotationTLSCertSecretKey the key to use in the secret for the tls cert
+	AnnotationTLSCertSecretKey = "vice-president/tls-cert-secret-key"
 )

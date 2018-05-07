@@ -33,6 +33,7 @@ import (
 
 	"golang.org/x/crypto/ocsp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 func isAnyStringEmpty(s ...string) bool {
@@ -298,4 +299,17 @@ func isStringSlicesEqual(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func ingressGetSecretKeysFromAnnotation(ingress *v1beta1.Ingress) (tlsKeySecretKey, tlsCertSecretKey string) {
+	tlsKeySecretKey = SecretTLSKeyType
+	tlsCertSecretKey = SecretTLSCertType
+
+	if keySecretKey, ok := ingress.GetAnnotations()[AnnotationTLSKeySecretKey]; ok {
+		tlsKeySecretKey = keySecretKey
+	}
+	if certSecretkey, ok := ingress.GetAnnotations()[AnnotationTLSCertSecretKey]; ok {
+		tlsCertSecretKey = certSecretkey
+	}
+	return tlsKeySecretKey, tlsCertSecretKey
 }

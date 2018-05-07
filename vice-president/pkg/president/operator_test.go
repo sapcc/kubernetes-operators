@@ -57,6 +57,7 @@ func (s *TestSuite) TestGetCertificateFromSecret() {
 				SecretTLSKeyType:  s.KeyByte,
 			},
 		},
+		SecretTLSKeyType, SecretTLSCertType,
 	)
 
 	if err != nil {
@@ -76,13 +77,13 @@ func (s *TestSuite) TestUpdateCertificateInSecret() {
 		},
 	}
 
-	updatedSecret, err := s.VP.addCertificateAndKeyToSecret(s.ViceCert, secret)
+	updatedSecret, err := s.VP.addCertificateAndKeyToSecret(s.ViceCert, secret, SecretTLSKeyType, SecretTLSCertType)
 	if err != nil {
 		s.T().Error(err)
 	}
 
 	// verify
-	certificate, privateKey, err := s.VP.getCertificateAndKeyFromSecret(updatedSecret)
+	certificate, privateKey, err := s.VP.getCertificateAndKeyFromSecret(updatedSecret, SecretTLSKeyType, SecretTLSCertType)
 	if err != nil {
 		s.T().Error(err)
 	}

@@ -290,6 +290,8 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 	// add 0 to initialize the metrics that indicate failure
 	initializeFailureMetrics(labels)
 
+	tlsKeySecretKey, tlsCertSecretKey := ingressGetSecretKeysFromAnnotation(ingress)
+
 	var viceCert *ViceCertificate
 	var secret *v1.Secret
 	var state, nextState string
@@ -336,7 +338,7 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 				}
 			}
 
-			if err := vp.updateCertificateAndKeyInSecret(secret, viceCert); err != nil {
+			if err := vp.updateCertificateAndKeyInSecret(secret, viceCert, tlsKeySecretKey, tlsCertSecretKey); err != nil {
 				approveFailedCounter.With(labels).Inc()
 				return err
 			}
@@ -356,7 +358,7 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 
 			pickupSuccessCounter.With(labels).Inc()
 
-			if err := vp.updateCertificateAndKeyInSecret(secret, viceCert); err != nil {
+			if err := vp.updateCertificateAndKeyInSecret(secret, viceCert, tlsKeySecretKey, tlsCertSecretKey); err != nil {
 				return err
 			}
 
@@ -421,8 +423,10 @@ func (vp *Operator) checkSecret(ingress *v1beta1.Ingress, host string, sans []st
 		return nil, nil, err
 	}
 
+	tlsKeySecretKey, tlsCertSecretKey := ingressGetSecretKeysFromAnnotation(ingress)
+
 	// does the certificate exist? can it be decoded and parsed from the secret?
-	cert, key, err := vp.getCertificateAndKeyFromSecret(secret)
+	cert, key, err := vp.getCertificateAndKeyFromSecret(secret, tlsKeySecretKey, tlsCertSecretKey)
 	if err != nil {
 		// do not return an error. get a new tls cert and key instead.
 		LogError(err.Error())
@@ -470,9 +474,9 @@ func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate) string {
 }
 
 // UpdateCertificateInSecret adds or updates the certificate in a secret
-func (vp *Operator) updateCertificateAndKeyInSecret(secret *v1.Secret, vc *ViceCertificate) error {
+func (vp *Operator) updateCertificateAndKeyInSecret(secret *v1.Secret, vc *ViceCertificate, tlsKeySecretKey, tlsCertSecretKey string) error {
 	LogInfo("Add/Update certificate and key in secret %s/%s", secret.GetNamespace(), secret.GetName())
-	updatedSecret, err := vp.addCertificateAndKeyToSecret(vc, secret)
+	updatedSecret, err := vp.addCertificateAndKeyToSecret(vc, secret, tlsKeySecretKey, tlsCertSecretKey)
 	if err != nil {
 		LogError("Couldn't update secret %s/%s: %s", secret.Namespace, secret.Name, err)
 		return err
@@ -540,48 +544,40 @@ func (vp *Operator) createEmptySecret(nameSpace, secretName string, labels map[s
 }
 
 // GetCertificateAndKeyFromSecret extracts the certificate and private key from a given secrets spec
-func (vp *Operator) getCertificateAndKeyFromSecret(secret *v1.Secret) (*x509.Certificate, *rsa.PrivateKey, error) {
+func (vp *Operator) getCertificateAndKeyFromSecret(secret *v1.Secret, tlsKeySecretKey, tlsCertSecretKey string) (*x509.Certificate, *rsa.PrivateKey, error) {
 	var certificate *x509.Certificate
 	var privateKey *rsa.PrivateKey
+
+	if secret.Data == nil {
+		return nil, nil, fmt.Errorf("secrets %s/%s has no data", secret.GetNamespace(), secret.GetName())
+	}
+
 	// do not just return on error. we might be able to pickup the certificate if the key still exists.
-	if secret.Data != nil {
-		for k, v := range secret.Data {
-			// force tls_cert to tls.cert | force tls_key to tls.key
-			k = strings.Replace(k, "_", ".", -1)
-			// force tls.cert to tls.crt
-			k = strings.Replace(k, "cert", "crt", -1)
-			switch k {
-			case SecretTLSCertType:
-				if v == nil || len(v) == 0 {
-					LogInfo("Certificate in secret %s/%s is empty", secret.GetNamespace(), secret.GetName())
-					continue
-				}
-				c, err := readCertificateFromPEM(v)
-				if err != nil {
-					LogError(err.Error())
-				}
-				certificate = c
-			case SecretTLSKeyType:
-				if v == nil || len(v) == 0 {
-					LogInfo("Key in secret %s/%s is empty", secret.GetNamespace(), secret.GetName())
-					continue
-				}
-				k, err := readPrivateKeyFromPEM(v)
-				if err != nil {
-					LogError(err.Error())
-				}
-				privateKey = k
-			}
+	if c, ok := secret.Data[tlsCertSecretKey]; ok {
+		cert, err := readCertificateFromPEM(c)
+		if err != nil {
+			LogError(err.Error())
+		} else {
+			certificate = cert
 		}
 	}
-	if certificate == nil && privateKey == nil {
-		return nil, nil, fmt.Errorf("Neither certificate nor private key found in secret: %s/%s", secret.Namespace, secret.Name)
+
+	if k, ok := secret.Data[tlsKeySecretKey]; ok {
+		key, err := readPrivateKeyFromPEM(k)
+		if err != nil {
+			LogError(err.Error())
+		}
+		privateKey = key
 	}
+
+	if certificate == nil && privateKey == nil {
+		return nil, nil, fmt.Errorf("neither certificate nor private key found in secret: %s/%s", secret.Namespace, secret.Name)
+	}
+
 	return certificate, privateKey, nil
 }
 
-func (vp *Operator) addCertificateAndKeyToSecret(viceCert *ViceCertificate, oldSecret *v1.Secret) (*v1.Secret, error) {
-
+func (vp *Operator) addCertificateAndKeyToSecret(viceCert *ViceCertificate, oldSecret *v1.Secret, tlsKeySecretKey, tlsCertSecretKey string) (*v1.Secret, error) {
 	certPEM, err := writeCertificatesToPEM(viceCert.WithIntermediateCertificate())
 	if err != nil {
 		LogError("Couldn't export certificate to PEM: %s", err)
@@ -603,8 +599,8 @@ func (vp *Operator) addCertificateAndKeyToSecret(viceCert *ViceCertificate, oldS
 		secret.Data = map[string][]byte{}
 	}
 
-	secret.Data[SecretTLSCertType] = removeSpecialCharactersFromPEM(certPEM)
-	secret.Data[SecretTLSKeyType] = removeSpecialCharactersFromPEM(keyPEM)
+	secret.Data[tlsCertSecretKey] = removeSpecialCharactersFromPEM(certPEM)
+	secret.Data[tlsKeySecretKey] = removeSpecialCharactersFromPEM(keyPEM)
 
 	return secret, nil
 }
