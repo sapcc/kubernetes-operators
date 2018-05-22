@@ -22,13 +22,10 @@ package president
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"io/ioutil"
-	"path"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 )
@@ -44,141 +41,47 @@ func TestMySuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }
 
-func (s *TestSuite) TestGetCertificateFromSecret() {
-
-	certificate, privateKey, err := s.VP.getCertificateAndKeyFromSecret(
-		&v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: Namespace,
-				Name:      SecretName,
-			},
-			Data: map[string][]byte{
-				SecretTLSCertType: s.CertByte,
-				SecretTLSKeyType:  s.KeyByte,
-			},
-		},
-		SecretTLSKeyType, SecretTLSCertType,
-	)
-
-	if err != nil {
-		s.T().Errorf("Couldn't get certificate from secret: %s", err.Error())
-	}
-
-	s.Assert().Equal(s.Cert, certificate)
-	s.Assert().Equal(s.Key, privateKey)
-
-}
-
-func (s *TestSuite) TestUpdateCertificateInSecret() {
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      SecretName,
-			Namespace: Namespace,
-		},
-	}
-
-	updatedSecret, err := s.VP.addCertificateAndKeyToSecret(s.ViceCert, secret, SecretTLSKeyType, SecretTLSCertType)
-	if err != nil {
-		s.T().Error(err)
-	}
-
-	// verify
-	certificate, privateKey, err := s.VP.getCertificateAndKeyFromSecret(updatedSecret, SecretTLSKeyType, SecretTLSCertType)
-	if err != nil {
-		s.T().Error(err)
-	}
-
-	s.Assert().Equal(s.ViceCert.Certificate, certificate)
-	s.Assert().Equal(s.ViceCert.PrivateKey, privateKey)
-}
-
 func (s *TestSuite) TestEnrollCertificate() {
-
-	if err := s.VP.enrollCertificate(s.ViceCert); err != nil {
-		s.T().Error(err)
-	}
-
-	s.Assert().Equal("87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.TID)
+	err := s.VP.enrollCertificate(s.ViceCert)
+	s.NoError(err, "there should be no error enrolling a new certificate")
+	s.Equal("87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.TID)
 }
 
 func (s *TestSuite) TestRenewCertificate() {
-
-	if err := s.VP.renewCertificate(s.ViceCert); err != nil {
-		s.T().Error(err)
-	}
-
-	s.Assert().Equal("87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.TID)
+	err := s.VP.renewCertificate(s.ViceCert)
+	s.NoError(err, "there should be no error renewing a certificate")
+	s.Equal("87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.TID)
 }
 
 func (s *TestSuite) TestApproveCertificate() {
-
 	vc := s.ViceCert
 	vc.TID = "87d1adc3f1f262409092ec31fb09f4c7"
-
-	if err := s.VP.approveCertificate(vc); err != nil {
-		s.T().Error(err)
-	}
+	err := s.VP.approveCertificate(vc)
+	s.NoError(err, "there should be no error approving a certificate")
 }
 
 func (s *TestSuite) TestPickupCertificate() {
-
 	vc := s.ViceCert
 	vc.TID = "87d1adc3f1f262409092ec31fb09f4c7"
 
-	if err := s.VP.pickupCertificate(vc); err != nil {
-		s.T().Error(err)
-	}
+	err := s.VP.pickupCertificate(s.ViceCert)
+	s.NoError(err, "there should be no error picking up a certificate")
 }
 
 func (s *TestSuite) TestGenerateWriteReadPrivateKey() {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		s.T().Error(err)
-	}
+	s.Require().NoError(err, "there must be no error generating a private key")
 
 	keyPEM, err := writePrivateKeyToPEM(key)
-	if err != nil {
-		s.T().Error(err)
-	}
+	s.NoError(err, "there should be no error writing a private key to PEM format")
 
 	rKey, err := readPrivateKeyFromPEM(keyPEM)
-	if err != nil {
-		s.T().Error(err)
-	}
+	s.NoError(err, "there should be no error reading a private key from PEM format")
 
-	s.Assert().Equal(key, rKey)
-
-}
-
-func (s *TestSuite) TestIngressVicePresidentialAnnotation() {
-
-	testData := map[bool]*v1beta1.Ingress{
-		true: {
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: Namespace,
-				Name:      "DoNotIgnoreMe!",
-				Annotations: map[string]string{
-					"vice-president": "true",
-				},
-			},
-		},
-		false: {
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   Namespace,
-				Name:        "IgnoreMe!",
-				Annotations: map[string]string{},
-			},
-		},
-	}
-
-	for expectedBool, ingress := range testData {
-		s.Assert().Equal(expectedBool, s.VP.isTakeCareOfIngress(ingress))
-	}
-
+	s.Equal(key, rKey, "the keys should be equal after transformation to and from PEM format")
 }
 
 func (s *TestSuite) TestStateMachine() {
-
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: Namespace,
@@ -197,39 +100,19 @@ func (s *TestSuite) TestStateMachine() {
 		},
 	}
 
-	if err := s.ResetIngressInformerStoreAndAddIngress(ingress); err != nil {
-		s.T().Error(err)
-	}
+	err := s.ResetIngressInformerStoreAndAddIngress(ingress)
+	s.Require().NoError(err, "there must be no error resetting the ingress informer store")
 
 	// go for it. secret doesn't exist. this should result in below error. also the state should have changed to IngressStateEnroll
 	key, err := cache.MetaNamespaceKeyFunc(ingress)
-	if err != nil {
-		s.T().Error(err)
-	}
+	s.Require().NoError(err, "there must be no error creating a key from an ingress")
 
 	s.VP.queue.Add(key)
 
 	if err := s.VP.syncHandler(key); err != nil {
-		// TODO: need to mock this
-		if err.Error() != "the server could not find the requested resource (put secrets my-secret)" {
-			//s.T().Error(err)
-		}
+		// TODO: need to mock this. at least the state machine is triggered once
+		s.EqualError(err, "couldn't get nor create secret default/my-secret: couldn't create secret default/my-secret: the server could not find the requested resource (post secrets)")
 	}
-}
-
-func (s *TestSuite) TestWriteCertificateChain() {
-
-	expectedChainPEM, err := ioutil.ReadFile(path.Join(FIXTURES, "chain.pem"))
-
-	chainPEM, err := writeCertificatesToPEM(
-		s.ViceCert.WithIntermediateCertificate(),
-	)
-	if err != nil {
-		s.T().Error(err)
-	}
-
-	//FIXME: actually this should equal
-	s.Assert().Equal(expectedChainPEM, removeSpecialCharactersFromPEM(chainPEM))
 }
 
 func (s *TestSuite) TestRateLimitExceeded() {

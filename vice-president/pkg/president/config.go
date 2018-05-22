@@ -94,8 +94,7 @@ func (c *VicePresidentConfig) checkConfig() {
 	if c.ResyncPeriod < 2 {
 		c.ResyncPeriod = 2
 	}
-	if c.RateLimit < -1 {
-		// unlimited
+	if c.RateLimit <= 0 {
 		c.RateLimit = -1
 	}
 }

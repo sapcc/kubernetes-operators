@@ -67,6 +67,10 @@ metadata:
     vice-president/tls-key-secret-key:  "ssl.key"
 ```
 
+Setting the annotation `vice-president/replace-cert: "true"` will immediately trigger the replacement of the certificate, 
+which might be helpful while switching from Symantec to Digicert CA.  
+
+
 ## Debug
 
 The vice president provides the following set of metrics, which can be useful for alerting or debugging:  

@@ -55,6 +55,7 @@ type CertificatesService interface {
 	Pickup(context.Context, *PickupRequest) (*Pickup, error)
 	Approve(context.Context, *ApprovalRequest) (*Approval, error)
 	Renew(context.Context, *RenewRequest) (*Renewal, error)
+	Replace(context.Context, *ReplaceRequest) (*Replacement, error)
 	GetTokenCount(context.Context) (*TokenCount, error)
 	GetOrganizationInfo(context.Context) (*OrganizationInfo, error)
 }

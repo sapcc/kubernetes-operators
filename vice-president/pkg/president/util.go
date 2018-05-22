@@ -23,7 +23,6 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -33,8 +32,6 @@ import (
 	"strings"
 
 	"golang.org/x/crypto/ocsp"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 func isAnyStringEmpty(s ...string) bool {
@@ -46,18 +43,6 @@ func isAnyStringEmpty(s ...string) bool {
 		}
 	}
 	return false
-}
-
-func checkError(err error) error {
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("Does already exist")
-		} else if apierrors.IsNotFound(err) {
-			return fmt.Errorf("Not found")
-		}
-		return err
-	}
-	return nil
 }
 
 func readPrivateKeyFromPEM(keyPEM []byte) (*rsa.PrivateKey, error) {
@@ -299,27 +284,4 @@ func isStringSlicesEqual(a, b []string) bool {
 		}
 	}
 	return true
-}
-
-func ingressGetSecretKeysFromAnnotation(ingress *v1beta1.Ingress) (tlsKeySecretKey, tlsCertSecretKey string) {
-	tlsKeySecretKey = SecretTLSKeyType
-	tlsCertSecretKey = SecretTLSCertType
-
-	if keySecretKey, ok := ingress.GetAnnotations()[AnnotationTLSKeySecretKey]; ok {
-		tlsKeySecretKey = keySecretKey
-	}
-	if certSecretkey, ok := ingress.GetAnnotations()[AnnotationTLSCertSecretKey]; ok {
-		tlsCertSecretKey = certSecretkey
-	}
-	return tlsKeySecretKey, tlsCertSecretKey
-}
-
-func base64Encode(toBeEncoded []byte) ([]byte, error) {
-	encLen := base64.StdEncoding.EncodedLen(len(toBeEncoded))
-	b64Encoded := make([]byte, encLen)
-	base64.StdEncoding.Encode(b64Encoded, toBeEncoded)
-	if b64Encoded == nil {
-		return nil, fmt.Errorf("base64 encoding failed. input was: %v", string(toBeEncoded))
-	}
-	return b64Encoded, nil
 }

@@ -59,15 +59,30 @@ const (
 	// IngressStatePickup means that a certificate has to be picked up
 	IngressStatePickup = "pickup"
 
+	// IngressStateReplace means that a certificate has to be replaced
+	IngressStateReplace = "replace"
+
 	// BaseDelay defines the delay after which an ingress is added to the workqueue
 	BaseDelay = 5 * time.Second
 
 	// TmpPath points to tmp
 	TmpPath = "/tmp/"
 
-	// AnnotationTLSKeySecretKey the key to use in the secret for the tls key
+	// AnnotationVicePresident needs to be present on an ingress
+	AnnotationVicePresident = "vice-president"
+
+	// AnnotationTLSKeySecretKey can be used to overwrite the key to use in the secret for the tls key
 	AnnotationTLSKeySecretKey = "vice-president/tls-key-secret-key"
 
-	// AnnotationTLSCertSecretKey the key to use in the secret for the tls cert
+	// AnnotationTLSCertSecretKey can be used to overwrite the key to use in the secret for the tls cert
 	AnnotationTLSCertSecretKey = "vice-president/tls-cert-secret-key"
+
+	// AnnotationCertificateReplacement triggers one-time replacement of certificates for all hosts defined by the ingress
+	AnnotationCertificateReplacement = "vice-president/replace-cert"
+
+	// WaitTimeout ..
+	WaitTimeout = 1 * time.Minute
+
+	// RateLimitPeriod ..
+	RateLimitPeriod = 20 * time.Minute
 )

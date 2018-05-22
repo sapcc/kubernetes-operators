@@ -32,9 +32,7 @@ type Options struct {
 	ViceCrtFile string
 
 	IntermediateCertificate string
-	RootCACertificate string
-
-	IngressAnnotation string
+	RootCACertificate       string
 
 	MetricPort                        int
 	IsEnableAdditionalSymantecMetrics bool
@@ -43,13 +41,13 @@ type Options struct {
 // CheckOptions verifies the Options and sets default values, if necessary
 func (o *Options) CheckOptions() error {
 	if o.ViceCrtFile == "" {
-		return fmt.Errorf("Path to vice certificate not provided. Aborting")
+		return fmt.Errorf("path to vice certificate not provided. Aborting")
 	}
 	if o.ViceKeyFile == "" {
-		return fmt.Errorf("Path to vice key not provided. Aborting")
+		return fmt.Errorf("path to vice key not provided. Aborting")
 	}
 	if o.VicePresidentConfig == "" {
-		return fmt.Errorf("Path to vice config not provided. Aborting")
+		return fmt.Errorf("path to vice config not provided. Aborting")
 	}
 	if o.IntermediateCertificate == "" {
 		LogDebug("Intermediate certificate not provided")
@@ -57,16 +55,12 @@ func (o *Options) CheckOptions() error {
 	if o.KubeConfig == "" {
 		LogDebug("Path to kubeconfig not provided. Using Default")
 	}
-	if o.IngressAnnotation == "" {
-		o.IngressAnnotation = "vice-president"
-		LogDebug("Ingress annotation not provided. Using default 'vice-president'.")
-	}
 
 	if o.MetricPort == 0 {
 		o.MetricPort = 9091
 		LogDebug("Metric port not provided. Using default port: 9091")
 	}
-	if o.IsEnableAdditionalSymantecMetrics == false {
+	if !o.IsEnableAdditionalSymantecMetrics {
 		LogDebug("Not exposing additional Symantec metrics")
 	} else {
 		LogDebug("Exposing additional Symantec metrics")

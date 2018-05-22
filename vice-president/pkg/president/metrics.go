@@ -104,6 +104,24 @@ var approveFailedCounter = prometheus.NewCounterVec(
 	[]string{"ingress", "host", "sans"},
 )
 
+var replaceSuccessCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Namespace: MetricNamespace,
+		Name:      "successful_replacements",
+		Help:      "Counter for successful certificate replacements.",
+	},
+	[]string{"ingress", "host", "sans"},
+)
+
+var replaceFailedCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Namespace: MetricNamespace,
+		Name:      "failed_replacements",
+		Help:      "Counter for failed certificate replacements.",
+	},
+	[]string{"ingress", "host", "sans"},
+)
+
 var apiRateLimitHitGauge = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Namespace: MetricNamespace,
@@ -119,6 +137,7 @@ func initializeFailureMetrics(labels map[string]string) {
 	renewFailedCounter.With(labels).Add(0.0)
 	approveFailedCounter.With(labels).Add(0.0)
 	pickupFailedCounter.With(labels).Add(0.0)
+	replaceFailedCounter.With(labels).Add(0.0)
 }
 
 func registerCollectors(collector prometheus.Collector) {
@@ -134,6 +153,8 @@ func registerCollectors(collector prometheus.Collector) {
 		pickupFailedCounter,
 		approveSuccessCounter,
 		approveFailedCounter,
+		replaceSuccessCounter,
+		replaceFailedCounter,
 		apiRateLimitHitGauge,
 	)
 }
