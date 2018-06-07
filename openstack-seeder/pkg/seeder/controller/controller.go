@@ -1,325 +1,369 @@
-/*
-Copyright 2017 SAP SE
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package controller
 
 import (
-	"context"
-	"flag"
-	"gopkg.in/yaml.v2"
-
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/cache"
-
-	seederv1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/seeder/apis/v1"
-	seederclient "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/seeder/client"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
 	"fmt"
-	"github.com/getsentry/raven-go"
-	"github.com/golang/glog"
-	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"os/exec"
-	"strings"
 	"time"
+
+	"github.com/golang/glog"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	appsinformers "k8s.io/client-go/informers/apps/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	appslisters "k8s.io/client-go/listers/apps/v1"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
+
+	seederv1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1"
+	//clientset "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/clientset/versioned"
+	//seederscheme "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/clientset/versioned/scheme"
+	//informers "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/informers/externalversions/seeder/v1"
+	//listers "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/listers/seeder/v1"
 )
 
-var (
-	VERSION      = "0.0.1.dev"
-	resyncPeriod = 5 * time.Minute
+const controllerAgentName = "openstack-seeder-controller"
+
+const (
+	// SuccessSynced is used as part of the Event 'reason' when a Foo is synced
+	SuccessSynced = "Synced"
+	// ErrResourceExists is used as part of the Event 'reason' when a Foo fails
+	// to sync due to a Deployment of the same name already existing.
+	ErrResourceExists = "ErrResourceExists"
+
+	// MessageResourceExists is the message used for Events when a resource
+	// fails to sync due to a Deployment already existing
+	MessageResourceExists = "Resource %q already exists and is not managed by Foo"
+	// MessageResourceSynced is the message used for an Event fired when a Foo
+	// is synced successfully
+	MessageResourceSynced = "Foo synced successfully"
 )
 
-type Options struct {
-	KubeConfig    string
-	DryRun        bool
-	InterfaceType string
+// Controller is the controller implementation for Foo resources
+type Controller struct {
+	// kubeclientset is a standard kubernetes clientset
+	kubeclientset kubernetes.Interface
+	// sseederclientset is a clientset for our own API group
+	seederclientset clientset.Interface
+
+	deploymentsLister    appslisters.DeploymentLister
+	deploymentsSynced    cache.InformerSynced
+	openstackseedsLister listers.OpenstackSeedLister
+	openstackseedsSynced cache.InformerSynced
+
+	// workqueue is a rate limited work queue. This is used to queue work to be
+	// processed instead of performing it as soon as a change happens. This
+	// means we can ensure we only process a fixed amount of resources at a
+	// time, and makes it easy to ensure we are never processing the same item
+	// simultaneously in two different workers.
+	workqueue workqueue.RateLimitingInterface
+	// recorder is an event recorder for recording Event resources to the
+	// Kubernetes API.
+	recorder record.EventRecorder
 }
 
-type SeederController struct {
-	Options
-	SeederClient *rest.RESTClient
-	SeederScheme *runtime.Scheme
-	seedInformer cache.SharedIndexInformer
-}
+// NewController returns a new sample controller
+func NewController(
+	kubeclientset kubernetes.Interface,
+	sampleclientset clientset.Interface,
+	deploymentInformer appsinformers.DeploymentInformer,
+	fooInformer informers.FooInformer) *Controller {
 
-// New creates a new operator using the given options
-func New(options Options) *SeederController {
+	// Create event broadcaster
+	// Add sample-controller types to the default Kubernetes Scheme so Events can be
+	// logged for sample-controller types.
+	seederscheme.AddToScheme(scheme.Scheme)
+	glog.V(4).Info("Creating event broadcaster")
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartLogging(glog.Infof)
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
-	glog.Infof("Creating new OpenstackSeederController in version %v", VERSION)
-
-	// Create the client config. Use kubeconfig if given, otherwise assume in-cluster.
-	config, err := buildConfig(options.KubeConfig)
-	if err != nil {
-		glog.Fatalf("Couldn't create config: %v", err)
+	controller := &Controller{
+		kubeclientset:        kubeclientset,
+		seederclientset:      sampleclientset,
+		deploymentsLister:    deploymentInformer.Lister(),
+		deploymentsSynced:    deploymentInformer.Informer().HasSynced,
+		openstackseedsLister: fooInformer.Lister(),
+		openstackseedsSynced: fooInformer.Informer().HasSynced,
+		workqueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Foos"),
+		recorder:             recorder,
 	}
 
-	apiextensionsclientset, err := apiextensionsclient.NewForConfig(config)
-	if err != nil {
-		glog.Fatalf("Couldn't create api-extension-client: %v", err)
-	}
-
-	// initialize custom resource using a CustomResourceDefinition if it does not exist
-	_, err = seederclient.CreateCustomResourceDefinition(apiextensionsclientset)
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		glog.Fatalf("Couldn't create OpenstackSeed CRD: %v", err)
-	}
-
-	// make a new config for our extension's API group, using the first config as a baseline
-	seederClient, seederScheme, err := seederclient.NewClient(config)
-	if err != nil {
-		glog.Fatalf("Couldn't create client: %v", err)
-	}
-
-	// start a controller on instances of our custom resource
-	controller := &SeederController{
-		Options:      options,
-		SeederClient: seederClient,
-		SeederScheme: seederScheme,
-	}
+	glog.Info("Setting up event handlers")
+	// Set up an event handler for when Foo resources change
+	fooInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.enqueueFoo,
+		UpdateFunc: func(old, new interface{}) {
+			controller.enqueueFoo(new)
+		},
+	})
+	// Set up an event handler for when Deployment resources change. This
+	// handler will lookup the owner of the given Deployment, and if it is
+	// owned by a Foo resource will enqueue that Foo resource for
+	// processing. This way, we don't need to implement custom logic for
+	// handling Deployment resources. More info on this pattern:
+	// https://github.com/kubernetes/community/blob/8cafef897a22026d42f5e5bb3f104febe7e29830/contributors/devel/controllers.md
+	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.handleObject,
+		UpdateFunc: func(old, new interface{}) {
+			newDepl := new.(*appsv1.Deployment)
+			oldDepl := old.(*appsv1.Deployment)
+			if newDepl.ResourceVersion == oldDepl.ResourceVersion {
+				// Periodic resync will send update events for all known Deployments.
+				// Two different versions of the same Deployment will always have different RVs.
+				return
+			}
+			controller.handleObject(new)
+		},
+		DeleteFunc: controller.handleObject,
+	})
 
 	return controller
 }
 
-func buildConfig(kubeconfig string) (*rest.Config, error) {
-	if kubeconfig != "" {
-		return clientcmd.BuildConfigFromFlags("", kubeconfig)
-	}
-	return rest.InClusterConfig()
-}
+// Run will set up the event handlers for types we are interested in, as well
+// as syncing informer caches and starting workers. It will block until stopCh
+// is closed, at which point it will shutdown the workqueue and wait for
+// workers to finish processing their current work items.
+func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+	defer runtime.HandleCrash()
+	defer c.workqueue.ShutDown()
 
-// Run starts an OpenstackSeed resource controller
-func (c *SeederController) Run(ctx context.Context) error {
-	glog.Info("Running OpenstackSeeder controller")
+	// Start the informer factories to begin populating the informer caches
+	glog.Info("Starting Foo controller")
 
-	// Watch OpenstackSeed objects
-	_, err := c.watchOpenstackSeeds(ctx)
-	if err != nil {
-		glog.Errorf("Failed to register watcher for OpenstackSeed resource: %v", err)
-		return err
-	}
-
-	<-ctx.Done()
-	return ctx.Err()
-}
-
-func (c *SeederController) watchOpenstackSeeds(ctx context.Context) (cache.Controller, error) {
-	source := cache.NewListWatchFromClient(
-		c.SeederClient,
-		seederv1.OpenstackSeedResourcePlural,
-		apiv1.NamespaceAll,
-		fields.Everything())
-
-	informer := cache.NewSharedIndexInformer(
-		source,
-		// The object type.
-		&seederv1.OpenstackSeed{},
-		// resyncPeriod
-		// Every resyncPeriod, all resources in the cache will retrigger events.
-		// Set to 0 to disable the resync.
-		resyncPeriod,
-		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-	)
-
-	// Your custom resource event handlers.
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    c.onAdd,
-		UpdateFunc: c.onUpdate,
-		DeleteFunc: c.onDelete,
-	})
-
-	c.seedInformer = informer
-	go informer.Run(ctx.Done())
-	return informer, nil
-}
-
-func (c *SeederController) onAdd(obj interface{}) {
-	seed := obj.(*seederv1.OpenstackSeed)
-	// NEVER modify objects from the store. It's a read-only, local cache.
-	// You can use Scheme.Copy() to make a deep copy of original object and modify this copy
-	// Or create a copy manually for better performance
-	copyObj, err := c.SeederScheme.Copy(seed)
-	if err != nil {
-		glog.Errorf("ERROR creating a deep copy of openstackseed object: %v", err)
-		return
+	// Wait for the caches to be synced before starting workers
+	glog.Info("Waiting for informer caches to sync")
+	if ok := cache.WaitForCacheSync(stopCh, c.deploymentsSynced, c.openstackseedsSynced); !ok {
+		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
-	seedCopy := copyObj.(*seederv1.OpenstackSeed)
+	glog.Info("Starting workers")
+	// Launch two workers to process Foo resources
+	for i := 0; i < threadiness; i++ {
+		go wait.Until(c.runWorker, time.Second, stopCh)
+	}
 
-	if seedCopy.ObjectMeta.Name != "" {
-		glog.Infof("Added %s/%s - version: %s", seedCopy.ObjectMeta.Namespace, seedCopy.ObjectMeta.Name, seedCopy.ObjectMeta.ResourceVersion)
-		c.seedApply(seedCopy)
+	glog.Info("Started workers")
+	<-stopCh
+	glog.Info("Shutting down workers")
+
+	return nil
+}
+
+// runWorker is a long-running function that will continually call the
+// processNextWorkItem function in order to read and process a message on the
+// workqueue.
+func (c *Controller) runWorker() {
+	for c.processNextWorkItem() {
 	}
 }
 
-func (c *SeederController) onUpdate(oldObj, newObj interface{}) {
-	oldSeed := oldObj.(*seederv1.OpenstackSeed)
-	newSeed := newObj.(*seederv1.OpenstackSeed)
+// processNextWorkItem will read a single work item off the workqueue and
+// attempt to process it, by calling the syncHandler.
+func (c *Controller) processNextWorkItem() bool {
+	obj, shutdown := c.workqueue.Get()
 
-	if newSeed.ObjectMeta.Name != "" {
-		if newSeed.ObjectMeta.ResourceVersion == oldSeed.ObjectMeta.ResourceVersion {
-			return
+	if shutdown {
+		return false
+	}
+
+	// We wrap this block in a func so we can defer c.workqueue.Done.
+	err := func(obj interface{}) error {
+		// We call Done here so the workqueue knows we have finished
+		// processing this item. We also must remember to call Forget if we
+		// do not want this work item being re-queued. For example, we do
+		// not call Forget if a transient error occurs, instead the item is
+		// put back on the workqueue and attempted again after a back-off
+		// period.
+		defer c.workqueue.Done(obj)
+		var key string
+		var ok bool
+		// We expect strings to come off the workqueue. These are of the
+		// form namespace/name. We do this as the delayed nature of the
+		// workqueue means the items in the informer cache may actually be
+		// more up to date that when the item was initially put onto the
+		// workqueue.
+		if key, ok = obj.(string); !ok {
+			// As the item in the workqueue is actually invalid, we call
+			// Forget here else we'd go into a loop of attempting to
+			// process a work item that is invalid.
+			c.workqueue.Forget(obj)
+			runtime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
+			return nil
 		}
-		glog.Infof("Updated %s/%s - version: %s", newSeed.ObjectMeta.Namespace, newSeed.ObjectMeta.Name, newSeed.ObjectMeta.ResourceVersion)
-		copyObj, err := c.SeederScheme.Copy(newSeed)
-		if err != nil {
-			glog.Errorf("ERROR creating a deep copy of openstackseed object: %v", err)
-			return
+		// Run the syncHandler, passing it the namespace/name string of the
+		// Foo resource to be synced.
+		if err := c.syncHandler(key); err != nil {
+			return fmt.Errorf("error syncing '%s': %s", key, err.Error())
 		}
-		seedCopy := copyObj.(*seederv1.OpenstackSeed)
-		c.seedApply(seedCopy)
-	}
-
-}
-
-func (c *SeederController) onDelete(obj interface{}) {
-	seed := obj.(*seederv1.OpenstackSeed)
-	glog.Infof("Deleted %s/%s - version: %s", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, seed.ObjectMeta.ResourceVersion)
-}
-
-func (c *SeederController) seedApply(seed *seederv1.OpenstackSeed) {
-	const seeder_name string = "openstack-seed-loader"
-	result := new(seederv1.OpenstackSeed)
-	result.ObjectMeta = seed.ObjectMeta
-	err := c.resolveSeedDependencies(result, seed)
+		// Finally, if no error occurs we Forget this item so it does not
+		// get queued again until another change happens.
+		c.workqueue.Forget(obj)
+		glog.Infof("Successfully synced '%s'", key)
+		return nil
+	}(obj)
 
 	if err != nil {
-		msg := fmt.Errorf("failed to process openstackseed '%s/%s': %s", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, err.Error())
-		raven.CaptureError(msg, nil)
-		glog.Errorf("ERROR: %s", msg.Error())
-		return
+		runtime.HandleError(err)
+		return true
 	}
 
-	yaml_seed, _ := yaml.Marshal(result.Spec)
-
-	glog.V(1).Infof("Seeding %s/%s ..", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name)
-
-	// spawn a python keystone-seeder as long as there is no functional golang keystone client
-	_, err = exec.LookPath(seeder_name)
-	if err != nil {
-		glog.Errorf("ERROR: python %s not found.", seeder_name)
-		return
-	}
-
-	level := "ERROR"
-	switch flag.Lookup("v").Value.String() {
-	case "0":
-		level = "WARNING"
-	case "1":
-		level = "INFO"
-	default:
-		level = "DEBUG"
-	}
-
-	cmd := exec.Command(seeder_name, "--interface", c.Options.InterfaceType, "-l", level)
-	if c.Options.DryRun {
-		cmd = exec.Command(seeder_name, "--interface", c.Options.InterfaceType, "-l", level, "--dry-run")
-	}
-
-	// inherit the os-environment
-	env := os.Environ()
-	cmd.Env = env
-
-	glog.V(2).Infof("Spawning %s, args: %s, env: %s", cmd.Path, cmd.Args, cmd.Env)
-
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		glog.Error(err)
-	}
-
-	defer stdin.Close()
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err = cmd.Start(); err != nil {
-		glog.Errorf("ERROR: could not spawn %s: ", seeder_name, err)
-	}
-
-	stdin.Write(yaml_seed)
-	stdin.Close()
-	if err := cmd.Wait(); err != nil {
-		msg := fmt.Errorf("failed to seed '%s/%s': %s", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, err.Error())
-		raven.CaptureError(msg, nil)
-		glog.Errorf("ERROR: %s", msg.Error())
-		return
-	}
-	glog.Infof("Seeding %s/%s done.", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name)
+	return true
 }
 
-func (c *SeederController) resolveSeedDependencies(result *seederv1.OpenstackSeed, seed *seederv1.OpenstackSeed) (err error) {
-	if result.VisitedDependencies == nil {
-		result.VisitedDependencies = make(map[string]bool)
-	}
-
-	var name = seed.ObjectMeta.Namespace + "/" + seed.ObjectMeta.Name
-
-	if result.VisitedDependencies[name] {
-		// visited already, skip now
+// syncHandler compares the actual state with the desired, and attempts to
+// converge the two. It then updates the Status block of the Foo resource
+// with the current status of the resource.
+func (c *Controller) syncHandler(key string) error {
+	// Convert the namespace/name string into a distinct namespace and name
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		runtime.HandleError(fmt.Errorf("invalid resource key: %s", key))
 		return nil
 	}
 
-	if len(seed.Spec.Dependencies) > 0 {
-		for _, v := range seed.Spec.Dependencies {
-			var spec *seederv1.OpenstackSeed
-			// check if the dependency contains a namespace
-			dependency := strings.Split(string(v), "/")
-			if len(dependency) < 2 {
-				// add namespace of the spec
-				spec, err = c.loadSeed(seed.ObjectMeta.Namespace + "/" + v)
-			} else {
-				spec, err = c.loadSeed(v)
-			}
-			if err != nil {
-				msg := fmt.Errorf("dependency '%s' of '%s/%s' not found", v, seed.ObjectMeta.Namespace, seed.ObjectMeta.Name)
-				raven.CaptureError(msg, nil)
-				glog.Errorf("ERROR: %s", msg.Error())
-				return err
-			}
-			glog.Infof("Processing dependency '%s' of '%s'.", v, name)
-			err = c.resolveSeedDependencies(result, spec)
-			if err != nil {
-				return err
-			}
+	// Get the Foo resource with this namespace/name
+	foo, err := c.openstackseedsLister.Foos(namespace).Get(name)
+	if err != nil {
+		// The Foo resource may no longer exist, in which case we stop
+		// processing.
+		if errors.IsNotFound(err) {
+			runtime.HandleError(fmt.Errorf("foo '%s' in work queue no longer exists", key))
+			return nil
 		}
+
+		return err
 	}
-	result.VisitedDependencies[name] = true
-	err = result.Spec.MergeSpec(seed.Spec)
+
+	deploymentName := foo.Spec.DeploymentName
+	if deploymentName == "" {
+		// We choose to absorb the error here as the worker would requeue the
+		// resource otherwise. Instead, the next time the resource is updated
+		// the resource will be queued again.
+		runtime.HandleError(fmt.Errorf("%s: deployment name must be specified", key))
+		return nil
+	}
+
+	// Get the deployment with the name specified in Foo.spec
+	deployment, err := c.deploymentsLister.Deployments(foo.Namespace).Get(deploymentName)
+	// If the resource doesn't exist, we'll create it
+	if errors.IsNotFound(err) {
+		deployment, err = c.kubeclientset.AppsV1().Deployments(foo.Namespace).Create(newDeployment(foo))
+	}
+
+	// If an error occurs during Get/Create, we'll requeue the item so we can
+	// attempt processing again later. This could have been caused by a
+	// temporary network failure, or any other transient reason.
+	if err != nil {
+		return err
+	}
+
+	// If the Deployment is not controlled by this Foo resource, we should log
+	// a warning to the event recorder and ret
+	if !metav1.IsControlledBy(deployment, foo) {
+		msg := fmt.Sprintf(MessageResourceExists, deployment.Name)
+		c.recorder.Event(foo, corev1.EventTypeWarning, ErrResourceExists, msg)
+		return fmt.Errorf(msg)
+	}
+
+	// If this number of the replicas on the Foo resource is specified, and the
+	// number does not equal the current desired replicas on the Deployment, we
+	// should update the Deployment resource.
+	if foo.Spec.Replicas != nil && *foo.Spec.Replicas != *deployment.Spec.Replicas {
+		glog.V(4).Infof("Foo %s replicas: %d, deployment replicas: %d", name, *foo.Spec.Replicas, *deployment.Spec.Replicas)
+		deployment, err = c.kubeclientset.AppsV1().Deployments(foo.Namespace).Update(newDeployment(foo))
+	}
+
+	// If an error occurs during Update, we'll requeue the item so we can
+	// attempt processing again later. THis could have been caused by a
+	// temporary network failure, or any other transient reason.
+	if err != nil {
+		return err
+	}
+
+	// Finally, we update the status block of the Foo resource to reflect the
+	// current state of the world
+	err = c.updateFooStatus(foo, deployment)
+	if err != nil {
+		return err
+	}
+
+	c.recorder.Event(foo, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	return nil
+}
+
+func (c *Controller) updateFooStatus(foo *seederv1.Foo, deployment *appsv1.Deployment) error {
+	// NEVER modify objects from the store. It's a read-only, local cache.
+	// You can use DeepCopy() to make a deep copy of original object and modify this copy
+	// Or create a copy manually for better performance
+	fooCopy := foo.DeepCopy()
+	fooCopy.Status.AvailableReplicas = deployment.Status.AvailableReplicas
+	// If the CustomResourceSubresources feature gate is not enabled,
+	// we must use Update instead of UpdateStatus to update the Status block of the Foo resource.
+	// UpdateStatus will not allow changes to the Spec of the resource,
+	// which is ideal for ensuring nothing other than resource status has been updated.
+	_, err := c.sseederclientset.SamplecontrollerV1alpha1().Foos(foo.Namespace).Update(fooCopy)
 	return err
 }
 
-func (c *SeederController) loadSeed(name string) (seed *seederv1.OpenstackSeed, err error) {
-	seed = nil
-	obj, exists, err := c.seedInformer.GetIndexer().GetByKey(name)
-	if err != nil {
-		glog.Errorf("lookup of %s failed: %v", name, err)
-		raven.CaptureMessage("lookup failed", map[string]string{"name": name})
+// enqueueFoo takes a Foo resource and converts it into a namespace/name
+// string which is then put onto the work queue. This method should *not* be
+// passed resources of any type other than Foo.
+func (c *Controller) enqueueFoo(obj interface{}) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		runtime.HandleError(err)
 		return
 	}
-	if !exists {
-		raven.CaptureMessage("spec does not exist", map[string]string{"name": name})
-		err = fmt.Errorf("spec does not exist: %v", name)
-		glog.Info(err)
-		return
-	}
-
-	seed = obj.(*seederv1.OpenstackSeed)
-	return
+	c.workqueue.AddRateLimited(key)
 }
+
+// handleObject will take any resource implementing metav1.Object and attempt
+// to find the Foo resource that 'owns' it. It does this by looking at the
+// objects metadata.ownerReferences field for an appropriate OwnerReference.
+// It then enqueues that Foo resource to be processed. If the object does not
+// have an appropriate OwnerReference, it will simply be skipped.
+func (c *Controller) handleObject(obj interface{}) {
+	var object metav1.Object
+	var ok bool
+	if object, ok = obj.(metav1.Object); !ok {
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			runtime.HandleError(fmt.Errorf("error decoding object, invalid type"))
+			return
+		}
+		object, ok = tombstone.Obj.(metav1.Object)
+		if !ok {
+			runtime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
+			return
+		}
+		glog.V(4).Infof("Recovered deleted object '%s' from tombstone", object.GetName())
+	}
+	glog.V(4).Infof("Processing object: %s", object.GetName())
+	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
+		// If this object is not owned by a Foo, we should not do anything more
+		// with it.
+		if ownerRef.Kind != "Foo" {
+			return
+		}
+
+		foo, err := c.openstackseedsLister.Foos(object.GetNamespace()).Get(ownerRef.Name)
+		if err != nil {
+			glog.V(4).Infof("ignoring orphaned object '%s' of foo '%s'", object.GetSelfLink(), ownerRef.Name)
+			return
+		}
+
+		c.enqueueFoo(foo)
+		return
+	}
+}
+

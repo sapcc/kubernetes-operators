@@ -549,7 +549,6 @@ def seed_projects(domain, projects, args, sess):
     keystone = keystoneclient.Client(session=sess,
                                      interface=args.interface)
 
-    # todo: test parent support
     for project in projects:
         roles = None
         if 'roles' in project:

@@ -29,15 +29,11 @@ import (
 	"github.com/golang/glog"
 	seedercontroller "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/seeder/controller"
 	"github.com/spf13/pflag"
-	"k8s.io/kubernetes/pkg/util/logs"
 )
 
 var options seedercontroller.Options
 
 func main() {
-	logs.InitLogs()
-	defer logs.FlushLogs()
-
 	// hack around dodgy TLS rootCA handler in raven.newTransport()
 	// https://github.com/getsentry/raven-go/issues/117
 	t := &raven.HTTPTransport{}

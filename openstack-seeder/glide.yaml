@@ -5,12 +5,15 @@ import:
 - package: github.com/golang/glog
 - package: github.com/getsentry/raven-go
 - package: k8s.io/client-go
-  version: v4.0.0
+  version: v7
 - package: k8s.io/apiextensions-apiserver
-  version: release-1.7
+  version: release-1.10
 - package: k8s.io/apimachinery
-  version: release-1.7
-- package: k8s.io/kubernetes
-  version: release-1.7
-  subpackages:
-  - pkg/util/logs
+  version: release-1.10
+#- package: k8s.io/kubernetes
+#  version: release-1.10
+#  subpackages:
+#  - pkg/util/logs
+- package: k8s.io/code-generator
+  version: release-1.10
+- package: k8s.io/gengo

@@ -16,6 +16,9 @@ ifneq ($(http_proxy),)
 BUILD_ARGS+= --build-arg http_proxy=$(http_proxy) --build-arg https_proxy=$(https_proxy) --build-arg no_proxy=$(no_proxy)
 endif
 
+HAS_GLIDE := $(shell command -v glide;)
+HAS_GLIDE_VC := $(shell command -v glide-vc;)
+
 .PHONY: all clean build push linux darwin vendor
 
 all: bin/$(GOOS)/$(BINARY)
@@ -26,14 +29,36 @@ bin/%/$(BINARY): $(GOFILES) Makefile
 build: bin/linux/$(BINARY)
 	docker build $(BUILD_ARGS) -t $(IMAGE):$(VERSION) .
 
-push: build
+tag:
+	docker tag $(IMAGE):$(VERSION)         $(IMAGE):latest
+
+pull:
+	docker pull $(IMAGE):latest
+
+push:
 	docker push $(IMAGE):$(VERSION)
+	docker push $(IMAGE):latest
 
 clean:
 	rm -rf bin/*
 
+include code-generate.mk
+code-gen: client-gen informer-gen lister-gen deepcopy-gen
+
 vendor:
-	glide install --strip-vendor && glide update --strip-vendor
+ifndef HAS_GLIDE_VC
+	$(error glide-vc (vendor cleaner) not found. Run `make bootstrap to fix.`)
+endif
+	glide install -v
+	#glide-vc --only-code --no-tests
+
+bootstrap:
+ifndef HAS_GLIDE
+	brew install glide
+endif
+ifndef HAS_GLIDE_VC
+	go get -u github.com/sgotti/glide-vc
+endif
 
 linux:  bin/linux/openstack-seeder
 darwin: bin/darwin/openstack-seeder
