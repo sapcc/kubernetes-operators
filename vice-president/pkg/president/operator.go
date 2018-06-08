@@ -338,7 +338,6 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 			nextState = IngressStateApprove
 
 		case IngressStateReplace:
-			vp.replaceCertificate(viceCert)
 			if err := vp.replaceCertificate(viceCert); err != nil {
 				LogError("Couldn't replace certificate for ingress %s, host %s using TID %s: %s.", viceCert.GetIngressKey(), viceCert.Host, viceCert.TID, err)
 				replaceFailedCounter.With(labels).Inc()
