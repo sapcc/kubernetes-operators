@@ -11,32 +11,32 @@ client-gen: $(BIN)/client-gen
 	@rm -rf ./pkg/client/clientset
 	@mkdir -p ./pkg/client/clientset
 	$(BIN)/client-gen \
-	  --go-header-file /dev/null \
+	  --go-header-file hack/custom-boilerplate.go.txt \
 	  --output-base $(OUTPUT_BASE) \
 	  --input-base $(API_BASE) \
-	  --clientset-path $(GENERATED_BASE) \
+	  --clientset-path $(GENERATED_BASE)/clientset \
 	  --input seeder/v1 \
-	  --clientset-name clientset
+	  --clientset-name versioned
 
 informer-gen: $(BIN)/informer-gen
 	@rm -rf ./pkg/client/informers
 	@mkdir -p ./pkg/client/informers
 	$(BIN)/informer-gen \
 	  --logtostderr \
-	  --go-header-file /dev/null \
+	  --go-header-file hack/custom-boilerplate.go.txt \
 	  --output-base                 $(OUTPUT_BASE) \
 	  --input-dirs                  $(API_BASE)/seeder/v1  \
 	  --output-package              $(GENERATED_BASE)/informers \
 	  --listers-package             $(GENERATED_BASE)/listers   \
-	  --internal-clientset-package  $(GENERATED_BASE)/clientset \
-	  --versioned-clientset-package $(GENERATED_BASE)/clientset
+	  --internal-clientset-package  $(GENERATED_BASE)/clientset/versioned \
+	  --versioned-clientset-package $(GENERATED_BASE)/clientset/versioned
 
 lister-gen: $(BIN)/lister-gen
 	@rm -rf ./pkg/client/listers
 	@mkdir -p ./pkg/client/listers
 	$(BIN)/lister-gen \
 	  --logtostderr \
-	  --go-header-file /dev/null \
+	  --go-header-file hack/custom-boilerplate.go.txt \
 	  --output-base    $(OUTPUT_BASE) \
 	  --input-dirs     $(API_BASE)/seeder/v1 \
 	  --output-package $(GENERATED_BASE)/listers
@@ -48,7 +48,7 @@ deepcopy-gen: $(BIN)/deepcopy-gen
 	  -O zz_generated.deepcopy \
 	  --bounding-dirs $(INPUT_BASE) \
 	  --output-base $(OUTPUT_BASE) \
-	  --go-header-file /dev/null
+	  --go-header-file hack/custom-boilerplate.go.txt
 
 
 $(OUTPUT)/bin/%:

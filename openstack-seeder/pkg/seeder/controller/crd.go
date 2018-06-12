@@ -1,20 +1,16 @@
 /*
 Copyright 2017 SAP SE
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
-package seeder
+package controller
 
 import (
 	"reflect"
@@ -22,37 +18,60 @@ import (
 
 	seederv1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1"
 
+	"github.com/ant31/crd-validation/pkg"
+	"github.com/golang/glog"
+	"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
-	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
-	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"github.com/golang/glog"
 )
 
-const openstackseedCRDName = seederv1.OpenstackSeedResourcePlural + "." + seederv1.GroupName
+const openstackseedCRDName = seederv1.OpenstackSeedResourcePlural + "." + seeder.GroupName
 
 func CreateCustomResourceDefinition(clientset apiextensionsclient.Interface) (*apiextensionsv1beta1.CustomResourceDefinition, error) {
+	glog.Infof("Checking CustomResourceDefinition %s", openstackseedCRDName)
+
+	validation := crdvalidation.GetCustomResourceValidation("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.OpenstackSeed", seederv1.GetOpenAPIDefinitions)
+
 	crd := &apiextensionsv1beta1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: openstackseedCRDName,
 		},
 		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-			Group:   seederv1.GroupName,
+			Group:   seeder.GroupName,
 			Version: seederv1.SchemeGroupVersion.Version,
 			Scope:   apiextensionsv1beta1.NamespaceScoped,
 			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
 				Plural: seederv1.OpenstackSeedResourcePlural,
 				Kind:   reflect.TypeOf(seederv1.OpenstackSeed{}).Name(),
 			},
+			Validation: validation,
 		},
 	}
-	glog.Infof("Creating CustomResourceDefinition %s", openstackseedCRDName)
 
 	_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
 	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			// check if the (new) CRD validation has been put in place yet
+			crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(openstackseedCRDName, metav1.GetOptions{})
+			if err != nil {
+				glog.Errorf("Get CustomResourceDefinition %s failed: %v", openstackseedCRDName, err)
+				return nil, err
+			}
+			if crd.Spec.Validation == nil || len(crd.Spec.Validation.OpenAPIV3Schema.Properties) == 0 {
+				glog.Infof("Adding validation for CustomResourceDefinition %s", openstackseedCRDName)
+				crd.Spec.Validation = validation
+				crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Update(crd)
+				if err != nil {
+					glog.Errorf("Validation update of CustomResourceDefinition %s failed: %v", openstackseedCRDName, err)
+					return nil, err
+				}
+			}
+			return crd, nil
+		}
 		glog.Errorf("Create CustomResourceDefinition %s failed: %v", openstackseedCRDName, err)
 		return nil, err
 	}
@@ -87,6 +106,8 @@ func CreateCustomResourceDefinition(clientset apiextensionsclient.Interface) (*a
 		}
 		return nil, err
 	}
+
 	glog.Infof("CustomResourceDefinition %s created", openstackseedCRDName)
+
 	return crd, nil
 }

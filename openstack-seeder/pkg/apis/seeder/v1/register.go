@@ -17,12 +17,11 @@ limitations under the License.
 package v1
 
 import (
+	"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder"
 )
-
 
 // SchemeGroupVersion is group version used to register these objects
 var SchemeGroupVersion = schema.GroupVersion{Group: seeder.GroupName, Version: "v1"}

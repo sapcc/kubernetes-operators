@@ -1,3 +1,19 @@
+/*
+Copyright 2017 SAP SE
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package v1
 
 import (
@@ -271,23 +287,25 @@ func (e *DomainSpec) MergeRoleAssignments(domain DomainSpec) {
 }
 
 func (e *DomainSpec) MergeConfig(domain DomainSpec) {
-	if e.Config.IdentityConfig == nil {
-		e.Config.IdentityConfig = make(map[string]string)
-	}
-	for k, v := range domain.Config.IdentityConfig {
-		e.Config.IdentityConfig[k] = v
-	}
-	if e.Config.LdapConfig == nil {
-		e.Config.LdapConfig = make(map[string]string)
-	}
-	for k, v := range domain.Config.LdapConfig {
-		e.Config.LdapConfig[k] = v
-	}
-	if e.Config.CCAdConfig == nil {
-		e.Config.CCAdConfig = make(map[string]string)
-	}
-	for k, v := range domain.Config.CCAdConfig {
-		e.Config.CCAdConfig[k] = v
+	if domain.Config != nil {
+		if e.Config == nil {
+			e.Config = new(DomainConfigSpec)
+		}
+		utils.MergeStructFields(domain.Config, e.Config)
+
+		if domain.Config.IdentityConfig != nil {
+			if e.Config.IdentityConfig == nil {
+				e.Config.IdentityConfig = new(IdentityConfigSpec)
+			}
+			utils.MergeStructFields(domain.Config.IdentityConfig, e.Config.IdentityConfig)
+		}
+
+		if domain.Config.LdapConfig != nil {
+			if e.Config.LdapConfig == nil {
+				e.Config.LdapConfig = new(LdapConfigSpec)
+			}
+			utils.MergeStructFields(domain.Config.LdapConfig, e.Config.LdapConfig)
+		}
 	}
 }
 

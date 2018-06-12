@@ -24,4 +24,3 @@ import (
 )
 
 var shutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
-

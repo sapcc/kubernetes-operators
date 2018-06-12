@@ -20,23 +20,19 @@ import (
 
 const OpenstackSeedResourcePlural = "openstackseeds"
 
-// The top level openstack seed element.
-//
-// It can have dependencies (that define elements that are refered to in the seed) that will be resolved before seeding the specs content.
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
+// +k8s:openapi-gen=true
 type OpenstackSeed struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// +k8s:openapi-gen=false
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec                OpenstackSeedSpec `json:"spec"`
-	//VisitedDependencies map[string]bool
+	Spec   OpenstackSeedSpec    `json:"spec"`
+	Status *OpenstackSeedStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 type OpenstackSeedList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
@@ -44,7 +40,13 @@ type OpenstackSeedList struct {
 	Items []OpenstackSeed `json:"items"`
 }
 
-// Cross kubernetes namespace dependencies can be defined by using a fully qualified **requires** notation that includes a namespace: namespace/specname
+// +k8s:openapi-gen=true
+type OpenstackSeedStatus struct {
+	Processed           string          `json:"processed"`
+	VisitedDependencies map[string]bool `json:"merged"`
+}
+
+// +k8s:openapi-gen=true
 type OpenstackSeedSpec struct {
 	Dependencies []string      `json:"requires,omitempty" yaml:"requires,omitempty"` // list of required specs that need to be resolved before the current one
 	Roles        []string      `json:"roles,omitempty" yaml:"roles,omitempty"`       // list of keystone roles
@@ -55,6 +57,7 @@ type OpenstackSeedSpec struct {
 }
 
 // A keystone region (see https://developer.openstack.org/api-ref/identity/v3/index.html#regions)
+// +k8s:openapi-gen=true
 type RegionSpec struct {
 	Region       string `json:"id" yaml:"id"`                                           // the region id
 	Description  string `json:"description,omitempty" yaml:"description,omitempty"`     // the regions description
@@ -62,6 +65,7 @@ type RegionSpec struct {
 }
 
 // A keystone service (see https://developer.openstack.org/api-ref/identity/v3/index.html#service-catalog-and-endpoints)
+// +k8s:openapi-gen=true
 type ServiceSpec struct {
 	Name        string         `json:"name" yaml:"name"`                                   // service name
 	Type        string         `json:"type" yaml:"type"`                                   // service type
@@ -71,6 +75,7 @@ type ServiceSpec struct {
 }
 
 // A keystone service endpoint (see https://developer.openstack.org/api-ref/identity/v3/index.html#service-catalog-and-endpoints)
+// +k8s:openapi-gen=true
 type EndpointSpec struct {
 	Region    string `json:"region" yaml:"region"`                       // region-id
 	Interface string `json:"interface" yaml:"interface"`                 // interface type (usually public, admin, internal)
@@ -79,6 +84,7 @@ type EndpointSpec struct {
 }
 
 // A keystone domain (see https://developer.openstack.org/api-ref/identity/v3/index.html#domains)
+// +k8s:openapi-gen=true
 type DomainSpec struct {
 	Name            string               `json:"name" yaml:"name"`                                   // domain name
 	Description     string               `json:"description,omitempty" yaml:"description,omitempty"` // domain description
@@ -87,19 +93,81 @@ type DomainSpec struct {
 	Groups          []GroupSpec          `json:"groups,omitempty" yaml:"groups,omitempty"`           // list of domain groups
 	Projects        []ProjectSpec        `json:"projects,omitempty" yaml:"projects,omitempty"`       // list of domain projects
 	RoleAssignments []RoleAssignmentSpec `json:"roles,omitempty" yaml:"roles,omitempty"`             // list of domain-role-assignments
-	Config          DomainConfigSpec     `json:"config,omitempty" yaml:"config,omitempty"`           // optional domain configuration
+	Config          *DomainConfigSpec    `json:"config,omitempty" yaml:"config,omitempty"`           // optional domain configuration
 }
 
 // A keystone domain configuation (see https://developer.openstack.org/api-ref/identity/v3/index.html#domain-configuration)
-//
-// The cc_ad configuration element refers to the SAP Converged Cloud customer driver extensions
+// +k8s:openapi-gen=true
 type DomainConfigSpec struct {
-	IdentityConfig map[string]string `json:"identity,omitempty" yaml:"identity,omitempty"` // the identity driver configuration settings
-	LdapConfig     map[string]string `json:"ldap,omitempty" yaml:"ldap,omitempty"`         // the ldap driver configuration settings
-	CCAdConfig     map[string]string `json:"cc_ad,omitempty" yaml:"cc_ad,omitempty"`       // the cc_ad driver configuration settings
+	IdentityConfig *IdentityConfigSpec `json:"identity,omitempty" yaml:"identity,omitempty"` // the identity driver configuration settings
+	LdapConfig     *LdapConfigSpec     `json:"ldap,omitempty" yaml:"ldap,omitempty"`         // the ldap driver configuration settings
+}
+
+// +k8s:openapi-gen=true
+type IdentityConfigSpec struct {
+	Driver string `json:"driver" yaml:"driver"` // Entry point for the domain-specific configuration driver in the 'keystone.resource.domain_config` namespace
+}
+
+// +k8s:openapi-gen=true
+type LdapConfigSpec struct {
+	Url        string `json:"url" yaml:"url"`                                     // URL(s) for connecting to the LDAP server. Multiple LDAP URLs may be specified as a comma separated string. The first URL to successfully bind is used for the connection.
+	User       string `json:"user" yaml:"user"`                                   // The user name of the administrator bind DN to use when querying the LDAP server, if your LDAP server requires it.
+	Password   string `json:"password" yaml:"password"`                           // The password of the administrator bind DN to use when querying the LDAP server, if your LDAP server requires it.
+	Suffix     string `json:"suffix,omitempty" yaml:"suffix,omitempty"`           // The default LDAP server suffix to use, if a DN is not defined via either `[ldap] user_tree_dn` or `[ldap] group_tree_dn`.
+	QueryScope string `json:"query_scope,omitempty" yaml:"query_scope,omitempty"` // The search scope which defines how deep to search within the search base. A  value of `one` (representing `oneLevel` or `singleLevel`) indicates a search of objects immediately below to the base object, but does not include the base object itself. A value of `sub` (representing `subtree` or `wholeSubtree`) indicates a search of both the base object itself and the entire subtree below it.
+	PageSize   int    `json:"page_size,omitempty" yaml:"page_size,omitempty"`     // Defines the maximum number of results per page that keystone should request  from the LDAP server when listing objects. A value of zero (`0`) disables paging.
+
+	UseTLS         *bool  `json:"use_tls,omitempty" yaml:"use_tls,omitempty"`
+	TLSCACertFile  string `json:"tls_cacertfile,omitempty" yaml:"tls_cacertfile,omitempty"`
+	TLSCACertDir   string `json:"tls_cacertdir,omitempty" yaml:"tls_cacertdir,omitempty"`
+	TLSRequestCert string `json:"tls_req_cert,omitempty" yaml:"tls_req_cert,omitempty"`
+
+	UsePool                *bool `json:"use_pool,omitempty" yaml:"use_pool,omitempty"`
+	PoolSize               int   `json:"pool_size,omitempty" yaml:"pool_size,omitempty"`                               // The size of the LDAP connection pool
+	PoolRetryMax           int   `json:"pool_retry_max,omitempty" yaml:"pool_retry_max,omitempty"`                     // The maximum number of times to attempt reconnecting to the LDAP server before aborting. A value of zero prevents retries.
+	PoolRetryDelay         int   `json:"pool_retry_delay,omitempty" yaml:"pool_retry_delay,omitempty"`                 // The number of seconds to wait before attempting to reconnect to the LDAP server.
+	PoolConnectionTimeout  int   `json:"pool_connection_timeout,omitempty" yaml:"pool_connection_timeout,omitempty"`   //
+	PoolConnectionLifetime int   `json:"pool_connection_lifetime,omitempty" yaml:"pool_connection_lifetime,omitempty"` //
+
+	UseAuthPool                *bool `json:"use_auth_pool,omitempty" yaml:"use_auth_pool,omitempty"`
+	AuthPoolSize               int   `json:"auth_pool_size,omitempty" yaml:"auth_pool_size,omitempty"`                               // The size of the LDAP auth connection pool
+	AuthPoolConnectionLifetime int   `json:"auth_pool_connection_lifetime,omitempty" yaml:"auth_pool_connection_lifetime,omitempty"` //
+
+	AliasDereferencing string `json:"alias_dereferencing,omitempty" yaml:"alias_dereferencing,omitempty"`
+	DebugLevel         int    `json:"debug_level,omitempty" yaml:"debug_level,omitempty"`
+
+	UserTreeDN           string `json:"user_tree_dn,omitempty" yaml:"user_tree_dn,omitempty"`
+	UserFilter           string `json:"user_filter,omitempty" yaml:"user_filter,omitempty"`
+	UserObjectClass      string `json:"user_objectclass,omitempty" yaml:"user_objectclass,omitempty"`
+	UserIdAttribute      string `json:"user_id_attribute,omitempty" yaml:"user_id_attribute,omitempty"`
+	UserNameAttribute    string `json:"user_name_attribute,omitempty" yaml:"user_name_attribute,omitempty"`
+	UserDescAttribute    string `json:"user_description_attribute,omitempty" yaml:"user_description_attribute,omitempty"`
+	UserMailAttribute    string `json:"user_mail_attribute,omitempty" yaml:"user_mail_attribute,omitempty"`
+	UserPassAttribute    string `json:"user_pass_attribute,omitempty" yaml:"user_pass_attribute,omitempty"`
+	UserEnabledAttribute string `json:"user_enabled_attribute,omitempty" yaml:"user_enabled_attribute,omitempty"`
+	UserEnabledMask      int    `json:"user_enabled_mask,omitempty" yaml:"user_enabled_mask,omitempty"`
+	UserEnabledDefault   string `json:"user_enabled_default,omitempty" yaml:"user_enabled_default,omitempty"`
+	UserAttributeIgnore  string `json:"user_attribute_ignore,omitempty" yaml:"user_attribute_ignore,omitempty"`
+	UserAllowCreate      *bool  `json:"user_allow_create,omitempty" yaml:"user_allow_create,omitempty"`
+	UserAllowUpdate      *bool  `json:"user_allow_update,omitempty" yaml:"user_allow_update,omitempty"`
+	UserAllowDelete      *bool  `json:"user_allow_delete,omitempty" yaml:"user_allow_delete,omitempty"`
+
+	GroupTreeDN          string `json:"group_tree_dn,omitempty" yaml:"group_tree_dn,omitempty"`
+	GroupFilter          string `json:"group_filter,omitempty" yaml:"group_filter,omitempty"`
+	GroupObjectClass     string `json:"group_objectclass,omitempty" yaml:"group_objectclass,omitempty"`
+	GroupIdAttribute     string `json:"group_id_attribute,omitempty" yaml:"group_id_attribute,omitempty"`
+	GroupNameAttribute   string `json:"group_name_attribute,omitempty" yaml:"group_name_attribute,omitempty"`
+	GroupDescAttribute   string `json:"group_description_attribute,omitempty" yaml:"group_description_attribute,omitempty"`
+	GroupMemberAttribute string `json:"group_member_attribute,omitempty" yaml:"group_member_attribute,omitempty"`
+	GroupMembersAreIDs   *bool  `json:"group_members_are_ids,omitempty" yaml:"group_members_are_ids,omitempty"`
+	GroupAttributeIgnore string `json:"group_attribute_ignore,omitempty" yaml:"group_attribute_ignore,omitempty"`
+	GroupAllowCreate     *bool  `json:"group_allow_create,omitempty" yaml:"group_allow_create,omitempty"`
+	GroupAllowUpdate     *bool  `json:"group_allow_update,omitempty" yaml:"group_allow_update,omitempty"`
+	GroupAllowDelete     *bool  `json:"group_allow_delete,omitempty" yaml:"group_allow_delete,omitempty"`
 }
 
 // A keystone project (see https://developer.openstack.org/api-ref/identity/v3/index.html#projects)
+// +k8s:openapi-gen=true
 type ProjectSpec struct {
 	Name            string                `json:"name" yaml:"name"`                                         // project name
 	Description     string                `json:"description,omitempty" yaml:"description,omitempty"`       // project description
@@ -121,6 +189,7 @@ type ProjectSpec struct {
 }
 
 // A project endpoint filter (see https://developer.openstack.org/api-ref/identity/v3-ext/#os-ep-filter-api)
+// +k8s:openapi-gen=true
 type ProjectEndpointSpec struct {
 	Region  string `json:"region" yaml:"region"`   // region-id
 	Service string `json:"service" yaml:"service"` // service-id
@@ -133,6 +202,7 @@ type ProjectEndpointSpec struct {
 // A role assignment always links 3 entities: user or group to project or domain with a specified role.
 //
 // To support cross domain entity referals, the user-, group- or project-names support a name@domain notation.
+// +k8s:openapi-gen=true
 type RoleAssignmentSpec struct {
 	Role      string `json:"role" yaml:"role"`                                 // the role name
 	Domain    string `json:"domain,omitempty" yaml:"domain,omitempty"`         // domain-role-assigment: the domain name
@@ -144,6 +214,7 @@ type RoleAssignmentSpec struct {
 }
 
 // A keystone user (see https://developer.openstack.org/api-ref/identity/v3/#users)
+// +k8s:openapi-gen=true
 type UserSpec struct {
 	Name             string               `json:"name" yaml:"name"`                                           // username
 	Description      string               `json:"description,omitempty" yaml:"description,omitempty"`         // description of the user
@@ -154,6 +225,7 @@ type UserSpec struct {
 }
 
 // A keystone group (see https://developer.openstack.org/api-ref/identity/v3/#groups)
+// +k8s:openapi-gen=true
 type GroupSpec struct {
 	Name            string               `json:"name" yaml:"name"`                                   // group name
 	Description     string               `json:"description,omitempty" yaml:"description,omitempty"` // description of the group
@@ -162,6 +234,7 @@ type GroupSpec struct {
 }
 
 // A nova flavor (see https://developer.openstack.org/api-ref/compute/#flavors)
+// +k8s:openapi-gen=true
 type FlavorSpec struct {
 	Name       string            `json:"name" yaml:"name"` // flavor name
 	Id         string            `json:"id,omitempty" yaml:"id,omitempty"`
@@ -177,6 +250,7 @@ type FlavorSpec struct {
 }
 
 // A neutron address scope (see https://developer.openstack.org/api-ref/networking/v2/index.html  UNDOCUMENTED)
+// +k8s:openapi-gen=true
 type AddressScopeSpec struct {
 	Name        string           `json:"name" yaml:"name"`                                     // address scope name
 	IpVersion   int              `json:"ip_version" yaml:"ip_version"`                         // ip-version 4 or 6
@@ -185,6 +259,7 @@ type AddressScopeSpec struct {
 }
 
 // A neutron subnet pool (see https://developer.openstack.org/api-ref/networking/v2/index.html#subnet-pools)
+// +k8s:openapi-gen=true
 type SubnetPoolSpec struct {
 	Name             string   `json:"name" yaml:"name"`                                               // subnet-pool name
 	DefaultQuota     int      `json:"default_quota,omitempty" yaml:"default_quota,omitempty"`         // A per-project quota on the prefix space that can be allocated from the subnet pool for project subnets.
@@ -199,6 +274,7 @@ type SubnetPoolSpec struct {
 }
 
 // A neutron project quota (see https://developer.openstack.org/api-ref/networking/v2/index.html#quotas-extension-quotas)
+// +k8s:openapi-gen=true
 type NetworkQuotaSpec struct {
 	FloatingIP        int `json:"floatingip,omitempty" yaml:"floatingip,omitempty"`                   // The number of floating IP addresses allowed for each project. A value of -1 means no limit.
 	Network           int `json:"network,omitempty" yaml:"network,omitempty"`                         // The number of networks allowed for each project. A value of -1 means no limit.
@@ -216,6 +292,7 @@ type NetworkQuotaSpec struct {
 }
 
 // A neutron network (see https://developer.openstack.org/api-ref/networking/v2/index.html#networks)
+// +k8s:openapi-gen=true
 type NetworkSpec struct {
 	Name                    string       `json:"name" yaml:"name"`                                                               // network name
 	AdminStateUp            *bool        `json:"admin_state_up,omitempty" yaml:"admin_state_up,omitempty"`                       // The administrative state of the network, which is up (true) or down (false).
@@ -233,6 +310,7 @@ type NetworkSpec struct {
 }
 
 // A neutron subnet (see https://developer.openstack.org/api-ref/networking/v2/index.html#subnets)
+// +k8s:openapi-gen=true
 type SubnetSpec struct {
 	Name            string   `json:"name" yaml:"name"`                                               // network name
 	EnableDHCP      *bool    `json:"enable_dhcp,omitempty" yaml:"enable_dhcp,omitempty"`             // Indicates whether dhcp is enabled or disabled for the subnet. Default is true.
@@ -252,6 +330,7 @@ type SubnetSpec struct {
 }
 
 // A neutron router (see https://developer.openstack.org/api-ref/networking/v2/index.html#routers)
+// +k8s:openapi-gen=true
 type RouterSpec struct {
 	Name                string                   `json:"name" yaml:"name"`                                         // router name
 	AdminStateUp        *bool                    `json:"admin_state_up,omitempty" yaml:"admin_state_up,omitempty"` // The administrative state of the router, which is up (true) or down (false).
@@ -262,6 +341,7 @@ type RouterSpec struct {
 	RouterPorts         []RouterPortSpec         `json:"interfaces,omitempty" yaml:"interfaces,omitempty"`   //
 }
 
+// +k8s:openapi-gen=true
 type ExternalGatewayInfoSpec struct {
 	Network          string   `json:"network,omitempty" yaml:"network,omitempty"`                       // network-name in the same project
 	NetworkId        string   `json:"network_id,omitempty" yaml:"network_id,omitempty"`                 // or network-id
@@ -269,23 +349,29 @@ type ExternalGatewayInfoSpec struct {
 	ExternalFixedIPs []string `json:"external_fixed_ips,omitempty" yaml:"external_fixed_ips,omitempty"` // IP address(es) of the external gateway interface of the router. It is a list of IP addresses you would like to assign to the external gateway interface. Each element of ths list is a dictionary of ip_address and subnet_id.
 }
 
+// +k8s:openapi-gen=true
 type RouterPortSpec struct {
 	PortId   string `json:"port_id,omitempty" yaml:"port_id,omitempty"`     // port-id
 	Subnet   string `json:"subnet,omitempty" yaml:"subnet,omitempty"`       // subnet-name within the routers project
 	SubnetId string `json:"subnet_id,omitempty" yaml:"subnet_id,omitempty"` // subnet-id
 }
 
+// SwiftAccountSpec defines a swift account
+// +k8s:openapi-gen=true
 type SwiftAccountSpec struct {
 	Enabled    *bool                `json:"enabled" yaml:"enabled,omitempty"`                 // Create a swift account
 	Containers []SwiftContainerSpec `json:"containers,omitempty" yaml:"containers,omitempty"` // Containers
 }
 
+// SwiftContainerSpec defines a swift container
+// +k8s:openapi-gen=true
 type SwiftContainerSpec struct {
 	Name     string            `json:"name" yaml:"name"`                             // Container name
 	Metadata map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"` // Container metadata
 }
 
-// A designate project quota (see https://developer.openstack.org/api-ref/dns/?expanded=#quotas)
+// DNSQuotaSpec defines a designate project quota (see https://developer.openstack.org/api-ref/dns/?expanded=#quotas)
+// +k8s:openapi-gen=true
 type DNSQuotaSpec struct {
 	ApiExportSize    int `json:"api_export_size,omitempty" yaml:"api_export_size,omitempty"`
 	Zones            int `json:"zones,omitempty" yaml:"zones,omitempty"`
@@ -294,7 +380,8 @@ type DNSQuotaSpec struct {
 	RecordsetRecords int `json:"recordset_records,omitempty" yaml:"recordset_records,omitempty"`
 }
 
-// A designate zone (see https://developer.openstack.org/api-ref/dns/?expanded=#zones)
+// DNSZoneSpec defines a designate zone (see https://developer.openstack.org/api-ref/dns/?expanded=#zones)
+// +k8s:openapi-gen=true
 type DNSZoneSpec struct {
 	Name          string             `json:"name" yaml:"name"`                                   // DNS Name for the zone
 	Type          string             `json:"type" yaml:"type"`                                   // Type of zone. PRIMARY is controlled by Designate, SECONDARY zones are slaved from another DNS Server. Defaults to PRIMARY
@@ -304,7 +391,8 @@ type DNSZoneSpec struct {
 	DNSRecordsets []DNSRecordsetSpec `json:"recordsets,omitempty" yaml:"recordsets,omitempty"`   // The zones recordsets
 }
 
-// A designate zone (see https://developer.openstack.org/api-ref/dns/?expanded=#recordsets)
+// DNSRecordsetSpec defines a designate recordset (see https://developer.openstack.org/api-ref/dns/?expanded=#recordsets)
+// +k8s:openapi-gen=true
 type DNSRecordsetSpec struct {
 	Name        string   `json:"name" yaml:"name"`                                   // DNS Name for the recordset
 	Type        string   `json:"type" yaml:"type"`                                   // They RRTYPE of the recordset.
@@ -313,7 +401,8 @@ type DNSRecordsetSpec struct {
 	Records     []string `json:"records,omitempty" yaml:"records,omitempty"`         // A list of data for this recordset. Each item will be a separate record in Designate These items should conform to the DNS spec for the record type - e.g. A records must be IPv4 addresses, CNAME records must be a hostname.
 }
 
-// A designate tsig key (see https://developer.openstack.org/api-ref/dns/#tsigkey)
+// DNSTSIGKeySpec defines a designate tsig key (see https://developer.openstack.org/api-ref/dns/#tsigkey)
+// +k8s:openapi-gen=true
 type DNSTSIGKeySpec struct {
 	Name       string `json:"name" yaml:"name"`                                   // Name for this tsigkey
 	Algorithm  string `json:"algorithm,omitempty" yaml:"algorithm,omitempty"`     // The encryption algorithm for this tsigkey

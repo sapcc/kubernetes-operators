@@ -35,3 +35,4 @@ _testmain.go
 .eggs
 
 .*
+openstack-seeder/_output

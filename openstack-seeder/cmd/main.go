@@ -14,26 +14,33 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Note: the example only works with the code within the same release/branch.
 package main
 
 import (
-	"context"
 	"flag"
-	"net/http"
-
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
 	"github.com/getsentry/raven-go"
 	"github.com/golang/glog"
+	clientset "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/clientset/versioned"
+	informers "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/informers/externalversions"
 	seedercontroller "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/seeder/controller"
+	"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/signals"
 	"github.com/spf13/pflag"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	kubeinformers "k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"net/http"
+	"time"
 )
 
 var options seedercontroller.Options
 
 func main() {
+	pflag.Parse()
+
 	// hack around dodgy TLS rootCA handler in raven.newTransport()
 	// https://github.com/getsentry/raven-go/issues/117
 	t := &raven.HTTPTransport{}
@@ -42,16 +49,50 @@ func main() {
 	}
 	raven.DefaultClient.Transport = t
 
+	// set up signals so we handle the first shutdown signal gracefully
+	stopCh := signals.SetupSignalHandler()
+
+	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.KubeConfig)
+	if err != nil {
+		glog.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		glog.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	apiextensionsClient, err := apiextensionsclient.NewForConfig(cfg)
+	if err != nil {
+		glog.Fatalf("Error building api-extension clientset: %v", err)
+	}
+
+	seederClient, err := clientset.NewForConfig(cfg)
+	if err != nil {
+		glog.Fatalf("Error building seeder clientset: %s", err.Error())
+	}
+
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, options.ResyncPeriod)
+	seederInformerFactory := informers.NewSharedInformerFactory(seederClient, options.ResyncPeriod)
+
+	controller := seedercontroller.NewController(options, kubeClient, apiextensionsClient, seederClient,
+		seederInformerFactory.Openstack().V1().OpenstackSeeds())
+
+	go kubeInformerFactory.Start(stopCh)
+	go seederInformerFactory.Start(stopCh)
+
+	if err = controller.Run(1, stopCh); err != nil {
+		glog.Fatalf("Error running controller: %s", err.Error())
+	}
+
+	glog.Info("Shutting down...")
+}
+
+func init() {
+	pflag.StringVar(&options.MasterURL, "master-url", "", "URL of the kubernetes master.")
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
 	pflag.BoolVar(&options.DryRun, "dry-run", false, "Only pretend to seed.")
 	pflag.StringVar(&options.InterfaceType, "interface", "internal", "Openstack service interface type to use.")
+	pflag.DurationVar(&options.ResyncPeriod, "resync", time.Hour*24, "Resync period")
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-	pflag.Parse()
-
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
-	seedercontroller.New(options).Run(ctx)
-
-	glog.Info("Shutting down...")
 }

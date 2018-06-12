@@ -16,8 +16,9 @@ RUN echo 'precedence ::ffff:0:0/96  100' >> /etc/gai.conf && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache
 
-RUN curl -sLo /usr/local/bin/kubernetes-entrypoint https://github.wdf.sap.corp/d062284/k8s-entrypoint-build/releases/download/f52d105/kubernetes-entrypoint && \
-    chmod +x /usr/local/bin/kubernetes-entrypoint
+RUN curl -Lo /bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.1/dumb-init_1.2.1_amd64 \
+	&& chmod +x /bin/dumb-init \
+	&& dumb-init -V
 
 WORKDIR /openstack-seeder
 COPY python/* /openstack-seeder/
@@ -30,3 +31,6 @@ RUN apt-get update && \
 
 WORKDIR /
 ADD bin/linux/openstack-seeder /usr/local/bin
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["openstack-seeder"]

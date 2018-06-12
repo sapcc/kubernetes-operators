@@ -17,8 +17,8 @@ limitations under the License.
 package signals
 
 import (
-"os"
-"os/signal"
+	"os"
+	"os/signal"
 )
 
 var onlyOneSignalHandler = make(chan struct{})

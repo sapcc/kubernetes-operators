@@ -29,8 +29,4 @@ ${CODEGEN_PKG}/generate-groups.sh "all" \
   github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client \
   github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis \
   seeder:v1 \
-  --output-base "$(dirname ${BASH_SOURCE})/../../.." \
-  --go-header-file ${SCRIPT_ROOT}/hack/boilerplate.go.txt
-
-# To use your own boilerplate text use:
-#   --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt
+   --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt
