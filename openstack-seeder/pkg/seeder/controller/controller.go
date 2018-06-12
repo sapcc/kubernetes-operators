@@ -220,7 +220,7 @@ func (c *Controller) processNextWorkItem() bool {
 		// Finally, if no error occurs we Forget this item so it does not
 		// get queued again until another change happens.
 		c.workqueue.Forget(obj)
-		glog.Infof("Successfully synced '%s'", key)
+		glog.V(2).Infof("Successfully synced '%s'", key)
 		return nil
 	}(obj)
 
@@ -265,7 +265,7 @@ func (c *Controller) seedHandler(key string) error {
 	}
 
 	if seed.Status.Processed != "" {
-		glog.V(1).Infof("Seed %s/%s has been seeded on %v. Skipping..", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, seed.Status.Processed)
+		glog.V(2).Infof("Seed %s/%s has been seeded on %v. Skipping..", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, seed.Status.Processed)
 		return nil
 	}
 
