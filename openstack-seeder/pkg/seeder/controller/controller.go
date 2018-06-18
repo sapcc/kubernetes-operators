@@ -339,10 +339,12 @@ func (c *Controller) seedHandler(key string) error {
 
 	// Finally, we update the status block of the OpenstackSeed resource to reflect the
 	// current state of the world
-	err = c.updateOpenstackSeedStatus(result, time.Now())
-	if err != nil {
-		return err
-	}
+	//TODO: uncomment once bug has been fixed
+	// https://github.com/coreos/prometheus-operator/issues/1293
+	//err = c.updateOpenstackSeedStatus(result, time.Now())
+	//if err != nil {
+	//	return err
+	//}
 
 	c.recorder.Event(seed, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
@@ -358,10 +360,7 @@ func (c *Controller) updateOpenstackSeedStatus(seed *seederv1.OpenstackSeed, las
 	// we must use Update instead of UpdateStatus to update the Status block of the OpenstackSeed resource.
 	// UpdateStatus will not allow changes to the Spec of the resource,
 	// which is ideal for ensuring nothing other than resource status has been updated.
-	//TODO: change once bug has been fixed
-	// https://github.com/coreos/prometheus-operator/issues/1293
-	//_, err := c.seederclientset.OpenstackV1().OpenstackSeeds(seed.Namespace).UpdateStatus(seedCopy)
-	_, err := c.seederclientset.OpenstackV1().OpenstackSeeds(seed.Namespace).Update(seedCopy)
+	_, err := c.seederclientset.OpenstackV1().OpenstackSeeds(seed.Namespace).UpdateStatus(seedCopy)
 	return err
 }
 
