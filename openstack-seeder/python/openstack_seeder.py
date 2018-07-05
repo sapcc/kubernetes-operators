@@ -1226,6 +1226,7 @@ def seed_network_subnets(network, subnets, args, sess):
                     body['subnet'].pop('network_id', None)
                     body['subnet'].pop('subnetpool_id', None)
                     body['subnet'].pop('ip_version', None)
+                    body['subnet'].pop('prefixlen', None)
                     neutron.update_subnet(resource['id'], body)
                     break
 
