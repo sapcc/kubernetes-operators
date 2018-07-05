@@ -1052,6 +1052,15 @@ func (in *SubnetSpec) DeepCopyInto(out *SubnetSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Prefixlen != nil {
+		in, out := &in.Prefixlen, &out.Prefixlen
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(int)
+			**out = **in
+		}
+	}
 	if in.Tags != nil {
 		in, out := &in.Tags, &out.Tags
 		*out = make([]string, len(*in))

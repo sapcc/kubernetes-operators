@@ -1190,7 +1190,7 @@ def seed_network_subnets(network, subnets, args, sess):
         subnet = sanitize(subnet, (
             'name', 'enable_dhcp', 'dns_nameservers',
             'allocation_pools', 'host_routes', 'ip_version',
-            'gateway_ip', 'cidr', 'subnetpool_id', 'description'))
+            'gateway_ip', 'cidr', 'prefixlen', 'subnetpool_id', 'description'))
 
         if 'name' not in subnet or not subnet['name']:
             logging.warn(

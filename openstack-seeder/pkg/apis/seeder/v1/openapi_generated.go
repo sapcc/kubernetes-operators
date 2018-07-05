@@ -1892,9 +1892,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "",
 							},
 						},
-						"description": {
+						"prefixlen": {
 							SchemaProps: spec.SchemaProps{
 								Description: "The CIDR of the subnet.",
+								Type:        []string{"integer"},
+								Format:      "int32",
+							},
+						},
+						"description": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The prefix length to use for subnet allocation from a subnet pool. If not specified, the default_prefixlen value of the subnet pool will be used.",
 								Type:        []string{"string"},
 								Format:      "",
 							},

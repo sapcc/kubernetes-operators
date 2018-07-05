@@ -320,6 +320,7 @@ type SubnetSpec struct {
 	IpVersion       int      `json:"ip_version,omitempty" yaml:"ip_version,omitempty"`               // ip-version 4 or 6
 	GatewayIP       string   `json:"gateway_ip,omitempty" yaml:"gateway_ip,omitempty"`               // Gateway IP of this subnet. If the value is null that implies no gateway is associated with the subnet. If the gateway_ip is not specified, OpenStack Networking allocates an address from the CIDR for the gateway for the subnet by default.
 	CIDR            string   `json:"cidr,omitempty" yaml:"cidr,omitempty"`                           // The CIDR of the subnet.
+	Prefixlen       *int     `json:"prefixlen,omitempty" yaml:"prefixlen,omitempty"`                 // The prefix length to use for subnet allocation from a subnet pool. If not specified, the default_prefixlen value of the subnet pool will be used.
 	Description     string   `json:"description,omitempty" yaml:"description,omitempty"`             // description of the network
 	IPV6AddressMode string   `json:"ipv6_address_mode,omitempty" yaml:"ipv6_address_mode,omitempty"` // The IPv6 address modes specifies mechanisms for assigning IP addresses. Value is slaac, dhcpv6-stateful, dhcpv6-stateless.
 	IPV6RaMode      string   `json:"ipv6_ra_mode,omitempty" yaml:"ipv6_ra_mode,omitempty"`           // The IPv6 router advertisement specifies whether the networking service should transmit ICMPv6 packets, for a subnet. Value is slaac, dhcpv6-stateful, dhcpv6-stateless.
