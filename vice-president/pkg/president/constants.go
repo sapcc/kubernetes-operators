@@ -85,4 +85,10 @@ const (
 
 	// RateLimitPeriod ..
 	RateLimitPeriod = 20 * time.Minute
+
+	// IngressFakeCN is the CN of the ingress controllers fake certificate
+	IngressFakeCN = "Kubernetes Ingress Controller Fake Certificate"
+
+	// IngressFakeHost is the list of hosts used by the ingress controllers fake certificate
+	IngressFakeHost = "ingress.local"
 )

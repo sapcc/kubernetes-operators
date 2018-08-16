@@ -315,13 +315,16 @@ func (vc *ViceCertificate) DoesRemoteCertificateMatch() bool {
 	}
 	defer conn.Close()
 
-	cert := conn.ConnectionState().PeerCertificates[0]
+	remoteCert := conn.ConnectionState().PeerCertificates[0]
 
-	if err := vc.compareRemoteCert(cert); err != nil {
-		LogInfo(err.Error())
-		return false
+	// in case we get the kubernetes fake certificate from the ingress controller break here and do nothing but log this
+	if isIngressFakeCertificate(remoteCert) {
+		LogInfo("tried to reach %v, but the ingress controller returned the %v", vc.Host, IngressFakeCN)
+		// TODO: surface this properly
+		return true
 	}
-	return true
+
+	return vc.compareRemoteCert(remoteCert)
 }
 
 // GetSANs returns the SANs of the certificate. Also checks if the common name is part of the SANs.
@@ -451,29 +454,33 @@ func (vc *ViceCertificate) getRootCA() error {
 	return nil
 }
 
-func (vc *ViceCertificate) compareRemoteCert(remoteCert *x509.Certificate) error {
+func (vc *ViceCertificate) compareRemoteCert(remoteCert *x509.Certificate) bool {
 	// FIXME: remoteCert.Equal(vc.Certificate) is to error-prone :-/
 
 	if vc.Host != remoteCert.Subject.CommonName {
-		return fmt.Errorf("mismatching host. expected %s, got %s", vc.Host, remoteCert.Subject.CommonName)
+		LogInfo("mismatching host. expected %s, got %s", vc.Host, remoteCert.Subject.CommonName)
+		return false
 	}
 
 	sort.Strings(vc.GetSANs())
 	gotSANs := sort.StringSlice(remoteCert.DNSNames)
 	sort.Strings(gotSANs)
 	if !isStringSlicesEqual(vc.GetSANs(), gotSANs) {
-		return fmt.Errorf("mismatching SANs. expected %v, got %v", vc.GetSANs(), gotSANs)
+		LogInfo("mismatching SANs. expected %v, got %v", vc.GetSANs(), gotSANs)
+		return false
 	}
 
 	if !vc.Certificate.NotBefore.Equal(remoteCert.NotBefore) {
-		return fmt.Errorf("mismatching validity: notBefore. expected %v, got %v", vc.Certificate.NotBefore, remoteCert.NotBefore)
+		LogInfo("mismatching validity: notBefore. expected %v, got %v", vc.Certificate.NotBefore, remoteCert.NotBefore)
+		return false
 	}
 
 	if !vc.Certificate.NotAfter.Equal(remoteCert.NotAfter) {
-		return fmt.Errorf("mismatching validity: notAfter. expected %v, got %v", vc.Certificate.NotAfter, remoteCert.NotAfter)
+		LogInfo("mismatching validity: notAfter. expected %v, got %v", vc.Certificate.NotAfter, remoteCert.NotAfter)
+		return false
 	}
 
-	return nil
+	return true
 }
 
 // SetIngressKey sets the ingress key <namespace>/<name>
@@ -484,4 +491,9 @@ func (vc *ViceCertificate) SetIngressKey(ingressNamespace, ingressName string) {
 // GetIngressKey returns the ingress key <namespace>/<name>
 func (vc *ViceCertificate) GetIngressKey() string {
 	return vc.ingressKey
+}
+
+// isIngressFakeCertificate determines whether the remote certificate is the fake certificate send by the ingress controller
+func isIngressFakeCertificate(certificate *x509.Certificate) bool {
+	return certificate.Subject.CommonName == IngressFakeCN && contains(certificate.DNSNames, IngressFakeHost)
 }
