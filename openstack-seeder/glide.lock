@@ -1,5 +1,5 @@
-hash: 8176a9d79139bdf97c7fc385bfb8a95fb1b15c14417e064e7e8cbe4caeb82d8e
-updated: 2018-06-11T12:04:38.223845+02:00
+hash: 15b054e1e499d80ad76d1a8027644a372a9ec16c2611a7958260d12398730cbd
+updated: 2018-08-21T14:07:55.580449+02:00
 imports:
 - name: github.com/ant31/crd-validation
   version: 4ddfba1968124025521d3ec98a61b2123bdcaf75
@@ -66,13 +66,17 @@ imports:
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/json-iterator/go
-  version: 13f86432b882000a51c6e610c620974462691a97
+  version: f2b4162afba35581b6d4a50d3b8f34e33c144682
 - name: github.com/mailru/easyjson
   version: 2f5df55504ebc322e4d52d34df6a1f5b503bf26d
   subpackages:
   - buffer
   - jlexer
   - jwriter
+- name: github.com/modern-go/concurrent
+  version: bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94
+- name: github.com/modern-go/reflect2
+  version: 05fbef0ca5da472bbf96c9322b84a53edc03c9fd
 - name: github.com/pkg/errors
   version: 816c9085562cd7ee03e7f8188a1cfd942858cded
 - name: github.com/PuerkitoBio/purell
@@ -165,7 +169,7 @@ imports:
   - storage/v1alpha1
   - storage/v1beta1
 - name: k8s.io/apiextensions-apiserver
-  version: 8e7f43002fec5394a8d96ebca781aa9d4b37aaef
+  version: f584b16eb23bd2a3fd292a027d698d95db427c5d
   subpackages:
   - pkg/apis/apiextensions
   - pkg/apis/apiextensions/v1beta1
@@ -173,7 +177,7 @@ imports:
   - pkg/client/clientset/clientset/scheme
   - pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 - name: k8s.io/apimachinery
-  version: 17529ec7eadb8de8e7dc835201455f53571f655a
+  version: e386b2658ed20923da8cc9250e552f082899a1ee
   subpackages:
   - pkg/api/errors
   - pkg/api/meta
@@ -217,7 +221,7 @@ imports:
   - third_party/forked/golang/json
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
-  version: 26a26f55b28aa1b338fbaf6fbbe0bcd76aed05e0
+  version: a312bfe35c401f70e5ea0add48b50da283031dc3
   subpackages:
   - discovery
   - discovery/fake
