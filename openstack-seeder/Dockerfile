@@ -23,9 +23,9 @@ WORKDIR /openstack-seeder
 COPY python/* /openstack-seeder/
 RUN apt-get update && \
     apt-get dist-upgrade -y && \
-    apt-get install -y --no-install-recommends build-essential pkg-config git openssl libssl-dev libyaml-dev python python-setuptools python-dev && \
+    apt-get install -y --no-install-recommends build-essential pkg-config git openssl libssl-dev libyaml-dev libffi-dev python python-setuptools python-dev && \
     python setup.py install && \
-    apt-get purge -y --auto-remove build-essential pkg-config git python-dev libssl-dev libyaml-dev && \
+    apt-get purge -y --auto-remove build-essential pkg-config git python-dev libssl-dev libffi-dev libyaml-dev && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache
 
 WORKDIR /

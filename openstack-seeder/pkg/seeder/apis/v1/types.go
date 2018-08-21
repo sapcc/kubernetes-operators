@@ -1051,7 +1051,7 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 	}
 	for _, domain := range spec.Domains {
 		if domain.Name == "" {
-			return fmt.Errorf("domain %s: a domain mame is required", domain.Description)
+			return fmt.Errorf("domain %s: a domain name is required", domain.Description)
 		}
 		for _, r := range domain.RoleAssignments {
 			if r.User != "" && r.Group != "" {
@@ -1066,7 +1066,7 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 		}
 		for _, project := range domain.Projects {
 			if project.Name == "" {
-				return fmt.Errorf("domain %s, project %s: a project mame is required", domain.Name, project.Description)
+				return fmt.Errorf("domain %s, project %s: a project name is required", domain.Name, project.Description)
 			}
 			for _, r := range project.RoleAssignments {
 				if r.User != "" && r.Group != "" {
@@ -1082,7 +1082,7 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 		}
 		for _, user := range domain.Users {
 			if user.Name == "" {
-				return fmt.Errorf("domain %s, user %s: a user mame is required", domain.Name, user.Description)
+				return fmt.Errorf("domain %s, user %s: a user name is required", domain.Name, user.Description)
 			}
 			for _, r := range user.RoleAssignments {
 				if (r.Project != "" || r.ProjectID != "") && r.Domain != "" {
@@ -1098,7 +1098,7 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 		}
 		for _, group := range domain.Groups {
 			if group.Name == "" {
-				return fmt.Errorf("domain %s, group %s: a group mame is required", domain.Name, group.Description)
+				return fmt.Errorf("domain %s, group %s: a group name is required", domain.Name, group.Description)
 			}
 			for _, r := range group.RoleAssignments {
 				if (r.Project != "" || r.ProjectID != "") && r.Domain != "" {
