@@ -261,22 +261,36 @@ type RouterSpec struct {
 	AdminStateUp        *bool                    `json:"admin_state_up,omitempty" yaml:"admin_state_up,omitempty"` // The administrative state of the router, which is up (true) or down (false).
 	Description         string                   `json:"description,omitempty" yaml:"description,omitempty"`       // description of the router
 	ExternalGatewayInfo *ExternalGatewayInfoSpec `json:"external_gateway_info,omitempty" yaml:"external_gateway_info,omitempty"`
-	Distributed         *bool                    `json:"distributed,omitempty" yaml:"distributed,omitempty"` // true indicates a distributed router. It is available when dvr extension is enabled.
-	HA                  *bool                    `json:"ha,omitempty" yaml:"ha,omitempty"`                   // true indicates a highly-available router. It is available when l3-ha extension is enabled.
-	RouterPorts         []RouterPortSpec         `json:"interfaces,omitempty" yaml:"interfaces,omitempty"`   //
+	Distributed         *bool                    `json:"distributed,omitempty" yaml:"distributed,omitempty"`         // true indicates a distributed router. It is available when dvr extension is enabled.
+	HA                  *bool                    `json:"ha,omitempty" yaml:"ha,omitempty"`                           // true indicates a highly-available router. It is available when l3-ha extension is enabled.
+	FlavorId            string                   `json:"flavor_id,omitempty" yaml:"flavor_id,omitempty"`             // The ID of the flavor associated with the router
+	ServiceTypeId       string                   `json:"service_type_id,omitempty" yaml:"service_type_id,omitempty"` // The ID of the service type associated with the router.
+	RouterPorts         []RouterPortSpec         `json:"interfaces,omitempty" yaml:"interfaces,omitempty"`           // Router internal interface specs. This means a specified subnet is attached to a router as an internal router interface.
+	Routes              []RouterRouteSpec        `json:"routes,omitempty" yaml:"routes,omitempty"`                   // The extra routes configuration for L3 router. It is available when extraroute extension is enabled.
 }
 
 type ExternalGatewayInfoSpec struct {
-	Network          string   `json:"network,omitempty" yaml:"network,omitempty"`                       // network-name in the same project
-	NetworkId        string   `json:"network_id,omitempty" yaml:"network_id,omitempty"`                 // or network-id
-	EnableSNAT       *bool    `json:"enable_snat,omitempty" yaml:"enable_snat,omitempty"`               // Enable Source NAT (SNAT) attribute. Default is true. To persist this attribute value, set the enable_snat_by_default option in the neutron.conf file. It is available when ext-gw-mode extension is enabled.
-	ExternalFixedIPs []string `json:"external_fixed_ips,omitempty" yaml:"external_fixed_ips,omitempty"` // IP address(es) of the external gateway interface of the router. It is a list of IP addresses you would like to assign to the external gateway interface. Each element of ths list is a dictionary of ip_address and subnet_id.
+	Network          string                 `json:"network,omitempty" yaml:"network,omitempty"`                       // network-name (network@project@domain)
+	NetworkId        string                 `json:"network_id,omitempty" yaml:"network_id,omitempty"`                 // or network-id
+	EnableSNAT       *bool                  `json:"enable_snat,omitempty" yaml:"enable_snat,omitempty"`               // Enable Source NAT (SNAT) attribute. Default is true. To persist this attribute value, set the enable_snat_by_default option in the neutron.conf file. It is available when ext-gw-mode extension is enabled.
+	ExternalFixedIPs []ExternalFixedIPsSpec `json:"external_fixed_ips,omitempty" yaml:"external_fixed_ips,omitempty"` // external gateway interface of the router. It is a list of IP addresses you would like to assign to the external gateway interface.
+}
+
+type ExternalFixedIPsSpec struct {
+	Subnet    string `json:"subnet,omitempty" yaml:"subnet,omitempty"`         // subnet-name (subnet@project@domain)
+	SubnetId  string `json:"subnet_id,omitempty" yaml:"subnet_id,omitempty"`   // or subnet-id
+	IpAddress string `json:"ip_address,omitempty" yaml:"ip_address,omitempty"` // IP address
 }
 
 type RouterPortSpec struct {
-	PortId   string `json:"port_id,omitempty" yaml:"port_id,omitempty"`     // port-id
-	Subnet   string `json:"subnet,omitempty" yaml:"subnet,omitempty"`       // subnet-name within the routers project
-	SubnetId string `json:"subnet_id,omitempty" yaml:"subnet_id,omitempty"` // subnet-id
+	PortId   string `json:"port_id,omitempty" yaml:"port_id,omitempty"`     // The ID of the port. One of subnet_id or port_id must be specified.
+	Subnet   string `json:"subnet,omitempty" yaml:"subnet,omitempty"`       // Subnet-name (subnet-name or subnet-name@project@domain). Looks up a subnet-id by name.
+	SubnetId string `json:"subnet_id,omitempty" yaml:"subnet_id,omitempty"` // The ID of the subnet. One of subnet_id or port_id must be specified.
+}
+
+type RouterRouteSpec struct {
+	Destination string `json:"destination,omitempty" yaml:"destination,omitempty"` // Route destination
+	Nexthop     string `json:"nexthop,omitempty" yaml:"nexthop,omitempty"`         // Route nexthop
 }
 
 type SwiftAccountSpec struct {
@@ -742,16 +756,13 @@ func (e *ProjectSpec) MergeRouters(project ProjectSpec) {
 				glog.V(2).Info("merge project router ", r)
 				utils.MergeStructFields(&v, r)
 				if r.ExternalGatewayInfo != nil {
-					if v.ExternalGatewayInfo == nil {
-						v.ExternalGatewayInfo = new(ExternalGatewayInfoSpec)
-					}
-					utils.MergeStructFields(v.ExternalGatewayInfo, r.ExternalGatewayInfo)
-					if len(r.ExternalGatewayInfo.ExternalFixedIPs) > 0 {
-						v.ExternalGatewayInfo.ExternalFixedIPs = utils.MergeStringSlices(r.ExternalGatewayInfo.ExternalFixedIPs, v.ExternalGatewayInfo.ExternalFixedIPs)
-					}
+					r.MergeExternalGatewayInfo(*r.ExternalGatewayInfo)
 				}
 				if len(r.RouterPorts) > 0 {
 					v.MergeRouterPorts(r)
+				}
+				if len(r.Routes) > 0 {
+					v.MergeRouterRoutes(r)
 				}
 				e.Routers[i] = v
 				found = true
@@ -982,6 +993,53 @@ func (e *RouterSpec) MergeRouterPorts(router RouterSpec) {
 		if !found {
 			glog.V(2).Info("append port ", rp)
 			e.RouterPorts = append(e.RouterPorts, rp)
+		}
+	}
+}
+
+func (e *RouterSpec) MergeRouterRoutes(router RouterSpec) {
+	if e.Routes == nil {
+		e.Routes = make([]RouterRouteSpec, 0)
+	}
+	for i, rt := range router.Routes {
+		found := false
+		for _, v := range e.Routes {
+			if v.Destination == rt.Destination {
+				glog.V(2).Info("merge route ", rt)
+				utils.MergeStructFields(&v, rt)
+				found = true
+				e.Routes[i] = v
+				break
+			}
+		}
+		if !found {
+			glog.V(2).Info("append route ", rt)
+			e.Routes = append(e.Routes, rt)
+		}
+	}
+}
+
+func (e *RouterSpec) MergeExternalGatewayInfo(egi ExternalGatewayInfoSpec) {
+	if e.ExternalGatewayInfo == nil {
+		e.ExternalGatewayInfo = new(ExternalGatewayInfoSpec)
+		e.ExternalGatewayInfo.ExternalFixedIPs = make([]ExternalFixedIPsSpec, 0)
+	}
+	utils.MergeStructFields(e.ExternalGatewayInfo, egi)
+
+	for i, efi := range egi.ExternalFixedIPs {
+		found := false
+		for _, v := range e.ExternalGatewayInfo.ExternalFixedIPs {
+			if v.Subnet == efi.Subnet || v.SubnetId == efi.SubnetId {
+				glog.V(2).Info("merge external fixed ip ", efi)
+				utils.MergeStructFields(&v, efi)
+				found = true
+				e.ExternalGatewayInfo.ExternalFixedIPs[i] = v
+				break
+			}
+		}
+		if !found {
+			glog.V(2).Info("append external fixed ip ", efi)
+			e.ExternalGatewayInfo.ExternalFixedIPs = append(e.ExternalGatewayInfo.ExternalFixedIPs, efi)
 		}
 	}
 }

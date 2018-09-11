@@ -16,29 +16,28 @@
 
 import argparse
 import copy
+import logging
 import os
 import sys
-import yaml
-import logging
 import traceback
-import requests
 from urlparse import urlparse
-from urllib3.exceptions import InsecureRequestWarning
 
-from raven.base import Client
-from raven.conf import setup_logging
-from raven.handlers.logging import SentryHandler
-from raven.transport.requests import RequestsHTTPTransport
-
+import requests
+import yaml
+from designateclient.v2 import client as designateclient
 from keystoneauth1 import session
 from keystoneauth1.loading import cli
 from keystoneclient import exceptions
 from keystoneclient.v3 import client as keystoneclient
+from neutronclient.v2_0 import client as neutronclient
 from novaclient import client as novaclient
 from novaclient import exceptions as novaexceptions
-from neutronclient.v2_0 import client as neutronclient
+from raven.base import Client
+from raven.conf import setup_logging
+from raven.handlers.logging import SentryHandler
+from raven.transport.requests import RequestsHTTPTransport
 from swiftclient import client as swiftclient
-from designateclient.v2 import client as designateclient
+from urllib3.exceptions import InsecureRequestWarning
 
 # caches
 role_cache = {}
@@ -1000,7 +999,7 @@ def seed_project_routers(project, routers, args, sess):
             router = sanitize(router, (
                 'name', 'admin_state_up', 'description',
                 'external_gateway_info', 'distributed', 'ha',
-                'availability_zone_hints'))
+                'availability_zone_hints', 'flavor_id', 'service_type_id', 'routes'))
 
             if 'name' not in router or not router['name']:
                 logging.warn(
@@ -1033,6 +1032,29 @@ def seed_project_routers(project, routers, args, sess):
                         continue
                     router['external_gateway_info']['network_id'] = network_id
                     router['external_gateway_info'].pop('network', None)
+
+                if 'external_fixed_ips' in router['external_gateway_info']:
+                    subnet_id = None
+                    if 'subnet' in router['external_gateway_info']['external_fixed_ips']:
+                        # subnet@project@domain ?
+                        if '@' in router['external_gateway_info']['external_fixed_ips']['subnet']:
+                            parts = router['external_gateway_info']['external_fixed_ips']['subnet'].split('@')
+                            if len(parts) > 2:
+                                project_id = get_project_id(parts[2], parts[1], keystone)
+                                if project_id:
+                                    subnet_id = get_subnet_id(project_id, parts[0], neutron)
+                        else:
+                            subnet_id = get_subnet_id(project.id,
+                                                      router['external_gateway_info']['external_fixed_ips']['subnet'],
+                                                      neutron)
+                    if not subnet_id:
+                        logging.warn(
+                            "skipping router '%s/%s': external_gateway_info.external_fixed_ips.subnet %s not found" % (
+                                project.name, router,
+                                router['external_gateway_info']['external_fixed_ips']['subnet']))
+                        continue
+                    router['external_gateway_info']['external_fixed_ips']['subnet_id'] = subnet_id
+                    router['external_gateway_info']['external_fixed_ips'].pop('subnet', None)
 
             body = {'router': router.copy()}
             body['router']['tenant_id'] = project.id
@@ -1082,17 +1104,28 @@ def seed_router_interfaces(router, interfaces, args, sess):
     :return:
     """
 
-    logging.debug("seeding routes of router %s" % router['name'])
+    logging.debug("seeding interfaces of router %s" % router['name'])
 
     # grab a neutron client
-    neutron = neutronclient.Client(session=sess,
-                                   interface=args.interface)
+    neutron = neutronclient.Client(session=sess, interface=args.interface)
+
+    # grab a keystone client
+    keystone = keystoneclient.Client(session=sess, interface=args.interface)
 
     for interface in interfaces:
         if 'subnet' in interface:
-            # lookup subnet-id
-            subnet_id = get_subnet_id(router['tenant_id'], interface['subnet'],
-                                      neutron)
+            subnet_id = None
+            # subnet@project@domain ?
+            if '@' in interface['subnet']:
+                parts = interface['subnet'].split('@')
+                if len(parts) > 2:
+                    project_id = get_project_id(parts[2], parts[1], keystone)
+                    if project_id:
+                        subnet_id = get_subnet_id(project_id, parts[0], neutron)
+            else:
+                # lookup subnet-id
+                subnet_id = get_subnet_id(router['tenant_id'], interface['subnet'], neutron)
+
             if subnet_id:
                 interface['subnet_id'] = subnet_id
 
@@ -1114,8 +1147,7 @@ def seed_router_interfaces(router, interfaces, args, sess):
                 break
             elif 'subnet_id' in interface:
                 for ip in port['fixed_ips']:
-                    if 'subnet_id' in ip and ip['subnet_id'] == interface[
-                        'subnet_id']:
+                    if 'subnet_id' in ip and ip['subnet_id'] == interface['subnet_id']:
                         found = True
                         break
             if found:
@@ -1126,8 +1158,7 @@ def seed_router_interfaces(router, interfaces, args, sess):
 
         # add router interface
         neutron.add_interface_router(router['id'], interface)
-        logging.info(
-            "added interface %s to router'%s'" % (interface, router['name']))
+        logging.info("added interface %s to router'%s'" % (interface, router['name']))
 
 
 def seed_network_tags(network, tags, args, sess):
