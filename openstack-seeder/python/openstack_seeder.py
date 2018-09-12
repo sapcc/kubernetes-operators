@@ -16,29 +16,27 @@
 
 import argparse
 import copy
+import logging
 import os
 import sys
-import yaml
-import logging
-import traceback
-import requests
 from urlparse import urlparse
-from urllib3.exceptions import InsecureRequestWarning
 
-from raven.base import Client
-from raven.conf import setup_logging
-from raven.handlers.logging import SentryHandler
-from raven.transport.requests import RequestsHTTPTransport
-
+import requests
+import yaml
+from designateclient.v2 import client as designateclient
 from keystoneauth1 import session
 from keystoneauth1.loading import cli
 from keystoneclient import exceptions
 from keystoneclient.v3 import client as keystoneclient
+from neutronclient.v2_0 import client as neutronclient
 from novaclient import client as novaclient
 from novaclient import exceptions as novaexceptions
-from neutronclient.v2_0 import client as neutronclient
+from raven.base import Client
+from raven.conf import setup_logging
+from raven.handlers.logging import SentryHandler
+from raven.transport.requests import RequestsHTTPTransport
 from swiftclient import client as swiftclient
-from designateclient.v2 import client as designateclient
+from urllib3.exceptions import InsecureRequestWarning
 
 # caches
 role_cache = {}
@@ -309,14 +307,14 @@ def seed_endpoints(service, endpoints, keystone):
                                          interface=endpoint['interface'],
                                          region_id=region)
         if not result:
-            logging.info("create endpoint '%s/%s'" % \
+            logging.info("create endpoint '%s/%s'" %
                          (service.name, endpoint['interface']))
             keystone.endpoints.create(service.id, **endpoint)
         else:
             resource = result[0]
             for attr in endpoint.keys():
                 if endpoint[attr] != resource._info.get(attr, ''):
-                    logging.info("%s differs. update endpoint '%s/%s'" % \
+                    logging.info("%s differs. update endpoint '%s/%s'" %
                                  (attr, service.name, endpoint['interface']))
                     keystone.endpoints.update(resource.id, **endpoint)
                     break
@@ -546,8 +544,7 @@ def seed_projects(domain, projects, args, sess):
     logging.debug("seeding projects %s %s" % (domain.name, projects))
 
     # grab a keystone client
-    keystone = keystoneclient.Client(session=sess,
-                                     interface=args.interface)
+    keystone = keystoneclient.Client(session=sess, interface=args.interface)
 
     for project in projects:
         roles = None
@@ -719,6 +716,7 @@ def seed_project_flavors(project, flavors, args, sess):
                 nova.flavor_access.add_tenant_access(flavorid, project.id)
         except Exception as e:
             logging.error("could not add flavor-id '%s' access for project '%s': %s" % (flavorid, project.name, e))
+            raise
 
 
 def seed_project_network_quota(project, quota, args, sess):
@@ -816,6 +814,7 @@ def seed_project_address_scopes(project, address_scopes, args, sess):
         except Exception as e:
             logging.error("could not seed address scope %s/%s: %s" % (
                 project.name, scope['name'], e))
+            raise
 
 
 def seed_project_subnet_pools(project, subnet_pools, args, sess, **kvargs):
@@ -892,6 +891,7 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess, **kvargs):
         except Exception as e:
             logging.error("could not seed subnet pool %s/%s: %s" % (
                 project.name, subnet_pool['name'], e))
+            raise
 
 
 def seed_project_networks(project, networks, args, sess):
@@ -968,6 +968,7 @@ def seed_project_networks(project, networks, args, sess):
         except Exception as e:
             logging.error("could not seed network %s/%s: %s" % (
                 project.name, network['name'], e))
+            raise
 
 
 def seed_project_routers(project, routers, args, sess):
@@ -999,7 +1000,7 @@ def seed_project_routers(project, routers, args, sess):
             router = sanitize(router, (
                 'name', 'admin_state_up', 'description',
                 'external_gateway_info', 'distributed', 'ha',
-                'availability_zone_hints'))
+                'availability_zone_hints', 'flavor_id', 'service_type_id', 'routes'))
 
             if 'name' not in router or not router['name']:
                 logging.warn(
@@ -1032,6 +1033,29 @@ def seed_project_routers(project, routers, args, sess):
                         continue
                     router['external_gateway_info']['network_id'] = network_id
                     router['external_gateway_info'].pop('network', None)
+
+                if 'external_fixed_ips' in router['external_gateway_info']:
+                    subnet_id = None
+                    if 'subnet' in router['external_gateway_info']['external_fixed_ips']:
+                        # subnet@project@domain ?
+                        if '@' in router['external_gateway_info']['external_fixed_ips']['subnet']:
+                            parts = router['external_gateway_info']['external_fixed_ips']['subnet'].split('@')
+                            if len(parts) > 2:
+                                project_id = get_project_id(parts[2], parts[1], keystone)
+                                if project_id:
+                                    subnet_id = get_subnet_id(project_id, parts[0], neutron)
+                        else:
+                            subnet_id = get_subnet_id(project.id,
+                                                      router['external_gateway_info']['external_fixed_ips']['subnet'],
+                                                      neutron)
+                    if not subnet_id:
+                        logging.warn(
+                            "skipping router '%s/%s': external_gateway_info.external_fixed_ips.subnet %s not found" % (
+                                project.name, router,
+                                router['external_gateway_info']['external_fixed_ips']['subnet']))
+                        continue
+                    router['external_gateway_info']['external_fixed_ips']['subnet_id'] = subnet_id
+                    router['external_gateway_info']['external_fixed_ips'].pop('subnet', None)
 
             body = {'router': router.copy()}
             body['router']['tenant_id'] = project.id
@@ -1069,6 +1093,7 @@ def seed_project_routers(project, routers, args, sess):
         except Exception as e:
             logging.error("could not seed router %s/%s: %s" % (
                 project.name, router['name'], e))
+            raise
 
 
 def seed_router_interfaces(router, interfaces, args, sess):
@@ -1081,17 +1106,28 @@ def seed_router_interfaces(router, interfaces, args, sess):
     :return:
     """
 
-    logging.debug("seeding routes of router %s" % router['name'])
+    logging.debug("seeding interfaces of router %s" % router['name'])
 
     # grab a neutron client
-    neutron = neutronclient.Client(session=sess,
-                                   interface=args.interface)
+    neutron = neutronclient.Client(session=sess, interface=args.interface)
+
+    # grab a keystone client
+    keystone = keystoneclient.Client(session=sess, interface=args.interface)
 
     for interface in interfaces:
         if 'subnet' in interface:
-            # lookup subnet-id
-            subnet_id = get_subnet_id(router['tenant_id'], interface['subnet'],
-                                      neutron)
+            subnet_id = None
+            # subnet@project@domain ?
+            if '@' in interface['subnet']:
+                parts = interface['subnet'].split('@')
+                if len(parts) > 2:
+                    project_id = get_project_id(parts[2], parts[1], keystone)
+                    if project_id:
+                        subnet_id = get_subnet_id(project_id, parts[0], neutron)
+            else:
+                # lookup subnet-id
+                subnet_id = get_subnet_id(router['tenant_id'], interface['subnet'], neutron)
+
             if subnet_id:
                 interface['subnet_id'] = subnet_id
 
@@ -1113,8 +1149,7 @@ def seed_router_interfaces(router, interfaces, args, sess):
                 break
             elif 'subnet_id' in interface:
                 for ip in port['fixed_ips']:
-                    if 'subnet_id' in ip and ip['subnet_id'] == interface[
-                        'subnet_id']:
+                    if 'subnet_id' in ip and ip['subnet_id'] == interface['subnet_id']:
                         found = True
                         break
             if found:
@@ -1125,8 +1160,7 @@ def seed_router_interfaces(router, interfaces, args, sess):
 
         # add router interface
         neutron.add_interface_router(router['id'], interface)
-        logging.info(
-            "added interface %s to router'%s'" % (interface, router['name']))
+        logging.info("added interface %s to router'%s'" % (interface, router['name']))
 
 
 def seed_network_tags(network, tags, args, sess):
@@ -1278,6 +1312,7 @@ def seed_swift(project, swift, args, sess):
             logging.error(
                 "could not seed swift account for project %s: %s" % (
                     project.name, e))
+            raise
 
 
 def seed_swift_containers(project, containers, conn):
@@ -1319,6 +1354,7 @@ def seed_swift_containers(project, containers, conn):
             logging.error(
                 "could not seed swift container for project %s: %s" % (
                     project.name, e))
+            raise
 
 
 def seed_project_designate_quota(project, config, args):
@@ -1426,6 +1462,7 @@ def seed_project_dns_zones(project, zones, args):
     except Exception as e:
         logging.error("could not seed project dns zones %s: %s" % (
             project.name, e))
+        raise
 
 
 def seed_dns_zone_recordsets(zone, recordsets, designate):
@@ -1494,6 +1531,7 @@ def seed_dns_zone_recordsets(zone, recordsets, designate):
         except Exception as e:
             logging.error("could not seed dns zone %s recordsets: %s" % (
                 zone['name'], e))
+            raise
 
 
 def seed_project_tsig_keys(project, keys, args):
@@ -1544,10 +1582,10 @@ def seed_project_tsig_keys(project, keys, args):
                         project.name, key['name']))
                 designate.tsigkeys.create(key.pop('name'), **key)
 
-
     except Exception as e:
         logging.error("could not seed project dns tsig keys %s: %s" % (
             project.name, e))
+        raise
 
 
 def domain_config_equal(new, current):
@@ -1739,6 +1777,7 @@ def seed_flavor(flavor, args, sess):
                 resource.set_keys(keys)
     except Exception as e:
         logging.error("Failed to seed flavor %s: %s" % (flavor, e))
+        raise
 
 
 def resolve_group_members(keystone):
@@ -1772,7 +1811,7 @@ def resolve_role_assignments(keystone):
                 id = get_user_id(domain, user, keystone)
                 if not id:
                     logging.warn(
-                        "user %s not found, skipping role assignment.." % \
+                        "user %s not found, skipping role assignment.." %
                         assignment['user'])
                     continue
                 role_assignment['user'] = id
@@ -1781,7 +1820,7 @@ def resolve_role_assignments(keystone):
                 id = get_group_id(domain, group, keystone)
                 if not id:
                     logging.warn(
-                        "group %s not found, skipping role assignment.." % \
+                        "group %s not found, skipping role assignment.." %
                         assignment['group'])
                     continue
                 role_assignment['group'] = id
@@ -1789,7 +1828,7 @@ def resolve_role_assignments(keystone):
                 id = get_domain_id(assignment['domain'], keystone)
                 if not id:
                     logging.warn(
-                        "domain %s not found, skipping role assignment.." % \
+                        "domain %s not found, skipping role assignment.." %
                         assignment['domain'])
                     continue
                 role_assignment['domain'] = id
@@ -1798,7 +1837,7 @@ def resolve_role_assignments(keystone):
                 id = get_project_id(domain, project, keystone)
                 if not id:
                     logging.warn(
-                        "project %s not found, skipping role assignment.." % \
+                        "project %s not found, skipping role assignment.." %
                         assignment['project'])
                     continue
                 role_assignment['project'] = id
@@ -1887,8 +1926,7 @@ def seed(args):
             seed_config(config, args, sess)
         return 0
     except Exception as e:
-        logging.error("could not seed openstack: %s" % e)
-        logging.error(traceback.format_exc())
+        logging.error("seed failed: %s" % e)
         return 1
 
 
@@ -1911,7 +1949,7 @@ def main():
                                  'CRITICAL'], help="Set the logging level",
                         default='INFO')
     parser.add_argument('--dry-run', default=False, action='store_true',
-                        help=('Only parse the seed, do no actual seeding.'))
+                        help='Only parse the seed, do no actual seeding.')
     cli.register_argparse_arguments(parser, sys.argv[1:])
     args = parser.parse_args()
 
@@ -1923,7 +1961,7 @@ def main():
     # setup sentry logging
     if 'SENTRY_DSN' in os.environ:
         dsn = os.environ['SENTRY_DSN']
-        if not 'verify_ssl' in dsn:
+        if 'verify_ssl' not in dsn:
             dsn = "%s?verify_ssl=0" % os.environ['SENTRY_DSN']
         client = Client(dsn=dsn, transport=RequestsHTTPTransport)
         handler = SentryHandler(client)

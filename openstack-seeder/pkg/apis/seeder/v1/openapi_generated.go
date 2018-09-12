@@ -416,6 +416,35 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
+		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ExternalFixedIPsSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"subnet": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"subnet_id": {
+							SchemaProps: spec.SchemaProps{
+								Description: "subnet-name (subnet@project@domain)",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"ip_address": {
+							SchemaProps: spec.SchemaProps{
+								Description: "or subnet-id",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ExternalGatewayInfoSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -428,7 +457,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"network_id": {
 							SchemaProps: spec.SchemaProps{
-								Description: "network-name in the same project",
+								Description: "network-name (network@project@domain)",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -447,8 +476,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Type:   []string{"string"},
-											Format: "",
+											Ref: ref("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ExternalFixedIPsSpec"),
 										},
 									},
 								},
@@ -457,7 +485,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					},
 				},
 			},
-			Dependencies: []string{},
+			Dependencies: []string{
+				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ExternalFixedIPsSpec"},
 		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.FlavorSpec": {
 			Schema: spec.Schema{
@@ -1592,14 +1621,36 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"subnet": {
 							SchemaProps: spec.SchemaProps{
-								Description: "port-id",
+								Description: "The ID of the port. One of subnet_id or port_id must be specified.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
 						"subnet_id": {
 							SchemaProps: spec.SchemaProps{
-								Description: "subnet-name within the routers project",
+								Description: "Subnet-name (subnet-name or subnet-name@project@domain). Looks up a subnet-id by name.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RouterRouteSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"destination": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"nexthop": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Route destination",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -1653,9 +1704,23 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "",
 							},
 						},
-						"interfaces": {
+						"flavor_id": {
 							SchemaProps: spec.SchemaProps{
 								Description: "true indicates a highly-available router. It is available when l3-ha extension is enabled.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"service_type_id": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The ID of the flavor associated with the router",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"interfaces": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The ID of the service type associated with the router.",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1666,12 +1731,25 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 						},
+						"routes": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Router internal interface specs. This means a specified subnet is attached to a router as an internal router interface.",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RouterRouteSpec"),
+										},
+									},
+								},
+							},
+						},
 					},
 					Required: []string{"name"},
 				},
 			},
 			Dependencies: []string{
-				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ExternalGatewayInfoSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RouterPortSpec"},
+				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ExternalGatewayInfoSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RouterPortSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RouterRouteSpec"},
 		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ServiceSpec": {
 			Schema: spec.Schema{

@@ -443,16 +443,13 @@ func (e *ProjectSpec) MergeRouters(project ProjectSpec) {
 				glog.V(2).Info("merge project router ", r)
 				utils.MergeStructFields(&v, r)
 				if r.ExternalGatewayInfo != nil {
-					if v.ExternalGatewayInfo == nil {
-						v.ExternalGatewayInfo = new(ExternalGatewayInfoSpec)
-					}
-					utils.MergeStructFields(v.ExternalGatewayInfo, r.ExternalGatewayInfo)
-					if len(r.ExternalGatewayInfo.ExternalFixedIPs) > 0 {
-						v.ExternalGatewayInfo.ExternalFixedIPs = utils.MergeStringSlices(r.ExternalGatewayInfo.ExternalFixedIPs, v.ExternalGatewayInfo.ExternalFixedIPs)
-					}
+					r.MergeExternalGatewayInfo(*r.ExternalGatewayInfo)
 				}
 				if len(r.RouterPorts) > 0 {
 					v.MergeRouterPorts(r)
+				}
+				if len(r.Routes) > 0 {
+					v.MergeRouterRoutes(r)
 				}
 				e.Routers[i] = v
 				found = true
@@ -462,6 +459,53 @@ func (e *ProjectSpec) MergeRouters(project ProjectSpec) {
 		if !found {
 			glog.V(2).Info("append project router ", r)
 			e.Routers = append(e.Routers, r)
+		}
+	}
+}
+
+func (e *RouterSpec) MergeRouterRoutes(router RouterSpec) {
+	if e.Routes == nil {
+		e.Routes = make([]RouterRouteSpec, 0)
+	}
+	for i, rt := range router.Routes {
+		found := false
+		for _, v := range e.Routes {
+			if v.Destination == rt.Destination {
+				glog.V(2).Info("merge route ", rt)
+				utils.MergeStructFields(&v, rt)
+				found = true
+				e.Routes[i] = v
+				break
+			}
+		}
+		if !found {
+			glog.V(2).Info("append route ", rt)
+			e.Routes = append(e.Routes, rt)
+		}
+	}
+}
+
+func (e *RouterSpec) MergeExternalGatewayInfo(egi ExternalGatewayInfoSpec) {
+	if e.ExternalGatewayInfo == nil {
+		e.ExternalGatewayInfo = new(ExternalGatewayInfoSpec)
+		e.ExternalGatewayInfo.ExternalFixedIPs = make([]ExternalFixedIPsSpec, 0)
+	}
+	utils.MergeStructFields(e.ExternalGatewayInfo, egi)
+
+	for i, efi := range egi.ExternalFixedIPs {
+		found := false
+		for _, v := range e.ExternalGatewayInfo.ExternalFixedIPs {
+			if v.Subnet == efi.Subnet || v.SubnetId == efi.SubnetId {
+				glog.V(2).Info("merge external fixed ip ", efi)
+				utils.MergeStructFields(&v, efi)
+				found = true
+				e.ExternalGatewayInfo.ExternalFixedIPs[i] = v
+				break
+			}
+		}
+		if !found {
+			glog.V(2).Info("append external fixed ip ", efi)
+			e.ExternalGatewayInfo.ExternalFixedIPs = append(e.ExternalGatewayInfo.ExternalFixedIPs, efi)
 		}
 	}
 }
