@@ -18,6 +18,7 @@ import argparse
 import copy
 import logging
 import os
+import re
 import sys
 from urlparse import urlparse
 
@@ -981,6 +982,8 @@ def seed_project_routers(project, routers, args, sess):
     :return:
     """
 
+    regex = r"^(\w+)@(\w+)@(\w+)$"
+
     logging.debug("seeding routers of project %s" % project.name)
 
     # grab a neutron client
@@ -1013,16 +1016,13 @@ def seed_project_routers(project, routers, args, sess):
                 if 'network' in router['external_gateway_info']:
                     network_id = None
                     # network@project@domain ?
-                    if '@' in router['external_gateway_info']['network']:
-                        parts = router['external_gateway_info'][
-                            'network'].split('@')
-                        if len(parts) > 2:
-                            project_id = get_project_id(parts[2], parts[1],
-                                                        keystone)
-                            if project_id:
-                                network_id = get_network_id(project_id,
-                                                            parts[0], neutron)
+                    match = re.match(regex, router['external_gateway_info']['network'])
+                    if match:
+                        project_id = get_project_id(match.group(3), match.group(2), keystone)
+                        if project_id:
+                            network_id = get_network_id(project_id, match.group(1), neutron)
                     else:
+                        # network of this project
                         network_id = get_network_id(project.id, router[
                             'external_gateway_info']['network'], neutron)
                     if not network_id:
@@ -1035,27 +1035,27 @@ def seed_project_routers(project, routers, args, sess):
                     router['external_gateway_info'].pop('network', None)
 
                 if 'external_fixed_ips' in router['external_gateway_info']:
-                    subnet_id = None
                     if 'subnet' in router['external_gateway_info']['external_fixed_ips']:
+                        subnet_id = None
                         # subnet@project@domain ?
-                        if '@' in router['external_gateway_info']['external_fixed_ips']['subnet']:
-                            parts = router['external_gateway_info']['external_fixed_ips']['subnet'].split('@')
-                            if len(parts) > 2:
-                                project_id = get_project_id(parts[2], parts[1], keystone)
-                                if project_id:
-                                    subnet_id = get_subnet_id(project_id, parts[0], neutron)
+                        match = re.match(regex, router['external_gateway_info']['external_fixed_ips']['subnet'])
+                        if match:
+                            project_id = get_project_id(match.group(3), match.group(2), keystone)
+                            if project_id:
+                                subnet_id = get_subnet_id(project_id, match.group(1), neutron)
                         else:
+                            # subnet of this project
                             subnet_id = get_subnet_id(project.id,
                                                       router['external_gateway_info']['external_fixed_ips']['subnet'],
                                                       neutron)
-                    if not subnet_id:
-                        logging.warn(
-                            "skipping router '%s/%s': external_gateway_info.external_fixed_ips.subnet %s not found" % (
-                                project.name, router['name'],
-                                router['external_gateway_info']['external_fixed_ips']['subnet']))
-                        continue
-                    router['external_gateway_info']['external_fixed_ips']['subnet_id'] = subnet_id
-                    router['external_gateway_info']['external_fixed_ips'].pop('subnet', None)
+                        if not subnet_id:
+                            logging.warn(
+                                "skipping router '%s/%s': external_gateway_info.external_fixed_ips.subnet %s not found" % (
+                                    project.name, router['name'],
+                                    router['external_gateway_info']['external_fixed_ips']['subnet']))
+                            continue
+                        router['external_gateway_info']['external_fixed_ips']['subnet_id'] = subnet_id
+                        router['external_gateway_info']['external_fixed_ips'].pop('subnet', None)
 
             body = {'router': router.copy()}
             body['router']['tenant_id'] = project.id
