@@ -19,7 +19,6 @@ import copy
 import logging
 import os
 import sys
-import traceback
 from urlparse import urlparse
 
 import requests
@@ -308,14 +307,13 @@ def seed_endpoints(service, endpoints, keystone):
                                          interface=endpoint['interface'],
                                          region_id=region)
         if not result:
-            logging.info("create endpoint '%s/%s'" % \
-                         (service.name, endpoint['interface']))
+            logging.info("create endpoint '%s/%s'" % (service.name, endpoint['interface']))
             keystone.endpoints.create(service.id, **endpoint)
         else:
             resource = result[0]
             for attr in endpoint.keys():
                 if endpoint[attr] != resource._info.get(attr, ''):
-                    logging.info("%s differs. update endpoint '%s/%s'" % \
+                    logging.info("%s differs. update endpoint '%s/%s'" %
                                  (attr, service.name, endpoint['interface']))
                     keystone.endpoints.update(resource.id, **endpoint)
                     break
@@ -535,6 +533,7 @@ def seed_project_endpoints(project, endpoints, keystone):
                 logging.error(
                     'could not configure project endpoints for %s: service %s not found: %s' % (
                         project.name, endpoint, e))
+                raise
 
 
 def seed_projects(domain, projects, args, sess):
@@ -545,10 +544,8 @@ def seed_projects(domain, projects, args, sess):
     logging.debug("seeding projects %s %s" % (domain.name, projects))
 
     # grab a keystone client
-    keystone = keystoneclient.Client(session=sess,
-                                     interface=args.interface)
+    keystone = keystoneclient.Client(session=sess, interface=args.interface)
 
-    # todo: test parent support
     for project in projects:
         roles = None
         if 'roles' in project:
@@ -719,6 +716,7 @@ def seed_project_flavors(project, flavors, args, sess):
                 nova.flavor_access.add_tenant_access(flavorid, project.id)
         except Exception as e:
             logging.error("could not add flavor-id '%s' access for project '%s': %s" % (flavorid, project.name, e))
+            raise
 
 
 def seed_project_network_quota(project, quota, args, sess):
@@ -816,6 +814,7 @@ def seed_project_address_scopes(project, address_scopes, args, sess):
         except Exception as e:
             logging.error("could not seed address scope %s/%s: %s" % (
                 project.name, scope['name'], e))
+            raise
 
 
 def seed_project_subnet_pools(project, subnet_pools, args, sess, **kvargs):
@@ -892,6 +891,7 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess, **kvargs):
         except Exception as e:
             logging.error("could not seed subnet pool %s/%s: %s" % (
                 project.name, subnet_pool['name'], e))
+            raise
 
 
 def seed_project_networks(project, networks, args, sess):
@@ -968,6 +968,7 @@ def seed_project_networks(project, networks, args, sess):
         except Exception as e:
             logging.error("could not seed network %s/%s: %s" % (
                 project.name, network['name'], e))
+            raise
 
 
 def seed_project_routers(project, routers, args, sess):
@@ -1092,6 +1093,7 @@ def seed_project_routers(project, routers, args, sess):
         except Exception as e:
             logging.error("could not seed router %s/%s: %s" % (
                 project.name, router['name'], e))
+            raise
 
 
 def seed_router_interfaces(router, interfaces, args, sess):
@@ -1310,6 +1312,7 @@ def seed_swift(project, swift, args, sess):
             logging.error(
                 "could not seed swift account for project %s: %s" % (
                     project.name, e))
+            raise
 
 
 def seed_swift_containers(project, containers, conn):
@@ -1351,6 +1354,7 @@ def seed_swift_containers(project, containers, conn):
             logging.error(
                 "could not seed swift container for project %s: %s" % (
                     project.name, e))
+            raise
 
 
 def seed_project_designate_quota(project, config, args):
@@ -1395,6 +1399,7 @@ def seed_project_designate_quota(project, config, args):
         logging.error(
             "could not seed designate quota for project %s: %s" % (
                 project.name, e))
+        raise
 
 
 def seed_project_dns_zones(project, zones, args):
@@ -1458,6 +1463,7 @@ def seed_project_dns_zones(project, zones, args):
     except Exception as e:
         logging.error("could not seed project dns zones %s: %s" % (
             project.name, e))
+        raise
 
 
 def seed_dns_zone_recordsets(zone, recordsets, designate):
@@ -1526,6 +1532,7 @@ def seed_dns_zone_recordsets(zone, recordsets, designate):
         except Exception as e:
             logging.error("could not seed dns zone %s recordsets: %s" % (
                 zone['name'], e))
+            raise
 
 
 def seed_project_tsig_keys(project, keys, args):
@@ -1576,10 +1583,10 @@ def seed_project_tsig_keys(project, keys, args):
                         project.name, key['name']))
                 designate.tsigkeys.create(key.pop('name'), **key)
 
-
     except Exception as e:
         logging.error("could not seed project dns tsig keys %s: %s" % (
             project.name, e))
+        raise
 
 
 def domain_config_equal(new, current):
@@ -1771,6 +1778,7 @@ def seed_flavor(flavor, args, sess):
                 resource.set_keys(keys)
     except Exception as e:
         logging.error("Failed to seed flavor %s: %s" % (flavor, e))
+        raise
 
 
 def resolve_group_members(keystone):
@@ -1804,7 +1812,7 @@ def resolve_role_assignments(keystone):
                 id = get_user_id(domain, user, keystone)
                 if not id:
                     logging.warn(
-                        "user %s not found, skipping role assignment.." % \
+                        "user %s not found, skipping role assignment.." %
                         assignment['user'])
                     continue
                 role_assignment['user'] = id
@@ -1813,7 +1821,7 @@ def resolve_role_assignments(keystone):
                 id = get_group_id(domain, group, keystone)
                 if not id:
                     logging.warn(
-                        "group %s not found, skipping role assignment.." % \
+                        "group %s not found, skipping role assignment.." %
                         assignment['group'])
                     continue
                 role_assignment['group'] = id
@@ -1821,7 +1829,7 @@ def resolve_role_assignments(keystone):
                 id = get_domain_id(assignment['domain'], keystone)
                 if not id:
                     logging.warn(
-                        "domain %s not found, skipping role assignment.." % \
+                        "domain %s not found, skipping role assignment.." %
                         assignment['domain'])
                     continue
                 role_assignment['domain'] = id
@@ -1830,7 +1838,7 @@ def resolve_role_assignments(keystone):
                 id = get_project_id(domain, project, keystone)
                 if not id:
                     logging.warn(
-                        "project %s not found, skipping role assignment.." % \
+                        "project %s not found, skipping role assignment.." %
                         assignment['project'])
                     continue
                 role_assignment['project'] = id
@@ -1919,8 +1927,7 @@ def seed(args):
             seed_config(config, args, sess)
         return 0
     except Exception as e:
-        logging.error("could not seed openstack: %s" % e)
-        logging.error(traceback.format_exc())
+        logging.error("seed failed: %s" % e)
         return 1
 
 
@@ -1943,7 +1950,7 @@ def main():
                                  'CRITICAL'], help="Set the logging level",
                         default='INFO')
     parser.add_argument('--dry-run', default=False, action='store_true',
-                        help=('Only parse the seed, do no actual seeding.'))
+                        help='Only parse the seed, do no actual seeding.')
     cli.register_argparse_arguments(parser, sys.argv[1:])
     args = parser.parse_args()
 
@@ -1955,7 +1962,7 @@ def main():
     # setup sentry logging
     if 'SENTRY_DSN' in os.environ:
         dsn = os.environ['SENTRY_DSN']
-        if not 'verify_ssl' in dsn:
+        if 'verify_ssl' not in dsn:
             dsn = "%s?verify_ssl=0" % os.environ['SENTRY_DSN']
         client = Client(dsn=dsn, transport=RequestsHTTPTransport)
         handler = SentryHandler(client)
