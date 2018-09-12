@@ -1004,7 +1004,7 @@ def seed_project_routers(project, routers, args, sess):
 
             if 'name' not in router or not router['name']:
                 logging.warn(
-                    "skipping router '%s/%s', since it is misconfigured" % (
+                    "skipping router '%s %s', since it is misconfigured" % (
                         project.name, router))
                 continue
 
@@ -1028,7 +1028,7 @@ def seed_project_routers(project, routers, args, sess):
                     if not network_id:
                         logging.warn(
                             "skipping router '%s/%s': external_gateway_info.network %s not found" % (
-                                project.name, router,
+                                project.name, router['name'],
                                 router['external_gateway_info']['network']))
                         continue
                     router['external_gateway_info']['network_id'] = network_id
@@ -1051,7 +1051,7 @@ def seed_project_routers(project, routers, args, sess):
                     if not subnet_id:
                         logging.warn(
                             "skipping router '%s/%s': external_gateway_info.external_fixed_ips.subnet %s not found" % (
-                                project.name, router,
+                                project.name, router['name'],
                                 router['external_gateway_info']['external_fixed_ips']['subnet']))
                         continue
                     router['external_gateway_info']['external_fixed_ips']['subnet_id'] = subnet_id
