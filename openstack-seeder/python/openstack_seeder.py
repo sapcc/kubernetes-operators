@@ -982,7 +982,7 @@ def seed_project_routers(project, routers, args, sess):
     :return:
     """
 
-    regex = r"^(\w+)@(\w+)@(\w+)$"
+    regex = r"^([^@]+)@([^@]+)@([^@]+)$"
 
     logging.debug("seeding routers of project %s" % project.name)
 
