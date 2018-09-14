@@ -586,7 +586,7 @@ func (e *DomainSpec) MergeRoleAssignments(domain DomainSpec) {
 	for _, ra := range domain.RoleAssignments {
 		found := false
 		for i, v := range e.RoleAssignments {
-			if v.Role == ra.Role && v.User == ra.User && v.Group == ra.Group {
+			if v.Role == ra.Role && v.User == ra.User && v.Group == ra.Group && v.Inherited == ra.Inherited {
 				glog.V(2).Info("merge domain-role-assignment ", ra)
 				utils.MergeStructFields(&v, ra)
 				e.RoleAssignments[i] = v
@@ -629,7 +629,7 @@ func (e *ProjectSpec) MergeRoleAssignments(project ProjectSpec) {
 	for _, ra := range project.RoleAssignments {
 		found := false
 		for i, v := range e.RoleAssignments {
-			if v.Role == ra.Role && v.User == ra.User && v.Group == ra.Group {
+			if v.Role == ra.Role && v.User == ra.User && v.Group == ra.Group && v.Inherited == ra.Inherited {
 				glog.V(2).Info("merge project-role-assignment ", ra)
 				utils.MergeStructFields(&v, ra)
 				e.RoleAssignments[i] = v
@@ -882,7 +882,7 @@ func (e *GroupSpec) MergeRoleAssignments(group GroupSpec) {
 	for _, ra := range group.RoleAssignments {
 		found := false
 		for i, v := range e.RoleAssignments {
-			if v.Role == ra.Role && v.Project == ra.Project && v.Domain == ra.Domain {
+			if v.Role == ra.Role && v.Project == ra.Project && v.Domain == ra.Domain && v.Inherited == ra.Inherited {
 				glog.V(2).Info("merge group-role-assignment ", ra)
 				utils.MergeStructFields(&v, ra)
 				e.RoleAssignments[i] = v
@@ -904,7 +904,7 @@ func (e *UserSpec) MergeRoleAssignments(user UserSpec) {
 	for _, ra := range user.RoleAssignments {
 		found := false
 		for i, v := range e.RoleAssignments {
-			if v.Role == ra.Role && v.Project == ra.Project && v.Domain == ra.Domain {
+			if v.Role == ra.Role && v.Project == ra.Project && v.Domain == ra.Domain && v.Inherited == ra.Inherited {
 				glog.V(2).Info("merge user-role-assignment ", ra)
 				utils.MergeStructFields(&v, ra)
 				e.RoleAssignments[i] = v

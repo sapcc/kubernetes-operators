@@ -1015,6 +1015,7 @@ def seed_project_routers(project, routers, args, sess):
                 # lookup network-id
                 if 'network' in router['external_gateway_info']:
                     network_id = None
+
                     # network@project@domain ?
                     match = re.match(regex, router['external_gateway_info']['network'])
                     if match:
@@ -1037,6 +1038,7 @@ def seed_project_routers(project, routers, args, sess):
                 if 'external_fixed_ips' in router['external_gateway_info']:
                     if 'subnet' in router['external_gateway_info']['external_fixed_ips']:
                         subnet_id = None
+
                         # subnet@project@domain ?
                         match = re.match(regex, router['external_gateway_info']['external_fixed_ips']['subnet'])
                         if match:
@@ -1080,8 +1082,8 @@ def seed_project_routers(project, routers, args, sess):
                             else:
                                 continue
                         logging.info(
-                            "%s differs. update router'%s/%s'" % (
-                                attr, project.name, router['name']))
+                            "%s differs. update router'%s/%s %s" % (
+                                attr, project.name, router['name'], body))
                         # drop read-only attributes
                         body['router'].pop('tenant_id', None)
                         result = neutron.update_router(resource['id'], body)
@@ -1812,8 +1814,7 @@ def resolve_role_assignments(keystone):
                 id = get_user_id(domain, user, keystone)
                 if not id:
                     logging.warn(
-                        "user %s not found, skipping role assignment.." %
-                        assignment['user'])
+                        "user %s not found, skipping role assignment.." % assignment['user'])
                     continue
                 role_assignment['user'] = id
             elif 'group' in assignment:
@@ -1821,16 +1822,14 @@ def resolve_role_assignments(keystone):
                 id = get_group_id(domain, group, keystone)
                 if not id:
                     logging.warn(
-                        "group %s not found, skipping role assignment.." %
-                        assignment['group'])
+                        "group %s not found, skipping role assignment.." % assignment['group'])
                     continue
                 role_assignment['group'] = id
             if 'domain' in assignment:
                 id = get_domain_id(assignment['domain'], keystone)
                 if not id:
                     logging.warn(
-                        "domain %s not found, skipping role assignment.." %
-                        assignment['domain'])
+                        "domain %s not found, skipping role assignment.." % assignment['domain'])
                     continue
                 role_assignment['domain'] = id
             if 'project' in assignment:
@@ -1838,15 +1837,14 @@ def resolve_role_assignments(keystone):
                 id = get_project_id(domain, project, keystone)
                 if not id:
                     logging.warn(
-                        "project %s not found, skipping role assignment.." %
-                        assignment['project'])
+                        "project %s not found, skipping role assignment.." % assignment['project'])
                     continue
                 role_assignment['project'] = id
             elif 'project_id' in assignment:
                 role_assignment['project'] = assignment['project_id']
+
             if 'inherited' in assignment:
-                role_assignment['os_inherit_extension_inherited'] = assignment[
-                    'inherited']
+                role_assignment['os_inherit_extension_inherited'] = assignment['inherited']
 
             try:
                 keystone.roles.check(role_id, **role_assignment)
@@ -1855,8 +1853,7 @@ def resolve_role_assignments(keystone):
                 keystone.roles.grant(role_id, **role_assignment)
         except ValueError as e:
             logging.error(
-                "skipped role assignment %s since it is invalid: %s" % (
-                    assignment, e))
+                "skipped role assignment %s since it is invalid: %s" % (assignment, e))
 
 
 def seed_config(config, args, sess):
