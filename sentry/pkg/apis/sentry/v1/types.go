@@ -11,6 +11,15 @@ const SentryProjectResourcePlural = "sentryprojects"
 
 var isSlug = regexp.MustCompile(`^[-a-z0-9]+$`).MatchString
 
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type SentryProject struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              SentryProjectSpec   `json:"spec"`
+	Status            SentryProjectStatus `json:"status,omitempty"`
+}
+
 type SentryProjectSpec struct {
 	Name string `json:"name"`
 	Team string `json:"team"`
@@ -26,13 +35,6 @@ func (spec SentryProjectSpec) Validate() error {
 	return nil
 }
 
-type SentryProject struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata"`
-	Spec              SentryProjectSpec   `json:"spec"`
-	Status            SentryProjectStatus `json:"status,omitempty"`
-}
-
 type SentryProjectState string
 
 const (
@@ -46,6 +48,7 @@ type SentryProjectStatus struct {
 	Message string             `json:"message,omitempty"`
 }
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type SentryProjectList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`

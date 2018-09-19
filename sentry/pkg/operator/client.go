@@ -7,17 +7,17 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/golang/glog"
-	tprv1 "github.com/sapcc/kubernetes-operators/sentry/pkg/tpr/v1"
+	"github.com/sapcc/kubernetes-operators/sentry/pkg/apis/sentry/v1"
 )
 
 func NewClient(cfg *rest.Config) (*rest.RESTClient, *runtime.Scheme, error) {
 	scheme := runtime.NewScheme()
-	if err := tprv1.AddToScheme(scheme); err != nil {
+	if err := v1.AddToScheme(scheme); err != nil {
 		return nil, nil, err
 	}
 
 	config := *cfg
-	config.GroupVersion = &tprv1.SchemeGroupVersion
+	config.GroupVersion = &v1.SchemeGroupVersion
 	config.APIPath = "/apis"
 	config.ContentType = runtime.ContentTypeJSON
 	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
