@@ -55,6 +55,8 @@ subnet_cache = {}
 group_members = {}
 role_assignments = []
 
+resource_classes = set()
+
 
 def get_role_id(name, keystone):
     """ get a (cached) role-id for a role name """
@@ -1851,13 +1853,13 @@ def seed_resource_class(resource_class, args, sess):
 
         # api_version=1.7 -> idempotent resource class creation
         http = placementclient(session=sess, ks_filter=ks_filter, api_version='1.7')
-        logging.debug(resource_class)
-        http.request('PUT', PER_CLASS_URL.format(name=resource_class))
+        result = http.request('PUT', PER_CLASS_URL.format(name=resource_class))
     except Exception as e:
         logging.error("Failed to seed resource-class %s: %s" % (resource_class, e))
 
 
-def seed_flavor(flavor, args, sess):
+def seed_flavor(flavor, args, sess, config):
+    global resource_classes
     logging.debug("seeding flavor %s" % flavor)
 
     try:
@@ -1870,6 +1872,11 @@ def seed_flavor(flavor, args, sess):
             if not isinstance(extra_specs, dict):
                 logging.warn(
                     "skipping flavor '%s', since it has invalid extra_specs" % flavor)
+            else:
+                for k in extra_specs:
+                    if k.startswith('resources:CUSTOM_'):
+                        resource_classes.add(k.split(':', 2)[-1])
+                        logging.info("got resource_classes: {}".format(resource_classes))
 
         flavor = sanitize(flavor, (
             'id', 'name', 'ram', 'disk', 'vcpus', 'swap', 'rxtx_factor',
@@ -2026,7 +2033,7 @@ def resolve_role_assignments(keystone):
 
 
 def seed_config(config, args, sess):
-    global group_members, role_assignments
+    global group_members, role_assignments, resource_classes
 
     # reset
     group_members = {}
@@ -2055,13 +2062,16 @@ def seed_config(config, args, sess):
         for service in config['services']:
             seed_service(service, keystone)
 
-    if 'resource_classes' in config:
-        for resource_class in config['resource_classes']:
-            seed_resource_class(resource_class, args, sess)
-
     if 'flavors' in config:
         for flavor in config['flavors']:
-            seed_flavor(flavor, args, sess)
+            seed_flavor(flavor, args, sess, config)
+
+    # Run it after seed_flavor, as we collect resource_classes there
+    if 'resource_classes' in config:
+        resource_classes.update(config['resource_classes'])
+
+    for resource_class in resource_classes:
+        seed_resource_class(resource_class, args, sess)
 
     if 'domains' in config:
         for domain in config['domains']:
