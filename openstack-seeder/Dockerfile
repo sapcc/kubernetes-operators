@@ -1,22 +1,4 @@
-FROM python:2 as pybuild
-
-COPY python/setup.py /openstack-seeder/
-RUN mkdir /wheels && pip wheel -w /wheels /openstack-seeder/ && rm /wheels/openstack_seeder*
-
-FROM golang:1 as gobuild
-ARG NS=github.com/sapcc/kubernetes-operators/openstack-seeder
-RUN mkdir -p /go/src/$NS
-WORKDIR /go/src/$NS
-ADD vendor ./vendor
-ADD cmd ./cmd
-ADD pkg ./pkg
-ARG VERSION
-RUN go build\
-    -v -i -o /openstack-seeder \
-    -ldflags "-X github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/seeder/controller.VERSION=${VERSION}"\
-    ./cmd
-
-FROM python:2-slim
+FROM ubuntu:xenial
 MAINTAINER Rudolf Vriend <rudolf.vriend@sap.com>
 
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
@@ -36,12 +18,15 @@ RUN echo 'precedence ::ffff:0:0/96  100' >> /etc/gai.conf && \
 
 RUN curl -sLo /usr/local/bin/kubernetes-entrypoint https://github.wdf.sap.corp/d062284/k8s-entrypoint-build/releases/download/f52d105/kubernetes-entrypoint && \
     chmod +x /usr/local/bin/kubernetes-entrypoint
-COPY --from=pybuild /wheels /wheels
+
 WORKDIR /openstack-seeder
 COPY python/* /openstack-seeder/
-RUN pip install --no-cache-dir --no-compile --no-index --find-links /wheels -e /openstack-seeder && \
+RUN apt-get update && \
+    apt-get dist-upgrade -y && \
+    apt-get install -y --no-install-recommends build-essential pkg-config git openssl libssl-dev libyaml-dev libffi-dev python python-setuptools python-dev && \
+    python setup.py install && \
+    apt-get purge -y --auto-remove build-essential pkg-config git python-dev libssl-dev libffi-dev libyaml-dev && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache
 
-COPY --from=gobuild /openstack-seeder /usr/local/bin
-
 WORKDIR /
+ADD bin/linux/openstack-seeder /usr/local/bin

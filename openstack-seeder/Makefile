@@ -24,7 +24,7 @@ all: bin/$(GOOS)/$(BINARY)
 bin/%/$(BINARY): $(GOFILES) Makefile
 	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd
 
-build:
+build: bin/linux/$(BINARY)
 	docker build $(BUILD_ARGS) -t $(IMAGE):$(VERSION) .
 
 push: build
