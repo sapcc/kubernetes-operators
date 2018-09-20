@@ -145,7 +145,7 @@ def get_subnetpool_id(project_id, name, neutron):
         result = neutron.list_subnetpools(retrieve_all=True, **query)
         if result and result['subnetpools']:
             result = subnetpool_cache[project_id][name] = \
-            result['subnetpools'][0]['id']
+                result['subnetpools'][0]['id']
         else:
             result = None
     else:
@@ -164,7 +164,7 @@ def get_network_id(project_id, name, neutron):
         result = neutron.list_networks(retrieve_all=True, **query)
         if result and result['networks']:
             result = network_cache[project_id][name] = \
-            result['networks'][0]['id']
+                result['networks'][0]['id']
         else:
             result = None
     else:
@@ -183,7 +183,7 @@ def get_subnet_id(project_id, name, neutron):
         result = neutron.list_subnets(retrieve_all=True, **query)
         if result and result['subnets']:
             result = subnet_cache[project_id][name] = \
-            result['subnets'][0]['id']
+                result['subnets'][0]['id']
         else:
             result = None
     else:
@@ -314,7 +314,7 @@ def seed_endpoints(service, endpoints, keystone):
                                          region_id=region)
         if not result:
             logging.info("create endpoint '%s/%s'" % (
-            service.name, endpoint['interface']))
+                service.name, endpoint['interface']))
             keystone.endpoints.create(service.id, **endpoint)
         else:
             resource = result[0]
@@ -347,7 +347,7 @@ def seed_service(service, keystone):
     if not result:
         logging.info(
             "create service '%s/%s'" % (
-            service['name'], service['type']))
+                service['name'], service['type']))
         resource = keystone.services.create(**service)
     else:
         resource = result[0]
@@ -411,7 +411,7 @@ def seed_users(domain, users, keystone):
                 assignment = dict()
                 assignment['role'] = role['role']
                 assignment['user'] = '%s@%s' % (
-                user['name'], domain.name)
+                    user['name'], domain.name)
                 if 'project' in role:
                     if '@' in role['project']:
                         assignment['project'] = role['project']
@@ -485,7 +485,7 @@ def seed_groups(domain, groups, keystone):
                 assignment = dict()
                 assignment['role'] = role['role']
                 assignment['group'] = '%s@%s' % (
-                group['name'], domain.name)
+                    group['name'], domain.name)
                 if 'project' in role:
                     if '@' in role['project']:
                         assignment['project'] = role['project']
@@ -630,7 +630,7 @@ def seed_projects(domain, projects, args, sess):
         if not result:
             logging.info(
                 "create project '%s/%s'" % (
-                domain.name, project['name']))
+                    domain.name, project['name']))
             resource = keystone.projects.create(domain=domain,
                                                 **project)
         else:
@@ -740,13 +740,13 @@ def seed_project_flavors(project, flavors, args, sess):
                 # add it
                 logging.info(
                     "adding flavor '%s' access to project '%s" % (
-                    flavorid, project.name))
+                        flavorid, project.name))
                 nova.flavor_access.add_tenant_access(flavorid,
                                                      project.id)
         except Exception as e:
             logging.error(
                 "could not add flavor-id '%s' access for project '%s': %s" % (
-                flavorid, project.name, e))
+                    flavorid, project.name, e))
             raise
 
 
@@ -773,7 +773,7 @@ def seed_project_network_quota(project, quota, args, sess):
     if not result or not result['quota']:
         logging.info(
             "set project %s network quota to '%s'" % (
-            project.name, quota))
+                project.name, quota))
         neutron.update_quota(project.id, body)
     else:
         resource = result['quota']
@@ -903,8 +903,7 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess,
                 if project.id not in subnetpool_cache:
                     subnetpool_cache[project.id] = {}
                 subnetpool_cache[project.id][subnet_pool['name']] = \
-                resource[
-                    'id']
+                    resource['id']
 
                 for attr in subnet_pool.keys():
                     if attr == 'prefixes':
@@ -995,7 +994,7 @@ def seed_project_networks(project, networks, args, sess):
             if not result or not result['networks']:
                 logging.info(
                     "create network '%s/%s'" % (
-                    project.name, network['name']))
+                        project.name, network['name']))
                 result = neutron.create_network(body)
                 resource = result['network']
             else:
@@ -1139,13 +1138,12 @@ def seed_project_routers(project, routers, args, sess):
                             efi.pop('subnet', None)
                         router['external_gateway_info'][
                             'external_fixed_ips'][index] = sanitize(efi,
-                                                                    (
-                                                                    'subnet_id',
+                                                                    ('subnet_id',
                                                                     'ip_address'))
 
-            router['external_gateway_info'] = sanitize(
-                router['external_gateway_info'],
-                ('network_id', 'enable_snat', 'external_fixed_ips'))
+                router['external_gateway_info'] = sanitize(
+                    router['external_gateway_info'],
+                    ('network_id', 'enable_snat', 'external_fixed_ips'))
 
             body = {'router': router.copy()}
             body['router']['tenant_id'] = project.id
@@ -1154,33 +1152,35 @@ def seed_project_routers(project, routers, args, sess):
             if not result or not result['routers']:
                 logging.info(
                     "create router '%s/%s': %s" % (
-                    project.name, router['name'], body))
+                        project.name, router['name'], body))
                 result = neutron.create_router(body)
                 resource = result['router']
             else:
                 resource = result['routers'][0]
                 update = False
+
                 for attr in router.keys():
                     if attr == 'external_gateway_info':
-                        if 'network_id' in router[attr] and resource.get(attr, ''):
-                            if router[attr]['network_id'] != resource[attr]['network_id']:
+                        if 'network_id' in router[
+                            attr] and resource.get(attr, ''):
+                            if router[attr]['network_id'] != \
+                                    resource[attr]['network_id']:
                                 update = True
 
                         if ('external_fixed_ips' in router[
                             'external_gateway_info'] and
-                            external_fixed_ip_subnets_differ(
-                            router['external_gateway_info'][
-                                'external_fixed_ips'],
-                            resource['external_gateway_info'][
-                                'external_fixed_ips'])):
-                                update = True
+                                external_fixed_ip_subnets_differ(
+                                    router['external_gateway_info'][
+                                        'external_fixed_ips'],
+                                    resource['external_gateway_info'][
+                                        'external_fixed_ips'])):
+                            update = True
                     elif router[attr] != resource.get(attr, ''):
                         update = True
 
-
                 if update:
                     logging.info("update router '%s/%s': %s" % (
-                    project.name, router['name'], body))
+                        project.name, router['name'], body))
                     # drop read-only attributes
                     body['router'].pop('tenant_id', None)
                     result = neutron.update_router(resource['id'], body)
@@ -1266,7 +1266,7 @@ def seed_router_interfaces(router, interfaces, args, sess):
         # add router interface
         neutron.add_interface_router(router['id'], interface)
         logging.info("added interface %s to router'%s'" % (
-        interface, router['name']))
+            interface, router['name']))
 
 
 def seed_network_tags(network, tags, args, sess):
@@ -1295,7 +1295,7 @@ def seed_network_tags(network, tags, args, sess):
         if tag not in network['tags']:
             logging.info(
                 "adding tag %s to network '%s'" % (
-                tag, network['name']))
+                    tag, network['name']))
             neutron.add_tag('networks', network['id'], tag)
 
 
@@ -1353,7 +1353,7 @@ def seed_network_subnets(network, subnets, args, sess):
         if not result or not result['subnets']:
             logging.info(
                 "create subnet '%s/%s'" % (
-                network['name'], subnet['name']))
+                    network['name'], subnet['name']))
             neutron.create_subnet(body)
         else:
             resource = result['subnets'][0]
@@ -1801,7 +1801,7 @@ def seed_domain(domain, args, sess):
             if domain[attr] != resource._info.get(attr, ''):
                 logging.info(
                     "%s differs. update domain '%s'" % (
-                    attr, domain['name']))
+                        attr, domain['name']))
                 keystone.domains.update(resource.id, **domain)
                 break
 
@@ -1919,7 +1919,7 @@ def seed_flavor(flavor, args, sess):
             if set_extra_specs:
                 logging.info(
                     "updating extra-specs '%s' of flavor '%s'" % (
-                    keys, flavor['name']))
+                        keys, flavor['name']))
                 resource.set_keys(keys)
     except Exception as e:
         logging.error("Failed to seed flavor %s: %s" % (flavor, e))
@@ -1943,7 +1943,7 @@ def resolve_group_members(keystone):
             else:
                 logging.warn(
                     "could not add user '%s' to group '%s'" % (
-                    uid, group))
+                        uid, group))
 
 
 def resolve_role_assignments(keystone):
@@ -1994,7 +1994,7 @@ def resolve_role_assignments(keystone):
 
             if 'inherited' in assignment:
                 role_assignment['os_inherit_extension_inherited'] = \
-                assignment['inherited']
+                    assignment['inherited']
 
             try:
                 keystone.roles.check(role_id, **role_assignment)
@@ -2004,7 +2004,7 @@ def resolve_role_assignments(keystone):
         except ValueError as e:
             logging.error(
                 "skipped role assignment %s since it is invalid: %s" % (
-                assignment, e))
+                    assignment, e))
 
 
 def seed_config(config, args, sess):
