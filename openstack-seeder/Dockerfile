@@ -1,4 +1,22 @@
-FROM ubuntu:xenial
+FROM python:2 as pybuild
+
+COPY python/setup.py /openstack-seeder/
+RUN mkdir /wheels && pip wheel -w /wheels /openstack-seeder/ && rm /wheels/openstack_seeder*
+
+FROM golang:1 as gobuild
+ARG NS=github.com/sapcc/kubernetes-operators/openstack-seeder
+RUN mkdir -p /go/src/$NS
+WORKDIR /go/src/$NS
+ADD vendor ./vendor
+ADD cmd ./cmd
+ADD pkg ./pkg
+ARG VERSION
+RUN go build\
+    -v -i -o /openstack-seeder \
+    -ldflags "-X github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/seeder/controller.VERSION=${VERSION}"\
+    ./cmd
+
+FROM python:2-slim
 MAINTAINER Rudolf Vriend <rudolf.vriend@sap.com>
 
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
@@ -20,17 +38,15 @@ RUN curl -Lo /bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/
 	&& chmod +x /bin/dumb-init \
 	&& dumb-init -V
 
+COPY --from=pybuild /wheels /wheels
 WORKDIR /openstack-seeder
 COPY python/* /openstack-seeder/
-RUN apt-get update && \
-    apt-get dist-upgrade -y && \
-    apt-get install -y --no-install-recommends build-essential pkg-config git openssl libssl-dev libffi-dev libyaml-dev python python-setuptools python-dev && \
-    python setup.py install && \
-    apt-get purge -y --auto-remove build-essential pkg-config git python-dev libssl-dev libffi-dev libyaml-dev && \
+RUN pip install --no-cache-dir --no-compile --no-index --find-links /wheels -e /openstack-seeder && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache
 
+COPY --from=gobuild /openstack-seeder /usr/local/bin
+
 WORKDIR /
-ADD bin/linux/openstack-seeder /usr/local/bin
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["openstack-seeder"]
