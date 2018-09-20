@@ -32,6 +32,8 @@ from keystoneclient.v3 import client as keystoneclient
 from neutronclient.v2_0 import client as neutronclient
 from novaclient import client as novaclient
 from novaclient import exceptions as novaexceptions
+from osc_placement.http import SessionClient as placementclient
+from osc_placement.resources.resource_class import PER_CLASS_URL
 from raven.base import Client
 from raven.conf import setup_logging
 from raven.handlers.logging import SentryHandler
@@ -1838,6 +1840,22 @@ def seed_domain(domain, args, sess):
                 assignment['inherited'] = role['inherited']
             role_assignments.append(assignment)
 
+def seed_resource_class(resource_class, args, sess):
+    logging.debug("seeding resource-class %s" % resource_class)
+
+    try:
+        ks_filter = {
+            'service_type': 'placement',
+            'interface': args.interface,
+        }
+
+        # api_version=1.7 -> idempotent resource class creation
+        http = placementclient(session=sess, ks_filter=ks_filter, api_version='1.7')
+        logging.debug(resource_class)
+        http.request('PUT', PER_CLASS_URL.format(name=resource_class))
+    except Exception as e:
+        logging.error("Failed to seed resource-class %s: %s" % (resource_class, e))
+
 
 def seed_flavor(flavor, args, sess):
     logging.debug("seeding flavor %s" % flavor)
@@ -2037,7 +2055,11 @@ def seed_config(config, args, sess):
         for service in config['services']:
             seed_service(service, keystone)
 
-    if "flavors" in config:
+    if 'resource_classes' in config:
+        for resource_class in config['resource_classes']:
+            seed_resource_class(resource_class, args, sess)
+
+    if 'flavors' in config:
         for flavor in config['flavors']:
             seed_flavor(flavor, args, sess)
 

@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='openstack_seeder',
-    version='0.1.3',
+    version='0.1.4',
     packages='.',
     install_requires=[
         'python-keystoneclient==3.17.0',
@@ -10,6 +10,7 @@ setup(
         'python-neutronclient==6.10.0',
         'python-designateclient==2.10.0',
         'python-swiftclient==3.6.0',
+        'osc-placement==1.3.0',
         'PyYAML==3.12',
         'raven',
     ],
