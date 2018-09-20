@@ -49,12 +49,13 @@ type OpenstackSeedList struct {
 //
 // Cross kubernetes namespace dependencies can be defined by using a fully qualified **requires** notation that includes a namespace: namespace/specname
 type OpenstackSeedSpec struct {
-	Dependencies []string      `json:"requires,omitempty" yaml:"requires,omitempty"` // list of required specs that need to be resolved before the current one
-	Roles        []string      `json:"roles,omitempty" yaml:"roles,omitempty"`       // list of keystone roles
-	Regions      []RegionSpec  `json:"regions,omitempty" yaml:"regions,omitempty"`   // list keystone regions
-	Services     []ServiceSpec `json:"services,omitempty" yaml:"services,omitempty"` // list keystone services and their endpoints
-	Flavors      []FlavorSpec  `json:"flavors,omitempty" yaml:"flavors,omitempty"`   // list of nova flavors
-	Domains      []DomainSpec  `json:"domains,omitempty" yaml:"domains,omitempty"`   // list keystone domains with their configuration, users, groups, projects, etc.
+	Dependencies    []string      `json:"requires,omitempty" yaml:"requires,omitempty"`                 // list of required specs that need to be resolved before the current one
+	Roles           []string      `json:"roles,omitempty" yaml:"roles,omitempty"`                       // list of keystone roles
+	ResourceClasses []string      `json:"resource_classes,omitempty" yaml:"resource_classes,omitempty"` // list of resource classes for the placement service (currently still part of nova)
+	Regions         []RegionSpec  `json:"regions,omitempty" yaml:"regions,omitempty"`                   // list keystone regions
+	Services        []ServiceSpec `json:"services,omitempty" yaml:"services,omitempty"`                 // list keystone services and their endpoints
+	Flavors         []FlavorSpec  `json:"flavors,omitempty" yaml:"flavors,omitempty"`                   // list of nova flavors
+	Domains         []DomainSpec  `json:"domains,omitempty" yaml:"domains,omitempty"`                   // list keystone domains with their configuration, users, groups, projects, etc.
 }
 
 // A keystone region (see https://developer.openstack.org/api-ref/identity/v3/index.html#regions)
@@ -351,6 +352,20 @@ func (e *OpenstackSeedSpec) MergeRole(role string) {
 	}
 	glog.V(2).Info("append role ", role)
 	e.Roles = append(e.Roles, role)
+}
+
+// MergeResourceClass merges resource-class by name into the spec
+func (e *OpenstackSeedSpec) MergeResourceClass(resourceClass string) {
+	if e.ResourceClasses == nil {
+		e.ResourceClasses = make([]string, 0)
+	}
+	for _, v := range e.ResourceClasses {
+		if v == resourceClass {
+			return
+		}
+	}
+	glog.V(2).Info("append resourceClass ", resourceClass)
+	e.ResourceClasses = append(e.ResourceClasses, resourceClass)
 }
 
 func (e *OpenstackSeedSpec) MergeRegion(region RegionSpec) {
@@ -1079,6 +1094,14 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 		}
 		e.MergeRole(role)
 	}
+
+	for _, resourceClass := range spec.ResourceClasses {
+		if resourceClass == "" {
+			return errors.New("resourceClass name is required")
+		}
+		e.MergeResourceClass(resourceClass)
+	}
+
 	for _, region := range spec.Regions {
 		if region.Region == "" {
 			return errors.New("region name is required")
