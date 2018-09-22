@@ -72,15 +72,37 @@ func (s *TestSuite) TestDoesKeyAndCertificateTally() {
 
 func (s *TestSuite) TestDoesCertificateExpireSoon() {
 	vc := s.ViceCert
+	minCertValidityDays := s.VP.Options.MinCertValidityDays
 
 	vc.Certificate.NotAfter = time.Now().AddDate(0, 0, -1)
-	s.True(s.ViceCert.DoesCertificateExpireSoon(), "should be true to indicate the certificate was valid until yesterday")
+	s.True(
+		s.ViceCert.DoesCertificateExpireSoon(minCertValidityDays),
+		"should be true to indicate the certificate was valid until yesterday and has to be renewed",
+	)
+
+	vc.Certificate.NotAfter = time.Now().AddDate(0, -1, 0)
+	s.True(
+		s.ViceCert.DoesCertificateExpireSoon(minCertValidityDays),
+		"should be true to indicate the certificate was valid until last month and has to be renewed",
+	)
 
 	vc.Certificate.NotAfter = time.Now().AddDate(0, 1, 0)
-	s.True(s.ViceCert.DoesCertificateExpireSoon(), "should be true to indicate the certificate is valid for 1 month")
+	s.True(
+		s.ViceCert.DoesCertificateExpireSoon(minCertValidityDays),
+		"should be true to indicate the certificate is valid for 1 month and has to be renewed",
+	)
+
+	vc.Certificate.NotAfter = time.Now().AddDate(0, 1, 1)
+	s.False(
+		s.ViceCert.DoesCertificateExpireSoon(minCertValidityDays),
+		"should be false to indicate the certificate is valid for more than 1 month. no renewal needed",
+	)
 
 	vc.Certificate.NotAfter = time.Now().AddDate(0, 6, 0)
-	s.False(s.ViceCert.DoesCertificateExpireSoon(), "should be false to indicate the certificate is valid for another 6 month")
+	s.False(
+		s.ViceCert.DoesCertificateExpireSoon(minCertValidityDays),
+		"should be false to indicate the certificate is valid for another 6 month. no renewal needed",
+	)
 }
 
 func (s *TestSuite) TestWriteCertificateChain() {

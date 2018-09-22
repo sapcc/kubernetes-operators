@@ -22,9 +22,6 @@ package president
 import "time"
 
 const (
-	// CertificateValidityMonth defines how long certificates must be valid before a renewal is invoked (in month)
-	CertificateValidityMonth = 1
-
 	// CertificateType ..
 	CertificateType = "CERTIFICATE"
 

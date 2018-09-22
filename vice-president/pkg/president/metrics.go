@@ -131,15 +131,6 @@ var apiRateLimitHitGauge = prometheus.NewGaugeVec(
 	[]string{"ingress", "host", "sans"},
 )
 
-// init failure metrics with 0. useful for alerting.
-func initializeFailureMetrics(labels map[string]string) {
-	enrollFailedCounter.With(labels).Add(0.0)
-	renewFailedCounter.With(labels).Add(0.0)
-	approveFailedCounter.With(labels).Add(0.0)
-	pickupFailedCounter.With(labels).Add(0.0)
-	replaceFailedCounter.With(labels).Add(0.0)
-}
-
 func registerCollectors(collector prometheus.Collector) {
 	if collector != nil {
 		prometheus.MustRegister(collector)

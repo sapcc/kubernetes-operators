@@ -247,7 +247,7 @@ func (vp *Operator) syncHandler(key string) error {
 	}
 	// check each host
 	for _, tls := range ingress.Spec.TLS {
-		LogDebug("Checking ingress %v/%v: Hosts: %v, Secret: %v/%v", ingress.GetNamespace(), ingress.GetName(), tls.Hosts, ingress.GetNamespace(), tls.SecretName)
+		LogInfo("Checking ingress %v/%v, TLS hosts: %v, secret: %v/%v", ingress.GetNamespace(), ingress.GetName(), strings.Join(tls.Hosts, ", "), ingress.GetNamespace(), tls.SecretName)
 
 		if len(tls.Hosts) == 0 {
 			return fmt.Errorf("no hosts found in ingress.spec.tls %v/%v", ingress.GetNamespace(), ingress.GetName())
@@ -265,8 +265,6 @@ func (vp *Operator) runStateMachine(ingress *v1beta1.Ingress, secretName, host s
 		"host":    host,
 		"sans":    strings.Join(sans, ","),
 	}
-	// add 0 to initialize the metrics that indicate failure
-	initializeFailureMetrics(labels)
 
 	tlsKeySecretKey, tlsCertSecretKey := ingressGetSecretKeysFromAnnotation(ingress)
 
@@ -461,9 +459,9 @@ func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate) string {
 		return IngressStateEnroll
 	}
 
-	// is the certificate valid for time t ?
-	if viceCert.DoesCertificateExpireSoon() {
-		LogInfo("Certificate for host %s will expire in %s month. Renewing", viceCert.Host, vp.CertificateRecheckInterval)
+	// is the certificate expire within the nex n days?
+	if viceCert.DoesCertificateExpireSoon(vp.MinCertValidityDays) {
+		LogInfo("Certificate for host %s will expire on %v. Renewing", viceCert.Host, viceCert.Certificate.NotAfter.UTC())
 		return IngressStateRenew
 	}
 

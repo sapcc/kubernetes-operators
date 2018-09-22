@@ -120,7 +120,7 @@ func (vc *ViceCertificate) renew(viceClient *vice.Client, config VicePresidentCo
 			LastName:            config.LastName,
 			Email:               config.EMail,
 			CSR:                 string(vc.CSR),
-			SubjectAltNames:     vc.GetSANs(),
+			SubjectAltNames:     vc.Certificate.DNSNames,
 			OriginalChallenge:   config.DefaultChallenge,
 			Challenge:           config.DefaultChallenge,
 			OriginalCertificate: string(originalCertificate),
@@ -277,8 +277,10 @@ func (vc *ViceCertificate) DoesCertificateAndHostMatch() bool {
 }
 
 // DoesCertificateExpireSoon checks if a certificate is already expired or will expire within the next n month?
-func (vc *ViceCertificate) DoesCertificateExpireSoon() bool {
-	return !vc.Certificate.NotAfter.UTC().After(time.Now().UTC().AddDate(0, CertificateValidityMonth, 0))
+func (vc *ViceCertificate) DoesCertificateExpireSoon(minCertValidityDays int) bool {
+	certExpiry := vc.Certificate.NotAfter.UTC()
+	shouldBeValidUntil := time.Now().UTC().AddDate(0, 0, minCertValidityDays)
+	return certExpiry.Before(shouldBeValidUntil)
 }
 
 // DoesKeyAndCertificateTally checks if a given private key is for the correct certificate

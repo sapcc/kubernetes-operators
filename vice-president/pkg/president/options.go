@@ -34,6 +34,8 @@ type Options struct {
 	IntermediateCertificate string
 	RootCACertificate       string
 
+	MinCertValidityDays int
+
 	MetricPort                        int
 	IsEnableAdditionalSymantecMetrics bool
 }
@@ -54,6 +56,11 @@ func (o *Options) CheckOptions() error {
 	}
 	if o.KubeConfig == "" {
 		LogDebug("Path to kubeconfig not provided. Using Default")
+	}
+
+	if o.MinCertValidityDays <= 0 {
+		LogDebug("Minimum certificate validity invalid. Using default: 30 days")
+		o.MinCertValidityDays = 30
 	}
 
 	if o.MetricPort == 0 {
