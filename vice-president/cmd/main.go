@@ -41,6 +41,7 @@ func init() {
 	pflag.StringVar(&options.IntermediateCertificate, "intermediate-cert", "/etc/vice-president/secrets/intermediate.cert", "A PEM encoded intermediate certificate.")
 	pflag.StringVar(&options.RootCACertificate, "ca-cert", "/etc/vice-president/secrets/ca.cert", "A PEM encoded root CA certificate. (optional. will attempt to download if not found)")
 	pflag.IntVar(&options.MinCertValidityDays, "min-cert-validity-days", 30, "Renew certificates that expire within n days")
+	pflag.BoolVar(&options.EnableValidateRemoteCertificate, "enable-validate-remote-cert", false, "Enable validation of remote certificate via TLS handshake")
 	pflag.IntVar(&options.MetricPort, "metric-port", 9091, "Port on which Prometheus metrics are exposed.")
 	pflag.BoolVar(&options.IsEnableAdditionalSymantecMetrics, "enable-symantec-metrics", false, "Export additional symantec metrics")
 }

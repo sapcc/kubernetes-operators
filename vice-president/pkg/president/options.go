@@ -35,6 +35,7 @@ type Options struct {
 	RootCACertificate       string
 
 	MinCertValidityDays int
+	EnableValidateRemoteCertificate bool
 
 	MetricPort                        int
 	IsEnableAdditionalSymantecMetrics bool

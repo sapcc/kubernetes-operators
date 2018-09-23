@@ -472,12 +472,12 @@ func (vc *ViceCertificate) compareRemoteCert(remoteCert *x509.Certificate) bool 
 		return false
 	}
 
-	if !vc.Certificate.NotBefore.Equal(remoteCert.NotBefore) {
+	if !vc.Certificate.NotBefore.UTC().Equal(remoteCert.NotBefore.UTC()) {
 		LogInfo("mismatching validity: notBefore. expected %v, got %v", vc.Certificate.NotBefore, remoteCert.NotBefore)
 		return false
 	}
 
-	if !vc.Certificate.NotAfter.Equal(remoteCert.NotAfter) {
+	if !vc.Certificate.NotAfter.UTC().Equal(remoteCert.NotAfter.UTC()) {
 		LogInfo("mismatching validity: notAfter. expected %v, got %v", vc.Certificate.NotAfter, remoteCert.NotAfter)
 		return false
 	}

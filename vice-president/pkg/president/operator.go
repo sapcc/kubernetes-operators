@@ -247,7 +247,7 @@ func (vp *Operator) syncHandler(key string) error {
 	}
 	// check each host
 	for _, tls := range ingress.Spec.TLS {
-		LogInfo("Checking ingress %v/%v, TLS hosts: %v, secret: %v/%v", ingress.GetNamespace(), ingress.GetName(), strings.Join(tls.Hosts, ", "), ingress.GetNamespace(), tls.SecretName)
+		LogDebug("Checking ingress %v/%v, TLS hosts: %v, secret: %v/%v", ingress.GetNamespace(), ingress.GetName(), strings.Join(tls.Hosts, ", "), ingress.GetNamespace(), tls.SecretName)
 
 		if len(tls.Hosts) == 0 {
 			return fmt.Errorf("no hosts found in ingress.spec.tls %v/%v", ingress.GetNamespace(), ingress.GetName())
@@ -453,15 +453,18 @@ func (vp *Operator) checkViceCertificate(viceCert *ViceCertificate) string {
 		return IngressStateEnroll
 	}
 
-	// check remote by initiating TLS handshake
-	if !viceCert.DoesRemoteCertificateMatch() {
-		LogInfo("Mismatching remote certificate")
-		return IngressStateEnroll
+	// if enabled: check remote certificate
+	// note that this might trigger a certificate enrollment if the tls termination proxy does not serve the the new certificate (yet)
+	if vp.EnableValidateRemoteCertificate {
+		if !viceCert.DoesRemoteCertificateMatch() {
+			LogInfo("Mismatching remote certificate")
+			return IngressStateEnroll
+		}
 	}
 
 	// is the certificate expire within the nex n days?
 	if viceCert.DoesCertificateExpireSoon(vp.MinCertValidityDays) {
-		LogInfo("Certificate for host %s will expire on %v. Renewing", viceCert.Host, viceCert.Certificate.NotAfter.UTC())
+		LogInfo("Certificate for host %s is valid until %v and will expire within less than %v days. Renewing", viceCert.Host, viceCert.Certificate.NotAfter.UTC(), vp.MinCertValidityDays)
 		return IngressStateRenew
 	}
 
