@@ -1265,9 +1265,23 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 						},
-						"domains": {
+						"resource_classes": {
 							SchemaProps: spec.SchemaProps{
 								Description: "list of nova flavors",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+						"domains": {
+							SchemaProps: spec.SchemaProps{
+								Description: "list of resource classes for the placement service (currently still part of nova)",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1278,11 +1292,24 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 						},
+						"rbac_policies": {
+							SchemaProps: spec.SchemaProps{
+								Description: "list keystone domains with their configuration, users, groups, projects, etc.",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RBACPolicySpec"),
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DomainSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.FlavorSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RegionSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ServiceSpec"},
+				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DomainSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.FlavorSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RBACPolicySpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RegionSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ServiceSpec"},
 		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.OpenstackSeedStatus": {
 			Schema: spec.Schema{
@@ -1518,6 +1545,44 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{
 				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.AddressScopeSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DNSQuotaSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DNSTSIGKeySpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DNSZoneSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.NetworkQuotaSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.NetworkSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ProjectEndpointSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleAssignmentSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RouterSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.SubnetPoolSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.SwiftAccountSpec"},
+		},
+		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RBACPolicySpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "A neutron RBAC policy (see https://developer.openstack.org/api-ref/network/v2/index.html#rbac-policies)",
+					Properties: map[string]spec.Schema{
+						"object_type": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"object_name": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The type of the object that the RBAC policy affects. Types include qos-policy or network.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"action": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The name of the object (like networkname@project@domain) or",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"target_tenant_name": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Action for the RBAC policy which is access_as_external or access_as_shared.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"object_type", "object_name", "action", "target_tenant_name"},
+				},
+			},
+			Dependencies: []string{},
 		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RegionSpec": {
 			Schema: spec.Schema{

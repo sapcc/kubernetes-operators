@@ -48,12 +48,14 @@ type OpenstackSeedStatus struct {
 
 // +k8s:openapi-gen=true
 type OpenstackSeedSpec struct {
-	Dependencies []string      `json:"requires,omitempty" yaml:"requires,omitempty"` // list of required specs that need to be resolved before the current one
-	Roles        []string      `json:"roles,omitempty" yaml:"roles,omitempty"`       // list of keystone roles
-	Regions      []RegionSpec  `json:"regions,omitempty" yaml:"regions,omitempty"`   // list keystone regions
-	Services     []ServiceSpec `json:"services,omitempty" yaml:"services,omitempty"` // list keystone services and their endpoints
-	Flavors      []FlavorSpec  `json:"flavors,omitempty" yaml:"flavors,omitempty"`   // list of nova flavors
-	Domains      []DomainSpec  `json:"domains,omitempty" yaml:"domains,omitempty"`   // list keystone domains with their configuration, users, groups, projects, etc.
+	Dependencies    []string         `json:"requires,omitempty" yaml:"requires,omitempty"`                 // list of required specs that need to be resolved before the current one
+	Roles           []string         `json:"roles,omitempty" yaml:"roles,omitempty"`                       // list of keystone roles
+	Regions         []RegionSpec     `json:"regions,omitempty" yaml:"regions,omitempty"`                   // list keystone regions
+	Services        []ServiceSpec    `json:"services,omitempty" yaml:"services,omitempty"`                 // list keystone services and their endpoints
+	Flavors         []FlavorSpec     `json:"flavors,omitempty" yaml:"flavors,omitempty"`                   // list of nova flavors
+	ResourceClasses []string         `json:"resource_classes,omitempty" yaml:"resource_classes,omitempty"` // list of resource classes for the placement service (currently still part of nova)
+	Domains         []DomainSpec     `json:"domains,omitempty" yaml:"domains,omitempty"`                   // list keystone domains with their configuration, users, groups, projects, etc.
+	RBACPolicies    []RBACPolicySpec `json:"rbac_policies,omitempty" yaml:"rbac_policies,omitempty"`       // list of neutron rbac polices (currently only network rbacs are supported).
 }
 
 // A keystone region (see https://developer.openstack.org/api-ref/identity/v3/index.html#regions)
@@ -289,6 +291,15 @@ type NetworkQuotaSpec struct {
 	L7Policy          int `json:"l7policy,omitempty" yaml:"l7policy,omitempty"`                       //
 	Listener          int `json:"listener,omitempty" yaml:"listener,omitempty"`                       //
 	LoadBalancer      int `json:"loadbalancer,omitempty" yaml:"loadbalancer,omitempty"`               //
+}
+
+// A neutron RBAC policy (see https://developer.openstack.org/api-ref/network/v2/index.html#rbac-policies)
+// +k8s:openapi-gen=true
+type RBACPolicySpec struct {
+	ObjectType       string `json:"object_type" yaml:"object_type"`               // The type of the object that the RBAC policy affects. Types include qos-policy or network.
+	ObjectName       string `json:"object_name" yaml:"object_name"`               // The name of the object (like networkname@project@domain) or
+	Action           string `json:"action" yaml:"action"`                         // Action for the RBAC policy which is access_as_external or access_as_shared.
+	TargetTenantName string `json:"target_tenant_name" yaml:"target_tenant_name"` // The name of the target tenant (project@domain) or
 }
 
 // A neutron network (see https://developer.openstack.org/api-ref/networking/v2/index.html#networks)

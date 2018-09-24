@@ -118,6 +118,20 @@ func (e *OpenstackSeedSpec) MergeFlavor(flavor FlavorSpec) {
 	e.Flavors = append(e.Flavors, flavor)
 }
 
+// MergeResourceClass merges resource-class by name into the spec
+func (e *OpenstackSeedSpec) MergeResourceClass(resourceClass string) {
+	if e.ResourceClasses == nil {
+		e.ResourceClasses = make([]string, 0)
+	}
+	for _, v := range e.ResourceClasses {
+		if v == resourceClass {
+			return
+		}
+	}
+	glog.V(2).Info("append resourceClass ", resourceClass)
+	e.ResourceClasses = append(e.ResourceClasses, resourceClass)
+}
+
 func (e *OpenstackSeedSpec) MergeDomain(domain DomainSpec) {
 	if e.Domains == nil {
 		e.Domains = make([]DomainSpec, 0)
@@ -145,6 +159,19 @@ func (e *OpenstackSeedSpec) MergeDomain(domain DomainSpec) {
 	}
 	glog.V(2).Info("append domain ", domain)
 	e.Domains = append(e.Domains, domain)
+}
+
+func (e *OpenstackSeedSpec) MergeRbacPolicy(rbac RBACPolicySpec) {
+	if e.RBACPolicies == nil {
+		e.RBACPolicies = make([]RBACPolicySpec, 0)
+	}
+	for _, v := range e.RBACPolicies {
+		if v.ObjectType == rbac.ObjectType && v.ObjectName == rbac.ObjectName && v.Action == rbac.Action && v.TargetTenantName == rbac.TargetTenantName {
+			return
+		}
+	}
+	glog.V(2).Info("append rbac ", rbac)
+	e.RBACPolicies = append(e.RBACPolicies, rbac)
 }
 
 func (e *DomainSpec) MergeProjects(domain DomainSpec) {
@@ -869,6 +896,32 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 			return errors.New("flavor name is required")
 		}
 		e.MergeFlavor(flavor)
+	}
+
+	for _, resourceClass := range spec.ResourceClasses {
+		if resourceClass == "" {
+			return errors.New("resourceClass name is required")
+		}
+		e.MergeResourceClass(resourceClass)
+	}
+
+	for _, rbacPolicy := range spec.RBACPolicies {
+		if rbacPolicy.ObjectType == "" {
+			return errors.New("rbac_policy.object_type is required")
+		}
+		if rbacPolicy.ObjectType != "network" {
+			return errors.New("only network rbac_policies are supported")
+		}
+		if rbacPolicy.ObjectName == "" {
+			return errors.New("rbac_policy.object_name is required")
+		}
+		if rbacPolicy.Action != "access_as_external" && rbacPolicy.Action != "access_as_shared" {
+			return errors.New("rbac_policy.action is invalid")
+		}
+		if rbacPolicy.TargetTenantName == "" {
+			return errors.New("rbac_policy.target_tenant_name is required")
+		}
+		e.MergeRbacPolicy(rbacPolicy)
 	}
 
 	return nil

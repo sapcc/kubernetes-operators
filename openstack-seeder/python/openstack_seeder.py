@@ -32,6 +32,8 @@ from keystoneclient.v3 import client as keystoneclient
 from neutronclient.v2_0 import client as neutronclient
 from novaclient import client as novaclient
 from novaclient import exceptions as novaexceptions
+from osc_placement.http import SessionClient as placementclient
+from osc_placement.resources.resource_class import PER_CLASS_URL
 from raven.base import Client
 from raven.conf import setup_logging
 from raven.handlers.logging import SentryHandler
@@ -52,6 +54,8 @@ subnet_cache = {}
 # assignments to be resolved after everything else has been processed
 group_members = {}
 role_assignments = []
+
+resource_classes = set()
 
 
 def get_role_id(name, keystone):
@@ -1139,8 +1143,8 @@ def seed_project_routers(project, routers, args, sess):
                         router['external_gateway_info'][
                             'external_fixed_ips'][index] = sanitize(efi,
                                                                     (
-                                                                    'subnet_id',
-                                                                    'ip_address'))
+                                                                        'subnet_id',
+                                                                        'ip_address'))
 
                 router['external_gateway_info'] = sanitize(
                     router['external_gateway_info'],
@@ -1840,7 +1844,24 @@ def seed_domain(domain, args, sess):
             role_assignments.append(assignment)
 
 
-def seed_flavor(flavor, args, sess):
+def seed_resource_class(resource_class, args, sess):
+    logging.debug("seeding resource-class %s" % resource_class)
+
+    try:
+        ks_filter = {
+            'service_type': 'placement',
+            'interface': args.interface,
+        }
+
+        # api_version=1.7 -> idempotent resource class creation
+        http = placementclient(session=sess, ks_filter=ks_filter, api_version='1.7')
+        result = http.request('PUT', PER_CLASS_URL.format(name=resource_class))
+    except Exception as e:
+        logging.error("Failed to seed resource-class %s: %s" % (resource_class, e))
+
+
+def seed_flavor(flavor, args, sess, config):
+    global resource_classes
     logging.debug("seeding flavor %s" % flavor)
 
     try:
@@ -1853,6 +1874,11 @@ def seed_flavor(flavor, args, sess):
             if not isinstance(extra_specs, dict):
                 logging.warn(
                     "skipping flavor '%s', since it has invalid extra_specs" % flavor)
+            else:
+                for k in extra_specs:
+                    if k.startswith('resources:CUSTOM_'):
+                        resource_classes.add(k.split(':', 2)[-1])
+                        logging.info("got resource_classes: {}".format(resource_classes))
 
         flavor = sanitize(flavor, (
             'id', 'name', 'ram', 'disk', 'vcpus', 'swap', 'rxtx_factor',
@@ -1924,6 +1950,71 @@ def seed_flavor(flavor, args, sess):
                 resource.set_keys(keys)
     except Exception as e:
         logging.error("Failed to seed flavor %s: %s" % (flavor, e))
+        raise
+
+
+def seed_rbac_policy(rbac, args, sess, keystone):
+    """ seed a neutron rbac-policy """
+
+    object_name_regex = r"^([^@]+)@([^@]+)@([^@]+)$"
+    target_name_regex = r"^([^@]+)@([^@]+)$"
+
+    logging.debug("seeding rbac-policy %s" % rbac)
+
+    # grab a neutron client
+    neutron = neutronclient.Client(session=sess, interface=args.interface)
+
+    rbac = sanitize(rbac, ('object_type', 'object_name', 'object_id', 'action', 'target_tenant_name', 'target_tenant'))
+
+    try:
+        if 'object_type' not in rbac or not rbac['object_type'] or rbac['object_type'] != 'network':
+            logging.warn("skipping rbac-policy '%s', since object_type is missing" % rbac)
+            return
+        if 'object_name' not in rbac or not rbac['object_name']:
+            logging.warn("skipping rbac-policy '%s', since object_name is missing" % rbac)
+            return
+        # network@project@domain ?
+        network_id = None
+        match = re.match(object_name_regex, rbac['object_name'])
+        if match:
+            project_id = get_project_id(match.group(3), match.group(2), keystone)
+            if project_id:
+                network_id = get_network_id(project_id, match.group(1), neutron)
+        if not network_id:
+            logging.warn("skipping rbac-policy '%s': could not locate object_name" % rbac)
+            return
+        rbac['object_id'] = network_id
+        rbac.pop('object_name', None)
+
+        if 'target_tenant_name' not in rbac or not rbac['target_tenant_name']:
+            logging.warn("skipping rbac-policy '%s', since target_tenant_name is missing" % rbac)
+            return
+        # project@domain ?
+        project_id = None
+        match = re.match(target_name_regex, rbac['target_tenant_name'])
+        if match:
+            project_id = get_project_id(match.group(2), match.group(1), keystone)
+        if not project_id:
+            logging.warn("skipping rbac-policy '%s': could not locate target_tenant_name" % rbac)
+            return
+        rbac['target_tenant'] = project_id
+        rbac.pop('target_tenant_name', None)
+
+        try:
+            query = {'object_id': rbac['object_id'], 'object_type': rbac['object_type'], 'action': rbac['action'],
+                     'target_tenant': rbac['target_tenant']}
+            result = neutron.list_rbac_policies(retrieve_all=True, **query)
+        except exceptions.NotFound:
+            result = None
+
+        if not result:
+            body = {'rbac_policy': rbac.copy()}
+
+            logging.info("create rbac-policy '%s'" % rbac)
+            neutron.create_rbac_policy(body=body)
+
+    except Exception as e:
+        logging.error("could not seed rbac-policy %s: %s" % (rbac, e))
         raise
 
 
@@ -2009,7 +2100,7 @@ def resolve_role_assignments(keystone):
 
 
 def seed_config(config, args, sess):
-    global group_members, role_assignments
+    global group_members, role_assignments, resource_classes
 
     # reset
     group_members = {}
@@ -2038,13 +2129,24 @@ def seed_config(config, args, sess):
         for service in config['services']:
             seed_service(service, keystone)
 
-    if "flavors" in config:
+    if 'flavors' in config:
         for flavor in config['flavors']:
-            seed_flavor(flavor, args, sess)
+            seed_flavor(flavor, args, sess, config)
+
+    # Run it after seed_flavor, as we collect resource_classes there
+    if 'resource_classes' in config:
+        resource_classes.update(config['resource_classes'])
+
+    for resource_class in resource_classes:
+        seed_resource_class(resource_class, args, sess)
 
     if 'domains' in config:
         for domain in config['domains']:
             seed_domain(domain, args, sess)
+
+    if 'rbac_policies' in config:
+        for rbac in config['rbac_policies']:
+            seed_rbac_policy(rbac, args, sess, keystone)
 
     if group_members:
         resolve_group_members(keystone)
