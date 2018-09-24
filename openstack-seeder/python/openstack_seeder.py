@@ -2005,7 +2005,7 @@ def seed_rbac_policy(rbac, args, sess, keystone):
         except exceptions.NotFound:
             result = None
 
-        if not result:
+        if not result or not result['rbac_policies']:
             body = {'rbac_policy': rbac.copy()}
 
             logging.info("create rbac-policy '%s'" % rbac)
