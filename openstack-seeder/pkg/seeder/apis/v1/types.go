@@ -49,13 +49,14 @@ type OpenstackSeedList struct {
 //
 // Cross kubernetes namespace dependencies can be defined by using a fully qualified **requires** notation that includes a namespace: namespace/specname
 type OpenstackSeedSpec struct {
-	Dependencies    []string      `json:"requires,omitempty" yaml:"requires,omitempty"`                 // list of required specs that need to be resolved before the current one
-	Roles           []string      `json:"roles,omitempty" yaml:"roles,omitempty"`                       // list of keystone roles
-	ResourceClasses []string      `json:"resource_classes,omitempty" yaml:"resource_classes,omitempty"` // list of resource classes for the placement service (currently still part of nova)
-	Regions         []RegionSpec  `json:"regions,omitempty" yaml:"regions,omitempty"`                   // list keystone regions
-	Services        []ServiceSpec `json:"services,omitempty" yaml:"services,omitempty"`                 // list keystone services and their endpoints
-	Flavors         []FlavorSpec  `json:"flavors,omitempty" yaml:"flavors,omitempty"`                   // list of nova flavors
-	Domains         []DomainSpec  `json:"domains,omitempty" yaml:"domains,omitempty"`                   // list keystone domains with their configuration, users, groups, projects, etc.
+	Dependencies    []string         `json:"requires,omitempty" yaml:"requires,omitempty"`                 // list of required specs that need to be resolved before the current one
+	Roles           []string         `json:"roles,omitempty" yaml:"roles,omitempty"`                       // list of keystone roles
+	ResourceClasses []string         `json:"resource_classes,omitempty" yaml:"resource_classes,omitempty"` // list of resource classes for the placement service (currently still part of nova)
+	Regions         []RegionSpec     `json:"regions,omitempty" yaml:"regions,omitempty"`                   // list keystone regions
+	Services        []ServiceSpec    `json:"services,omitempty" yaml:"services,omitempty"`                 // list keystone services and their endpoints
+	Flavors         []FlavorSpec     `json:"flavors,omitempty" yaml:"flavors,omitempty"`                   // list of nova flavors
+	Domains         []DomainSpec     `json:"domains,omitempty" yaml:"domains,omitempty"`                   // list keystone domains with their configuration, users, groups, projects, etc.
+	RBACPolicies    []RBACPolicySpec `json:"rbac_policies,omitempty" yaml:"rbac_policies,omitempty"`       // list of neutron rbac polices (currently only network rbacs are supported).
 }
 
 // A keystone region (see https://developer.openstack.org/api-ref/identity/v3/index.html#regions)
@@ -294,6 +295,14 @@ type RouterRouteSpec struct {
 	Nexthop     string `json:"nexthop,omitempty" yaml:"nexthop,omitempty"`         // Route nexthop
 }
 
+// A neutron RBAC policy (see https://developer.openstack.org/api-ref/network/v2/index.html#rbac-policies)
+type RBACPolicySpec struct {
+	ObjectType       string `json:"object_type" yaml:"object_type"`               // The type of the object that the RBAC policy affects. Types include qos-policy or network.
+	ObjectName       string `json:"object_name" yaml:"object_name"`               // The name of the object (like networkname@project@domain) or
+	Action           string `json:"action" yaml:"action"`                         // Action for the RBAC policy which is access_as_external or access_as_shared.
+	TargetTenantName string `json:"target_tenant_name" yaml:"target_tenant_name"` // The name of the target tenant (project@domain) or
+}
+
 type SwiftAccountSpec struct {
 	Enabled    *bool                `json:"enabled" yaml:"enabled,omitempty"`                 // Create a swift account
 	Containers []SwiftContainerSpec `json:"containers,omitempty" yaml:"containers,omitempty"` // Containers
@@ -339,6 +348,19 @@ type DNSTSIGKeySpec struct {
 	Secret     string `json:"secret,omitempty" yaml:"secret,omitempty"`           // The actual key to be used
 	Scope      string `json:"scope,omitempty" yaml:"scope,omitempty"`             // scope for this tsigkey which can be either ZONE or POOL scope
 	ResourceId string `json:"resource_id,omitempty" yaml:"resource_id,omitempty"` // resource id for this tsigkey which can be either zone or pool id
+}
+
+func (e *OpenstackSeedSpec) MergeRbacPolicy(rbac RBACPolicySpec) {
+	if e.RBACPolicies == nil {
+		e.RBACPolicies = make([]RBACPolicySpec, 0)
+	}
+	for _, v := range e.RBACPolicies {
+		if v.ObjectType == rbac.ObjectType && v.ObjectName == rbac.ObjectName && v.Action == rbac.Action && v.TargetTenantName == rbac.TargetTenantName {
+			return
+		}
+	}
+	glog.V(2).Info("append rbac ", rbac)
+	e.RBACPolicies = append(e.RBACPolicies, rbac)
 }
 
 func (e *OpenstackSeedSpec) MergeRole(role string) {
@@ -1205,6 +1227,25 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 			return errors.New("flavor name is required")
 		}
 		e.MergeFlavor(flavor)
+	}
+
+	for _, rbacPolicy := range spec.RBACPolicies {
+		if rbacPolicy.ObjectType == "" {
+			return errors.New("rbac_policy.object_type is required")
+		}
+		if rbacPolicy.ObjectType != "network" {
+			return errors.New("only network rbac_policies are supported")
+		}
+		if rbacPolicy.ObjectName == "" {
+			return errors.New("rbac_policy.object_name is required")
+		}
+		if rbacPolicy.Action != "access_as_external" && rbacPolicy.Action != "access_as_shared" {
+			return errors.New("rbac_policy.action is invalid")
+		}
+		if rbacPolicy.TargetTenantName == "" {
+			return errors.New("rbac_policy.target_tenant_name is required")
+		}
+		e.MergeRbacPolicy(rbacPolicy)
 	}
 
 	return nil
