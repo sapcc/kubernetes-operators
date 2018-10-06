@@ -280,7 +280,7 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		}
 	}
 
-	// add finalizer before creating anything. return an
+	// add finalizer before creating anything. return error
 	if err := disco.ensureDiscoFinalizerExists(ingress); err != nil {
 		return errors.Wrapf(err, "will not create recordset in this cycle. failed to add finalizer %v", DiscoFinalizer)
 	}
@@ -305,7 +305,7 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 
 	record := disco.Record
 	if rec, ok := ingress.GetAnnotations()[DiscoAnnotationRecord]; ok {
-		record = addSuffixIfRequired(rec)
+		record = rec
 	}
 
 	recordType := RecordsetType.CNAME
@@ -321,7 +321,7 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 	if err := disco.dnsV2Client.createDesignateRecordset(
 		zone.ID,
 		addSuffixIfRequired(host),
-		[]string{record},
+		[]string{addSuffixIfRequired(record)},
 		disco.RecordsetTTL,
 		recordType,
 		description,

@@ -1,11 +1,11 @@
-FROM golang:1.9.3-alpine3.7 as builder
+FROM golang:1.11.0-alpine3.8 as builder
 WORKDIR /go/src/github.com/sapcc/kubernetes-operators/vice-president
 RUN apk add --no-cache make
 COPY . .
 ARG VERSION
 RUN make all
 
-FROM alpine:3.7
+FROM alpine:3.8
 MAINTAINER Michael Schmidt <michael.schmidt02@@sap.com>
 
 RUN apk add --no-cache curl
