@@ -28,7 +28,7 @@ func (op *Operator) ensureTeam(team string) (sentry.Team, error) {
 			return t, nil
 		}
 	}
-	glog.Infof("Creating team %s in organization %s", team, org)
+	glog.Infof("Creating team %s in organization %s", team, org.Name)
 	return op.sentryClient.CreateTeam(org, team, &team)
 }
 
@@ -58,6 +58,10 @@ func (op *Operator) ensureClientKey(project, label string) (sentry.Key, error) {
 	}
 	for _, key := range keys {
 		if key.Label == label {
+			if _, err := url.Parse(key.DSN.Secret); err != nil {
+				op.sentryClient.DeleteClientKey(org, proj, key)
+				break
+			}
 			return key, nil
 		}
 	}
@@ -67,7 +71,8 @@ func (op *Operator) ensureClientKey(project, label string) (sentry.Key, error) {
 		return clientKey, err
 	}
 	if _, err := url.Parse(clientKey.DSN.Secret); err != nil {
-		return clientKey, fmt.Errorf("Invalid DSN (sentry not configured yet?): %s", err)
+		op.sentryClient.DeleteClientKey(org, proj, clientKey)
+		return sentry.Key{}, fmt.Errorf("Invalid DSN (sentry not configured yet?): %s", err)
 	}
 	return clientKey, nil
 }
