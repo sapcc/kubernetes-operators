@@ -2097,6 +2097,22 @@ def resolve_role_assignments(keystone):
                     assignment, e))
 
 
+def seed_quota_class_sets(quota_class_set, sess):
+    # this have been patched into Nova to create custom quotas (flavor based)
+    for quota_class, quotas in quota_class_set.iteritems():
+        logging.debug("seeding nova quota-class-set %s" % quota_class)
+
+        try:
+            resp = sess.post('/os-quota-class-sets/' + quota_class,
+                            endpoint_filter={'service_type': 'compute',
+                                             'interface': 'public'},
+                             json=dict({"quota_class_set": quotas}),
+                             endpoint_override="http://127.0.0.1:8774/v2.1")
+            logging.debug("Create/Update os-quota-class-set : %s" % resp.text)
+        except Exception as e:
+            logging.error("could not seed quota-class-set %s: %s" % (quota_class, e))
+            raise
+
 def seed_config(config, args, sess):
     global group_members, role_assignments, resource_classes
 
@@ -2151,6 +2167,10 @@ def seed_config(config, args, sess):
 
     if role_assignments:
         resolve_role_assignments(keystone)
+
+    # seed custom quota (nova only for now)
+    if 'quota_class_sets' in config:
+        seed_quota_class_sets(config['quota_class_sets'], sess)
 
 
 def seed(args):
