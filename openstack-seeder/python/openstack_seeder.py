@@ -2106,8 +2106,7 @@ def seed_quota_class_sets(quota_class_set, sess):
             resp = sess.post('/os-quota-class-sets/' + quota_class,
                             endpoint_filter={'service_type': 'compute',
                                              'interface': 'public'},
-                             json=dict({"quota_class_set": quotas}),
-                             endpoint_override="http://127.0.0.1:8774/v2.1")
+                             json=dict({"quota_class_set": quotas}))
             logging.debug("Create/Update os-quota-class-set : %s" % resp.text)
         except Exception as e:
             logging.error("could not seed quota-class-set %s: %s" % (quota_class, e))
