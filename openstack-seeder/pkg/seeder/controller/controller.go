@@ -256,12 +256,12 @@ func (c *SeederController) seedApply(seed *seederv1.OpenstackSeed) {
 	stdin.Write(yaml_seed)
 	stdin.Close()
 	if err := cmd.Wait(); err != nil {
-		msg := fmt.Errorf("failed to seed '%s/%s': %s", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, err.Error())
+		msg := fmt.Errorf("failed to seed '%s/%s' - version %s: %s", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, seed.ObjectMeta.ResourceVersion, err.Error())
 		raven.CaptureError(msg, nil)
 		glog.Errorf("ERROR: %s", msg.Error())
 		return
 	}
-	glog.Infof("Seeding %s/%s done.", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name)
+	glog.Infof("Seeding of %s/%s - version %s done.", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, seed.ObjectMeta.ResourceVersion)
 }
 
 func (c *SeederController) resolveSeedDependencies(result *seederv1.OpenstackSeed, seed *seederv1.OpenstackSeed) (err error) {
