@@ -329,13 +329,13 @@ func (c *Controller) seedHandler(key string) error {
 	stdin.Write(yaml_seed)
 	stdin.Close()
 	if err := cmd.Wait(); err != nil {
-		msg := fmt.Errorf("failed to seed '%s/%s': %s", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, err.Error())
+		msg := fmt.Errorf("failed to seed '%s/%s' - version %s: %s", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, seed.ObjectMeta.ResourceVersion, err.Error())
 		raven.CaptureError(msg, nil)
 		glog.Errorf("ERROR: %s", msg.Error())
 		return err
 	}
 
-	glog.Infof("Seeding %s/%s done.", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name)
+	glog.Infof("Seeding of %s/%s - version %s done.", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, seed.ObjectMeta.ResourceVersion)
 
 	// Finally, we update the status block of the OpenstackSeed resource to reflect the
 	// current state of the world
