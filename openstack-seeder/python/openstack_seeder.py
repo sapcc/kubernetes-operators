@@ -19,10 +19,10 @@ import copy
 import logging
 import os
 import re
-import sys
 from urlparse import urlparse
 
 import requests
+import sys
 import yaml
 from designateclient.v2 import client as designateclient
 from keystoneauth1 import session
@@ -1143,7 +1143,7 @@ def seed_project_routers(project, routers, args, sess):
                         router['external_gateway_info'][
                             'external_fixed_ips'][index] = sanitize(efi,
                                                                     ('subnet_id',
-                                                                    'ip_address'))
+                                                                     'ip_address'))
 
                 router['external_gateway_info'] = sanitize(
                     router['external_gateway_info'],
@@ -1842,6 +1842,7 @@ def seed_domain(domain, args, sess):
                 assignment['inherited'] = role['inherited']
             role_assignments.append(assignment)
 
+
 def seed_resource_class(resource_class, args, sess):
     logging.debug("seeding resource-class %s" % resource_class)
 
@@ -2104,13 +2105,14 @@ def seed_quota_class_sets(quota_class_set, sess):
 
         try:
             resp = sess.post('/os-quota-class-sets/' + quota_class,
-                            endpoint_filter={'service_type': 'compute',
-                                             'interface': 'public'},
+                             endpoint_filter={'service_type': 'compute',
+                                              'interface': 'public'},
                              json=dict({"quota_class_set": quotas}))
             logging.debug("Create/Update os-quota-class-set : %s" % resp.text)
         except Exception as e:
             logging.error("could not seed quota-class-set %s: %s" % (quota_class, e))
             raise
+
 
 def seed_config(config, args, sess):
     global group_members, role_assignments, resource_classes
@@ -2161,15 +2163,15 @@ def seed_config(config, args, sess):
         for rbac in config['rbac_policies']:
             seed_rbac_policy(rbac, args, sess, keystone)
 
+    # seed custom quota (nova only for now)
+    if 'quota_class_sets' in config:
+        seed_quota_class_sets(config['quota_class_sets'], sess)
+
     if group_members:
         resolve_group_members(keystone)
 
     if role_assignments:
         resolve_role_assignments(keystone)
-
-    # seed custom quota (nova only for now)
-    if 'quota_class_sets' in config:
-        seed_quota_class_sets(config['quota_class_sets'], sess)
 
 
 def seed(args):

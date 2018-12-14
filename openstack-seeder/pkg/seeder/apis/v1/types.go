@@ -168,17 +168,17 @@ type GroupSpec struct {
 
 // A nova flavor (see https://developer.openstack.org/api-ref/compute/#flavors)
 type FlavorSpec struct {
-	Name       string                 `json:"name" yaml:"name"` // flavor name
-	Id         string                 `json:"id,omitempty" yaml:"id,omitempty"`
-	Ram        int                    `json:"ram,omitempty" yaml:"ram,omitempty"`
-	Disk       int                    `json:"disk,omitempty" yaml:"disk,omitempty"`
-	Vcpus      int                    `json:"vcpus,omitempty" yaml:"vcpus,omitempty"`
-	Swap       int                    `json:"swap,omitempty" yaml:"swap,omitempty"`
-	RxTxfactor float32                `json:"rxtxfactor,omitempty" yaml:"rxtxfactor,omitempty"`
-	IsPublic   *bool                  `json:"is_public,omitempty" yaml:"is_public,omitempty"`
-	Disabled   *bool                  `json:"disabled,omitempty" yaml:"disabled,omitempty"`
-	Ephemeral  int                    `json:"ephemeral,omitempty" yaml:"ephemeral,omitempty"`
-	ExtraSpecs map[string]interface{} `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // list of extra specs
+	Name       string            `json:"name" yaml:"name"` // flavor name
+	Id         string            `json:"id,omitempty" yaml:"id,omitempty"`
+	Ram        int               `json:"ram,omitempty" yaml:"ram,omitempty"`
+	Disk       int               `json:"disk,omitempty" yaml:"disk,omitempty"`
+	Vcpus      int               `json:"vcpus,omitempty" yaml:"vcpus,omitempty"`
+	Swap       int               `json:"swap,omitempty" yaml:"swap,omitempty"`
+	RxTxfactor float32           `json:"rxtxfactor,omitempty" yaml:"rxtxfactor,omitempty"`
+	IsPublic   *bool             `json:"is_public,omitempty" yaml:"is_public,omitempty"`
+	Disabled   *bool             `json:"disabled,omitempty" yaml:"disabled,omitempty"`
+	Ephemeral  int               `json:"ephemeral,omitempty" yaml:"ephemeral,omitempty"`
+	ExtraSpecs map[string]string `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // list of extra specs
 }
 
 // A neutron address scope (see https://developer.openstack.org/api-ref/networking/v2/index.html  UNDOCUMENTED)
@@ -455,7 +455,7 @@ func (e *OpenstackSeedSpec) MergeFlavor(flavor FlavorSpec) {
 		if f.Name == flavor.Name {
 			glog.V(2).Info("merge flavor ", flavor)
 			if f.ExtraSpecs == nil {
-				f.ExtraSpecs = make(map[string]interface{})
+				f.ExtraSpecs = make(map[string]string)
 			}
 			for k, v := range flavor.ExtraSpecs {
 				f.ExtraSpecs[k] = v
