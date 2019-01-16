@@ -131,7 +131,7 @@ func (vc *ViceCertificate) renew(viceClient *vice.Client, config VicePresidentCo
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("couldn't renew certificate for host %v using CSR %v: %s", vc.Host, string(vc.CSR), err)
+		return fmt.Errorf("couldn't renew certificate for host %v using CSR %v: %v", vc.Host, string(vc.CSR), err)
 	}
 	// renewal will only contain a cert if automatic approval is enabled
 	if renewal.Certificate != "" {
@@ -159,7 +159,7 @@ func (vc *ViceCertificate) pickup(viceClient *vice.Client, config VicePresidentC
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("couldn't pickup certificate for host %v with TID %s", vc.Host, vc.TID)
+		return fmt.Errorf("couldn't pickup certificate for host %v with TID %s: %v", vc.Host, vc.TID, err)
 	}
 
 	pickedUpCert, err := readCertificateFromPEM([]byte(pickup.Certificate))
@@ -183,7 +183,7 @@ func (vc *ViceCertificate) approve(viceClient *vice.Client, config VicePresident
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("couldn't approve certificate for host %s using TID %s", vc.Host, vc.TID)
+		return fmt.Errorf("couldn't approve certificate for host %s using TID %s: %v", vc.Host, vc.TID, err)
 	}
 	if approval.Certificate == "" {
 		return fmt.Errorf("approval didn't contain a certificate for host %s using TID %s", vc.Host, vc.TID)
