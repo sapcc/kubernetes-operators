@@ -40,7 +40,7 @@ build:
 	docker build $(BUILD_ARGS) -t $(IMAGE):$(VERSION) .
 
 tag:
-	docker tag $(IMAGE):$(VERSION)         $(IMAGE):latest
+	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
 
 pull:
 	docker pull $(IMAGE):latest
