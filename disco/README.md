@@ -15,7 +15,7 @@ The DISCO operator automatically discovers Ingresses in the Kubernetes cluster a
 
 ## Requirements
 
-  - go 1.9
+  - go 1.11
 
 ## Usage
 
@@ -58,6 +58,8 @@ password:             <OS_PASSWORD>
 project_name:         <OS_PROJECT_NAME>
 project_domain_name:  <OS_PROJECT_DOMAIN_NAME>
 ```
+
+The `OS_PASSWORD` can also be provided via environment.
 
 Moreover the following parameters need to be set:
 ```

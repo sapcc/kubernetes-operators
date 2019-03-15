@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2018 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ package disco
 
 import (
 	"github.com/pkg/errors"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 )
 
 // Options to configure your disco operator
@@ -35,6 +36,7 @@ type Options struct {
 	RecordsetTTL      int
 	Record            string
 	ZoneName          string
+	IsDebug bool
 }
 
 func (o *Options) applyDefaultsIfNotSet() {
@@ -53,12 +55,12 @@ func (o *Options) applyDefaultsIfNotSet() {
 }
 
 // CheckOptions verifies the Options and sets default values, if necessary
-func (o *Options) CheckOptions() error {
+func (o *Options) CheckOptions(logger log.Logger) error {
 	if o.ConfigPath == "" {
 		return errors.New("Path to disco config not provided. Aborting")
 	}
 	if o.KubeConfig == "" {
-		LogDebug("Path to kubeconfig not provided. Using Default")
+		logger.LogDebug("Path to kubeconfig not provided. Using Default")
 	}
 	o.applyDefaultsIfNotSet()
 	return nil

@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2018 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,10 +21,11 @@ package disco
 
 import (
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
-	yaml "gopkg.in/yaml.v1"
+	"gopkg.in/yaml.v1"
 )
 
 // Config ...
@@ -32,7 +33,7 @@ type Config struct {
 	AuthOpts `yaml:",inline"`
 }
 
-// ReadConfig reads a given configuration file and returns the ViceConfig object and if applicable an error
+// ReadConfig reads a given configuration file and returns the ViceConfig object and if applicable an error.
 func ReadConfig(filePath string) (*Config, error) {
 	cfg := Config{}
 	cfgBytes, err := ioutil.ReadFile(filePath)
@@ -52,7 +53,7 @@ func ReadConfig(filePath string) (*Config, error) {
 }
 
 func (c *Config) checkConfig() error {
-	errs := []string{}
+	errs := make([]string, 0)
 	if c.AuthURL == "" {
 		errs = append(errs, "OS_AUTH_URL")
 	}
@@ -61,9 +62,6 @@ func (c *Config) checkConfig() error {
 	}
 	if c.UserDomainName == "" {
 		errs = append(errs, "OS_USER_DOMAIN_NAME")
-	}
-	if c.Password == "" {
-		errs = append(errs, "OS_PASSWORD")
 	}
 	if c.RegionName == "" {
 		errs = append(errs, "OS_REGION_NAME")
@@ -74,6 +72,17 @@ func (c *Config) checkConfig() error {
 	if c.ProjectDomainName == "" {
 		errs = append(errs, "OS_PROJECT_DOMAIN_NAME")
 	}
+
+	// Allow providing OS_PASSWORD via environment.
+	if c.Password == "" {
+		p := os.Getenv("OS_PASSWORD")
+		if p != "" {
+			c.Password = p
+		} else {
+			errs = append(errs, "OS_PASSWORD")
+		}
+	}
+
 	if len(errs) > 0 {
 		return errors.New("missing " + strings.Join(errs, ", "))
 	}

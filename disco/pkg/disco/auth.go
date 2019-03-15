@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2018 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -41,7 +41,6 @@ func newAuthenticatedProviderClient(ao AuthOpts) (provider *gophercloud.Provider
 	defer func() {
 		if err != nil {
 			ao.Password = "<password hidden>"
-			LogDebug("tried to obtain token using opts %#v", ao)
 		}
 	}()
 

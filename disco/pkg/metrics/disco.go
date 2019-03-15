@@ -17,7 +17,7 @@
 *
 *******************************************************************************/
 
-package disco
+package metrics
 
 import (
 	"fmt"
@@ -30,15 +30,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const (
-	// MetricNamespace used to prefix metrics
-	MetricNamespace = "disco"
-	// MetricRecordset used to prefix metrics
-	MetricRecordset = "recordsets"
-)
-
 var (
-	recordsetCreationSuccessCounter = prometheus.NewCounterVec(
+	RecordsetCreationSuccessCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricNamespace,
 			Subsystem: MetricRecordset,
@@ -48,7 +41,7 @@ var (
 		[]string{"ingress", "host"},
 	)
 
-	recordsetCreationFailedCounter = prometheus.NewCounterVec(
+	RecordsetCreationFailedCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricNamespace,
 			Subsystem: MetricRecordset,
@@ -58,7 +51,7 @@ var (
 		[]string{"ingress", "host"},
 	)
 
-	recordsetDeletionSuccessCounter = prometheus.NewCounterVec(
+	RecordsetDeletionSuccessCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricNamespace,
 			Subsystem: MetricRecordset,
@@ -68,7 +61,7 @@ var (
 		[]string{"ingress", "host"},
 	)
 
-	recordsetDeletionFailedCounter = prometheus.NewCounterVec(
+	RecordsetDeletionFailedCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricNamespace,
 			Subsystem: MetricRecordset,
@@ -81,10 +74,10 @@ var (
 
 func registerCollectors() {
 	prometheus.MustRegister(
-		recordsetCreationSuccessCounter,
-		recordsetCreationFailedCounter,
-		recordsetDeletionSuccessCounter,
-		recordsetDeletionFailedCounter,
+		RecordsetCreationSuccessCounter,
+		RecordsetCreationFailedCounter,
+		RecordsetDeletionSuccessCounter,
+		RecordsetDeletionFailedCounter,
 	)
 }
 

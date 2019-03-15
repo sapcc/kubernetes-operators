@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2017 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,13 +21,14 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
 	"github.com/sapcc/kubernetes-operators/disco/pkg/disco"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/metrics"
 	"github.com/spf13/pflag"
 )
 
@@ -46,12 +47,10 @@ func init() {
 	pflag.IntVar(&options.RecordsetTTL, "recordset-ttl", disco.DefaultRecordsetTTL, "The Recordset TTL in seconds")
 	pflag.StringVar(&options.Record, "record", "", "Default record data used for the CNAME")
 	pflag.StringVar(&options.ZoneName, "zone-name", "", "Name of the openstack zone in which the recordset will be created")
+	pflag.BoolVar(&options.IsDebug, "debug", false, "Enable debug logging")
 }
 
 func main() {
-	// Set logging output to standard console out
-	log.SetOutput(os.Stdout)
-
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 
@@ -61,11 +60,13 @@ func main() {
 
 	wg := &sync.WaitGroup{} // Goroutines can add themselves to this to be waited on
 
-	go disco.New(options).Run(options.Threadiness, stop, wg)
-	go disco.ExposeMetrics("0.0.0.0", options.MetricPort, stop, wg)
+	logger := log.NewLogger(options.IsDebug)
+
+	go disco.New(options, logger).Run(options.Threadiness, stop, wg)
+	go metrics.ExposeMetrics("0.0.0.0", options.MetricPort, stop, wg, logger)
 
 	<-sigs // Wait for signals (this hangs until a signal arrives)
-	log.Printf("Shutting down...")
+	logger.LogInfo("Stopping the music..")
 
 	close(stop) // Tell goroutines to stop themselves
 	wg.Wait()   // Wait for all to be stopped

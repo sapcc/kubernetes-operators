@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2018 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
 	"github.com/gophercloud/gophercloud/pagination"
 	"github.com/pkg/errors"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 )
 
 // RecordsetType defines the types of recordsets
@@ -66,10 +67,11 @@ var Status = struct {
 type DNSV2Client struct {
 	client      *gophercloud.ServiceClient
 	moreHeaders map[string]string
+	logger      log.Logger
 }
 
 // NewDNSV2ClientFromAuthOpts returns a new dns v2 client using provided auth options or an error
-func NewDNSV2ClientFromAuthOpts(authOpts AuthOpts) (*DNSV2Client, error) {
+func NewDNSV2ClientFromAuthOpts(authOpts AuthOpts, logger log.Logger) (*DNSV2Client, error) {
 	client, err := NewOpenStackDesignateClient(authOpts)
 	if err != nil {
 		return nil, err
@@ -80,6 +82,7 @@ func NewDNSV2ClientFromAuthOpts(authOpts AuthOpts) (*DNSV2Client, error) {
 		moreHeaders: map[string]string{
 			"X-Auth-All-Projects": "true",
 		},
+		logger: log.NewLoggerWith(logger, "component", "dnsV2Client"),
 	}, nil
 }
 
@@ -105,23 +108,29 @@ func (c *DNSV2Client) listDesignateZones(listOpts zones.ListOpts) ([]zones.Zone,
 	if err := res.ExtractInto(&resData); err != nil {
 		return nil, errors.Wrapf(err, "failed to list zones from %v, options: %#v", url, opts)
 	}
+
+	c.logger.LogDebug("list designate zones with filter", "filter", listOptsString, "foundZones", zoneListToString(resData.Zones))
 	return resData.Zones, nil
 }
 
 func (c *DNSV2Client) getDesignateZoneByName(zoneName string) (zones.Zone, error) {
+	// Add trailing `.` if not already present.
+	zoneName = addSuffixIfRequired(zoneName)
+
 	zoneList, err := c.listDesignateZones(
 		zones.ListOpts{
-			Name:   addSuffixIfRequired(zoneName),
+			Name:   zoneName,
 			Status: Status.ACTIVE,
 		},
 	)
 	if err != nil {
 		return zones.Zone{}, err
 	}
+
 	if len(zoneList) > 1 {
 		return zones.Zone{}, errors.Errorf("multiple zones with name %s found", zoneName)
 	}
-	if len(zoneList) == 0 || zoneList[0].Name != addSuffixIfRequired(zoneName) {
+	if len(zoneList) == 0 || zoneList[0].Name != zoneName {
 		return zones.Zone{}, errors.Errorf("no zone with name %s found", zoneName)
 	}
 	return zoneList[0], nil
@@ -147,8 +156,9 @@ func (c *DNSV2Client) listDesignateRecordsetsForZone(zone zones.Zone, recordsetN
 		return true, nil
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list recordsets in zone %s. %s.", zone.ID)
+		return nil, errors.Wrapf(err, "Failed to list recordsets in zone %s.", zone.ID)
 	}
+	c.logger.LogDebug("list designate recordsets", "zone", zone.Name, "recordsetName", recordsetName, "foundRecords", recordSetListToString(recordsetList))
 	return recordsetList, nil
 }
 
@@ -174,7 +184,7 @@ func (c *DNSV2Client) createDesignateRecordset(zoneID, rsName string, records []
 	if _, res.Err = c.client.Post(url, &rec, &res.Body, &opts); res.Err != nil {
 		return errors.Wrapf(err, "Could not create recordset name: %s, type: %s, records: %v, ttl: %v in zone %s. Error: %#v ", rsName, rsType, records, rsTTL, zoneID)
 	}
-	LogInfo("Created recordset name: %s, type: %s, records: %v, ttl: %v in zone %s ", rsName, rsType, records, rsTTL, zoneID)
+	c.logger.LogInfo("created recordset", "name", rsName, "type", rsType, "records", records, "ttl", rsTTL, "zoneID", zoneID)
 	return nil
 }
 
@@ -187,6 +197,6 @@ func (c *DNSV2Client) deleteDesignateRecordset(host, recordsetID, zoneID string)
 	if _, err := c.client.Delete(url, &opts); err != nil {
 		return errors.Wrapf(err, "could not delete recordset %s with uid %v in zone uid %v", host, recordsetID, zoneID)
 	}
-	LogInfo("Deleted recordset %s with uid %v in zone uid %v", host, recordsetID, zoneID)
+	c.logger.LogInfo("deleted recordset", "host", host, "recordsetID", recordsetID, "zoneID", zoneID)
 	return nil
 }

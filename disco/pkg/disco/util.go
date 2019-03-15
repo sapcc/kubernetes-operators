@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2018 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,9 +21,10 @@ package disco
 
 import (
 	"fmt"
-	"log"
-	"os"
+	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
 	"strings"
+
+	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
 
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/client-go/rest"
@@ -37,77 +38,6 @@ func newClientConfig(options Options) (*rest.Config, error) {
 		rules.ExplicitPath = options.KubeConfig
 	}
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
-}
-
-var LogLevel = struct {
-	DEBUG,
-	INFO,
-	ERROR,
-	FATAL string
-}{
-	"DEBUG",
-	"INFO",
-	"ERROR",
-	"FATAL",
-}
-
-func isDebug() bool {
-	if os.Getenv("DEBUG") == "1" {
-		return true
-	}
-	return false
-}
-
-// LogInfo logs info messages
-func LogInfo(msg string, args ...interface{}) {
-	doLog(
-		LogLevel.INFO,
-		msg,
-		args,
-	)
-}
-
-// LogError logs error messages
-func LogError(msg string, args ...interface{}) {
-	doLog(
-		LogLevel.ERROR,
-		msg,
-		args,
-	)
-}
-
-// LogDebug logs debug messages, if DEBUG is enabled
-func LogDebug(msg string, args ...interface{}) {
-	if isDebug() {
-		doLog(
-			LogLevel.DEBUG,
-			msg,
-			args,
-		)
-	}
-}
-
-// LogFatal logs debug messages, if DEBUG is enabled
-func LogFatal(msg string, args ...interface{}) {
-	doLog(
-		LogLevel.FATAL,
-		msg,
-		args,
-	)
-}
-
-func doLog(logLevel string, msg string, args []interface{}) {
-	msg = strings.TrimPrefix(msg, "\n")
-	msg = fmt.Sprintf("%s: %s", logLevel, msg)
-	if logLevel == LogLevel.FATAL {
-		log.Fatalf(msg+"\n", args...)
-		return
-	}
-	if len(args) > 0 {
-		log.Printf(msg+"\n", args...)
-	} else {
-		log.Println(msg)
-	}
 }
 
 func ingressHasDiscoFinalizer(ingress *v1beta1.Ingress) bool {
@@ -153,4 +83,24 @@ func trimQuotesAndSpace(s string) string {
 	}
 	st := strings.Trim(s, `"`)
 	return strings.TrimSpace(st)
+}
+
+func ingressKey(ing *v1beta1.Ingress) string {
+	return fmt.Sprintf("%s/%s", ing.GetNamespace(), ing.GetName())
+}
+
+func zoneListToString(zonesList []zones.Zone) string {
+	zoneNameList := make([]string, 0)
+	for _, z := range zonesList {
+		zoneNameList = append(zoneNameList, z.Name)
+	}
+	return strings.Join(zoneNameList, ", ")
+}
+
+func recordSetListToString(rsList []recordsets.RecordSet) string {
+	rsNameList := make([]string, 0)
+	for _, rs := range rsList {
+		rsNameList = append(rsNameList, rs.Name)
+	}
+	return strings.Join(rsNameList, ", ")
 }

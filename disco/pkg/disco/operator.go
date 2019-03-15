@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2018 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,12 +21,14 @@ package disco
 
 import (
 	"fmt"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/metrics"
 	"reflect"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -55,20 +57,22 @@ type Operator struct {
 	RecheckInterval time.Duration
 
 	queue workqueue.RateLimitingInterface
+
+	logger log.Logger
 }
 
 // New creates a new operator using the given options
-func New(options Options) *Operator {
-	LogDebug("starting DISCO in version %v\n", VERSION)
+func New(options Options, logger log.Logger) *Operator {
+	logger = log.NewLoggerWith(logger, "component", "operator")
 
-	if err := options.CheckOptions(); err != nil {
-		LogFatal(err.Error())
+	if err := options.CheckOptions(logger); err != nil {
+		logger.LogFatal("error checking options", "err", err)
 		return nil
 	}
 
 	discoConfig, err := ReadConfig(options.ConfigPath)
 	if err != nil {
-		LogFatal("failed to read config: %v", err)
+		logger.LogFatal("error reading config", "err", err)
 		return nil
 	}
 
@@ -77,19 +81,19 @@ func New(options Options) *Operator {
 
 	kubeConfig, err := newClientConfig(options)
 	if err != nil {
-		LogFatal("couldn't create Kubernetes client config: %v", err)
+		logger.LogFatal("error creating kubernetes client config", "err", err)
 		return nil
 	}
 
 	clientset, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
-		LogFatal("couldn't create Kubernetes client: %v", err)
+		logger.LogFatal("error creating kubernetes client", "err", err)
 		return nil
 	}
 
-	dnsV2Client, err := NewDNSV2ClientFromAuthOpts(discoConfig.AuthOpts)
+	dnsV2Client, err := NewDNSV2ClientFromAuthOpts(discoConfig.AuthOpts, logger)
 	if err != nil {
-		LogFatal("unable to create designate v2 client: %v", err)
+		logger.LogFatal("error creating designate v2 client", "err", err)
 		return nil
 	}
 
@@ -101,6 +105,7 @@ func New(options Options) *Operator {
 		ResyncPeriod:    resyncPeriod,
 		RecheckInterval: recheckInterval,
 		queue:           workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(30*time.Second, 600*time.Second)),
+		logger:          logger,
 	}
 
 	ingressInformer := v1beta12.NewIngressInformer(
@@ -117,7 +122,6 @@ func New(options Options) *Operator {
 	})
 
 	operator.ingressInformer = ingressInformer
-
 	return operator
 }
 
@@ -128,16 +132,16 @@ func (disco *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.Wai
 	defer wg.Done()
 	wg.Add(1)
 
-	LogInfo("Ladies and Gentlemen, the DISCO is about to begin! Creating your OpenStack Designate CNAMEs now in version %v\n", VERSION)
+	disco.logger.LogInfo("Ladies and Gentlemen, the DISCO is about to begin! Creating your OpenStack Designate CNAMEs now.","version", VERSION)
 
 	go disco.ingressInformer.Run(stopCh)
 
-	LogInfo("waiting for cache to sync...")
+	disco.logger.LogInfo("waiting for cache to sync...")
 	cache.WaitForCacheSync(
 		stopCh,
 		disco.ingressInformer.HasSynced,
 	)
-	LogInfo("cache primed. Ready for operations.")
+	disco.logger.LogInfo("cache primed. ready for operations.")
 
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(disco.runWorker, time.Second, stopCh)
@@ -149,7 +153,7 @@ func (disco *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.Wai
 			select {
 			case <-ticker.C:
 				disco.requeueAllIngresses()
-				LogInfo("next check in %v", disco.RecheckInterval)
+				disco.logger.LogInfo(fmt.Sprintf("next check in %v", disco.RecheckInterval.String()))
 			case <-stopCh:
 				ticker.Stop()
 				return
@@ -179,7 +183,7 @@ func (disco *Operator) processNextWorkItem() bool {
 		return true
 	}
 
-	LogError("%v failed with : %v", key, err)
+	disco.logger.LogError("error while processing item on queue", err, "key", key)
 	disco.queue.AddRateLimited(key)
 
 	return true
@@ -192,7 +196,7 @@ func (disco *Operator) handleError(err error, key interface{}) {
 	}
 
 	if disco.queue.NumRequeues(key) < 5 {
-		LogError("error syncing pod %v: %v", key, err)
+		disco.logger.LogError("error syncing pod", err, "key", key)
 
 		// Re-enqueue the key rate limited. Based on the rate limiter on the
 		// queue and the re-enqueue history, the key will be processed later again.
@@ -204,8 +208,7 @@ func (disco *Operator) handleError(err error, key interface{}) {
 
 	// Report to an external entity that, even after several retries, we could not successfully process this key
 	runtime.HandleError(err)
-	LogInfo("dropping pod %q out of the queue: %v", key, err)
-
+	disco.logger.LogError("removing pod from queue after error", err, "key", key)
 }
 
 func (disco *Operator) syncHandler(key string) error {
@@ -215,7 +218,7 @@ func (disco *Operator) syncHandler(key string) error {
 	}
 
 	if !exists {
-		LogInfo("deleted ingress %v", key)
+		disco.logger.LogDebug("ingress doesn't exist", "key", key)
 		return nil
 	}
 
@@ -224,14 +227,14 @@ func (disco *Operator) syncHandler(key string) error {
 	if disco.isTakeCareOfIngress(ingress) {
 		for _, rule := range ingress.Spec.Rules {
 			if rule.Host != "" {
-				LogInfo("checking ingress %v/%v, hosts: %v", ingress.GetNamespace(), ingress.GetName(), rule.Host)
+				disco.logger.LogInfo("checking ingress", "key", key, "host", rule.Host)
 				if err := disco.checkRecords(ingress, rule.Host); err != nil {
 					return err
 				}
 			}
 		}
 	} else {
-		LogDebug("ignoring ingress %v/%v as annotation was not set", ingress.GetNamespace(), ingress.GetName())
+		disco.logger.LogDebug("ignoring ingress as annotation is not set", "key", key)
 	}
 	return err
 }
@@ -241,9 +244,9 @@ func (disco *Operator) requeueAllIngresses() {
 		i := o.(*v1beta1.Ingress)
 		key, err := cache.MetaNamespaceKeyFunc(o)
 		if err != nil {
-			LogError("couldn't add ingress %s/%s", i.GetNamespace(), i.GetName())
+			disco.logger.LogError("error adding ingress", err, "key", fmt.Sprintf("%s/%s", i.GetNamespace(), i.GetName()))
 		}
-		LogDebug("added ingress %s/%s", i.GetNamespace(), i.GetName())
+		disco.logger.LogDebug("added ingress to queue", "key", key)
 		disco.queue.AddRateLimited(key)
 	}
 }
@@ -260,7 +263,6 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		"ingress": fmt.Sprintf("%s/%s", ingress.GetNamespace(), ingress.GetName()),
 		"host":    host,
 	}
-	initializeFailureMetrics(labels)
 
 	//TODO: maybe use https://github.com/patrickmn/go-cache instead of listing recordsets every time
 	zone, err := disco.dnsV2Client.getDesignateZoneByName(disco.ZoneName)
@@ -291,15 +293,15 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 			return fmt.Errorf("would delete recordset %s in zone %s but was unable to find its uid", host, zone.Name)
 		}
 		if err := disco.dnsV2Client.deleteDesignateRecordset(host, recordsetID, zone.ID); err != nil {
-			recordsetDeletionFailedCounter.With(labels).Inc()
+			metrics.RecordsetDeletionFailedCounter.With(labels).Inc()
 			return err
 		}
-		recordsetDeletionSuccessCounter.With(labels).Inc()
+		metrics.RecordsetDeletionSuccessCounter.With(labels).Inc()
 		return disco.ensureDiscoFinalizerRemoved(ingress)
 	}
 
 	if recordsetID != "" {
-		LogDebug("recordset for host %v in zone %v already exists", host, zone.Name)
+		disco.logger.LogDebug("recordset already exists", "host", host, "zone", zone.Name)
 		return nil
 	}
 
@@ -326,10 +328,10 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		recordType,
 		description,
 	); err != nil {
-		recordsetCreationFailedCounter.With(labels).Inc()
+		metrics.RecordsetCreationFailedCounter.With(labels).Inc()
 		return err
 	}
-	recordsetCreationSuccessCounter.With(labels).Inc()
+	metrics.RecordsetCreationSuccessCounter.With(labels).Inc()
 	return nil
 }
 
@@ -337,7 +339,7 @@ func (disco *Operator) ingressAdd(obj interface{}) {
 	i := obj.(*v1beta1.Ingress)
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
-		LogError("couldn't add ingress %s/%s", i.GetNamespace(), i.GetName())
+		disco.logger.LogError("error adding ingress", err, "key", ingressKey(i))
 		return
 	}
 	disco.queue.AddRateLimited(key)
@@ -348,15 +350,16 @@ func (disco *Operator) ingressUpdate(old, new interface{}) {
 	iNew := new.(*v1beta1.Ingress)
 
 	if disco.isIngressNeedsUpdate(iNew, iOld) {
-		LogDebug("updated ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
+		disco.logger.LogDebug("updated ingress", "key", ingressKey(iOld))
 		key, err := cache.MetaNamespaceKeyFunc(new)
 		if err != nil {
-			LogError("couldn't add ingress %s/%s", iNew.GetNamespace(), iNew.GetName())
+			disco.logger.LogError("error adding ingress", err,"key", ingressKey(iNew))
+			return
 		}
 		disco.queue.AddRateLimited(key)
 		return
 	}
-	LogDebug("nothing changed. No need to update ingress %s/%s", iOld.GetNamespace(), iOld.GetName())
+	disco.logger.LogDebug("nothing changed. no need to update ingress", "key", ingressKey(iOld))
 }
 
 func (disco *Operator) updateUpstreamIngress(ingress *v1beta1.Ingress) error {
@@ -375,11 +378,11 @@ func (disco *Operator) ingressDelete(obj interface{}) {
 	i := obj.(*v1beta1.Ingress)
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
-		LogError("couldn't add ingress %s/%s", i.GetNamespace(), i.GetName())
+		disco.logger.LogError("error deleting ingress", err, "key", ingressKey(i))
 		return
 	}
 	disco.queue.AddRateLimited(key)
-	LogInfo("ingress %s/%s was deleted", i.GetNamespace(), i.GetName())
+	disco.logger.LogInfo("ingress was deleted", "key", key)
 }
 
 func (disco *Operator) ensureDiscoFinalizerExists(ingress *v1beta1.Ingress) error {
