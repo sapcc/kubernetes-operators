@@ -36,7 +36,7 @@ type Options struct {
 	RecordsetTTL      int
 	Record            string
 	ZoneName          string
-	IsDebug bool
+	IsDebug           bool
 }
 
 func (o *Options) applyDefaultsIfNotSet() {

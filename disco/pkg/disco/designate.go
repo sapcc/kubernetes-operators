@@ -82,7 +82,7 @@ func NewDNSV2ClientFromAuthOpts(authOpts AuthOpts, logger log.Logger) (*DNSV2Cli
 		moreHeaders: map[string]string{
 			"X-Auth-All-Projects": "true",
 		},
-		logger: log.NewLoggerWith(logger, "component", "dnsV2Client"),
+		logger: log.NewLoggerWith(logger, "component", "dnsv2client"),
 	}, nil
 }
 

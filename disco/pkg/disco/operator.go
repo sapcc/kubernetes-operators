@@ -132,7 +132,7 @@ func (disco *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.Wai
 	defer wg.Done()
 	wg.Add(1)
 
-	disco.logger.LogInfo("Ladies and Gentlemen, the DISCO is about to begin! Creating your OpenStack Designate CNAMEs now.","version", VERSION)
+	disco.logger.LogInfo("Ladies and Gentlemen, the DISCO is about to begin! Creating your OpenStack Designate CNAMEs now.", "version", VERSION)
 
 	go disco.ingressInformer.Run(stopCh)
 
@@ -353,7 +353,7 @@ func (disco *Operator) ingressUpdate(old, new interface{}) {
 		disco.logger.LogDebug("updated ingress", "key", ingressKey(iOld))
 		key, err := cache.MetaNamespaceKeyFunc(new)
 		if err != nil {
-			disco.logger.LogError("error adding ingress", err,"key", ingressKey(iNew))
+			disco.logger.LogError("error adding ingress", err, "key", ingressKey(iNew))
 			return
 		}
 		disco.queue.AddRateLimited(key)

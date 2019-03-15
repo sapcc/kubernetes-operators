@@ -20,15 +20,15 @@
 package disco
 
 import (
-  "testing"
+	"testing"
 
-  "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLoadConfig(t *testing.T) {
-  config, err := ReadConfig("fixtures/example.discoconfig")
-  assert.NoError(t, err)
-  assert.Equal(t, "https://localhost:5000/v3", config.AuthURL)
-  assert.Equal(t, "default", config.ProjectDomainName)
-  assert.Equal(t, "foo", config.Username)
+	config, err := ReadConfig("fixtures/example.discoconfig")
+	assert.NoError(t, err)
+	assert.Equal(t, "https://localhost:5000/v3", config.AuthURL)
+	assert.Equal(t, "default", config.ProjectDomainName)
+	assert.Equal(t, "foo", config.Username)
 }
