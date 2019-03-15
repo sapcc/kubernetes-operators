@@ -17,7 +17,7 @@ The DISCO operator automatically discovers Ingresses in the Kubernetes cluster a
 
   - go 1.11
 
-## Usage
+## Installation
 
 The [helm chart](https://github.com/sapcc/helm-charts/tree/master/system/kube-system/charts/disco/) can be used to bring the DISCO to your cluster.  
 Note that the DISCO will only start for Ingresses that are annotated with
@@ -26,25 +26,6 @@ metadata:
   annotations:
     disco: "true"
 ```
-
-**Fine-tuning:**  
-
-The operator has to be configured with a default record.
-However, this can also be set on the ingress using the following annotation:
-```
-disco/record: < record >
-```
-
-Per default type of all records will be `CNAME`.
-This can be set to one of `A`, `SOA`, `NS`, `CNAME` using the following annotation:
-```
-disco/record-type: <record type>
-```
-
-Moreover, a description can be provided via the annotation:
-```
-disco/record-description: < description >
-``` 
 
 ## Configuration
 
@@ -68,6 +49,8 @@ Usage of disco:
   --record string                    Default record data used for the CNAME
   --zone-name string                 Name of the zone in which the recordset will be created
 ```
+
+## Usage
 
 Given the following Ingress
 ```
@@ -93,27 +76,45 @@ the operator would create the following CNAME in the configured zone in OpenStac
 +-----------------------+-------+----------------+
 ```
 
+**Fine-tuning:**  
+
+The operator has to be configured with a default record.
+However, this can also be set on the ingress using the following annotation:
+```
+disco/record: < record >
+```
+
+Per default type of all records will be `CNAME`.
+This can be set to one of `A`, `SOA`, `NS`, `CNAME` using the following annotation:
+```
+disco/record-type: <record type>
+```
+
+Moreover, a description can be provided via the annotation:
+```
+disco/record-description: < description >
+``` 
+
 All parameters and their defaults:
 ```
 Usage of disco:
-    --alsologtostderr                  log to standard error as well as files
-    --config string                    Path to operator config file (default "/etc/disco/disco.conf")
-    --ingress-annotation string        Handle ingress with this annotation (default "disco")
-    --kubeconfig string                Path to kubeconfig file with authorization and master location information
-    --log_backtrace_at traceLocation   when logging hits line file:N, emit a stack trace (default :0)
-    --log_dir string                   If non-empty, write log files in this directory
-    --logtostderr                      log to standard error instead of files
-    --metric-port int                  Metrics are exposed on this port (default 9091)
-    --recheck-period int               RecheckPeriod[min] defines the base period after which configmaps are checked again (default 5)
-    --record string                    Default record data used for the CNAME
-    --recordset-ttl int                The Recordset TTL in seconds (default 1800)
-    --resync-period int                ResyncPeriod[min] defines the base period after which the cache is resynced (default 2)
-    --stderrthreshold severity         logs at or above this threshold go to stderr (default 2)
-    --threadiness int                  The operator threadiness (default 1)
--v, --v Level                          log level for V logs
-    --vmodule moduleSpec               comma-separated list of pattern=N settings for file-filtered logging
-    --zone-name string                 Name of the zone in which the recordset will be created
+      --config string               Path to operator config file (default "/etc/disco/disco.conf")
+      --debug                       Enable debug logging
+      --ingress-annotation string   Handle ingress with this annotation (default "disco")
+      --kubeconfig string           Path to kubeconfig file with authorization and master location information
+      --metric-port int             Metrics are exposed on this port (default 9091)
+      --recheck-period int          RecheckPeriod[min] defines the base period after which configmaps are checked again (default 5)
+      --record string               Default record data used for the CNAME
+      --recordset-ttl int           The Recordset TTL in seconds (default 1800)
+      --resync-period int           ResyncPeriod[min] defines the base period after which the cache is resynced (default 2)
+      --threadiness int             The operator threadiness (default 1)
+      --zone-name string            Name of the openstack zone in which the recordset will be created
 ```
+
+**Note**: 
+The DISCO operator uses [finalizers](https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#finalizers)
+to ensure the deletion of Designate CNAMEs when the deletion of the corresponding ingress is triggered.
+Removing the finalizer manually will cause a left-over CNAME in Designate.
 
 ## Limitations
 
