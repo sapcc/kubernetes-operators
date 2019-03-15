@@ -38,8 +38,4 @@ clean:
 	rm -rf bin/*
 
 vendor:
-	ifndef GLIDE
-		echo "Cannot vendor. Glide is not installed. Please do so now."
-	else
-		glide install --strip-vendor --strip-vcs && glide-vc --only-code --no-tests
-	endif
+	dep ensure
