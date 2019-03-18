@@ -86,7 +86,7 @@ func (s *TestSuite) TestDoesCertificateExpireSoon() {
 		"should be true to indicate the certificate was valid until last month and has to be renewed",
 	)
 
-	vc.Certificate.NotAfter = time.Now().AddDate(0, 1, 0)
+	vc.Certificate.NotAfter = time.Now().AddDate(0, 0, 29)
 	s.True(
 		s.ViceCert.DoesCertificateExpireSoon(minCertValidityDays),
 		"should be true to indicate the certificate is valid for 1 month and has to be renewed",

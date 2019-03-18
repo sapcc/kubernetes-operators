@@ -91,18 +91,22 @@ func (m *SymantecMetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	tokenCount, err := m.viceClient.Certificates.GetTokenCount(context.TODO())
 	if err != nil {
 		LogError("Unable to fetch token count: %v", err)
+		return
 	}
 	if tokenCount == nil || tokenCount.Tokens == nil {
 		LogError("Fetched Token count could'nt parse it %#v", tokenCount)
+		return
 	}
 
 	// getOrgInfo
 	o, err := m.viceClient.Certificates.GetOrganizationInfo(context.TODO())
 	if err != nil {
 		LogError("Unable to fetch symantec organization information: %v", err)
+		return
 	}
 	if o == nil {
 		LogError("Unable to parse symantec org info")
+		return
 	}
 
 	for _, t := range tokenCount.Tokens {
@@ -137,15 +141,15 @@ func (m *SymantecMetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	org := o.Organization
 	if isAnyStringEmpty(org.Name, org.OrgStatus, org.AuthStatus) {
 		LogError("Unable to parse some values from symatec org")
-	} else {
-		LogDebug("Got org info: %#v", org)
-		ch <- prometheus.MustNewConstMetric(
-			m.metrics[organizationExpires],
-			prometheus.GaugeValue,
-			float64(org.AuthExpires.Unix()),
-			org.Name,
-			org.OrgStatus,
-			org.AuthStatus,
-		)
+		return
 	}
+	LogDebug("Got org info: %#v", org)
+	ch <- prometheus.MustNewConstMetric(
+		m.metrics[organizationExpires],
+		prometheus.GaugeValue,
+		float64(org.AuthExpires.Unix()),
+		org.Name,
+		org.OrgStatus,
+		org.AuthStatus,
+	)
 }
