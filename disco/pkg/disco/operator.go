@@ -245,6 +245,7 @@ func (disco *Operator) requeueAllIngresses() {
 		key, err := cache.MetaNamespaceKeyFunc(o)
 		if err != nil {
 			disco.logger.LogError("error adding ingress", err, "key", fmt.Sprintf("%s/%s", i.GetNamespace(), i.GetName()))
+			return
 		}
 		disco.logger.LogDebug("added ingress to queue", "key", key)
 		disco.queue.AddRateLimited(key)

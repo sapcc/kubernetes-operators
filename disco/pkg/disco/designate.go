@@ -20,6 +20,8 @@
 package disco
 
 import (
+	"strings"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
@@ -184,7 +186,7 @@ func (c *DNSV2Client) createDesignateRecordset(zoneID, rsName string, records []
 	if _, res.Err = c.client.Post(url, &rec, &res.Body, &opts); res.Err != nil {
 		return errors.Wrapf(err, "Could not create recordset name: %s, type: %s, records: %v, ttl: %v in zone %s. Error: %#v ", rsName, rsType, records, rsTTL, zoneID)
 	}
-	c.logger.LogInfo("created recordset", "name", rsName, "type", rsType, "records", records, "ttl", rsTTL, "zoneID", zoneID)
+	c.logger.LogInfo("created recordset", "name", rsName, "type", rsType, "records", strings.Join(records, ","), "ttl", rsTTL, "zoneID", zoneID)
 	return nil
 }
 
