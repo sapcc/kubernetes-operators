@@ -51,28 +51,25 @@ type Operator struct {
 	dnsV2Client     *DNSV2Client
 	clientset       *kubernetes.Clientset
 	ingressInformer cache.SharedIndexInformer
-
 	// ResyncPeriod defines the period after which the local cache of ingresses is refreshed
 	ResyncPeriod    time.Duration
 	RecheckInterval time.Duration
-
-	queue workqueue.RateLimitingInterface
-
-	logger log.Logger
+	queue           workqueue.RateLimitingInterface
+	logger          log.Logger
 }
 
 // New creates a new operator using the given options
 func New(options Options, logger log.Logger) *Operator {
-	logger = log.NewLoggerWith(logger, "component", "operator")
+	operatorLogger := log.NewLoggerWith(logger, "component", "operator")
 
 	if err := options.CheckOptions(logger); err != nil {
-		logger.LogFatal("error checking options", "err", err)
+		operatorLogger.LogFatal("error checking options", "err", err)
 		return nil
 	}
 
 	discoConfig, err := ReadConfig(options.ConfigPath)
 	if err != nil {
-		logger.LogFatal("error reading config", "err", err)
+		operatorLogger.LogFatal("error reading config", "err", err)
 		return nil
 	}
 
@@ -81,19 +78,19 @@ func New(options Options, logger log.Logger) *Operator {
 
 	kubeConfig, err := newClientConfig(options)
 	if err != nil {
-		logger.LogFatal("error creating kubernetes client config", "err", err)
+		operatorLogger.LogFatal("error creating kubernetes client config", "err", err)
 		return nil
 	}
 
 	clientset, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
-		logger.LogFatal("error creating kubernetes client", "err", err)
+		operatorLogger.LogFatal("error creating kubernetes client", "err", err)
 		return nil
 	}
 
 	dnsV2Client, err := NewDNSV2ClientFromAuthOpts(discoConfig.AuthOpts, logger)
 	if err != nil {
-		logger.LogFatal("error creating designate v2 client", "err", err)
+		operatorLogger.LogFatal("error creating designate v2 client", "err", err)
 		return nil
 	}
 
@@ -105,7 +102,7 @@ func New(options Options, logger log.Logger) *Operator {
 		ResyncPeriod:    resyncPeriod,
 		RecheckInterval: recheckInterval,
 		queue:           workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(30*time.Second, 600*time.Second)),
-		logger:          logger,
+		logger:          operatorLogger,
 	}
 
 	ingressInformer := v1beta12.NewIngressInformer(
