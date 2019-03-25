@@ -349,7 +349,7 @@ func (disco *Operator) ingressUpdate(old, new interface{}) {
 
 	if disco.isIngressNeedsUpdate(iNew, iOld) {
 		disco.logger.LogDebug("updated ingress", "key", ingressKey(iOld))
-		key, err := cache.MetaNamespaceKeyFunc(new)
+		key, err := cache.MetaNamespaceKeyFunc(iNew)
 		if err != nil {
 			disco.logger.LogError("error adding ingress", err, "key", ingressKey(iNew))
 			return
