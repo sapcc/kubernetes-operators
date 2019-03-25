@@ -1522,7 +1522,6 @@ def seed_project_designate_quota(project, config, args):
         logging.error(
             "could not seed designate quota for project %s: %s" % (
                 project.name, e))
-        raise
 
 
 def seed_project_dns_zones(project, zones, args):
@@ -1591,7 +1590,6 @@ def seed_project_dns_zones(project, zones, args):
     except Exception as e:
         logging.error("could not seed project dns zones %s: %s" % (
             project.name, e))
-        raise
 
 
 def seed_dns_zone_recordsets(zone, recordsets, designate):
@@ -1667,7 +1665,6 @@ def seed_dns_zone_recordsets(zone, recordsets, designate):
             logging.error(
                 "could not seed dns zone %s recordsets: %s" % (
                     zone['name'], e))
-            raise
 
 
 def seed_project_tsig_keys(project, keys, args):
@@ -1723,7 +1720,6 @@ def seed_project_tsig_keys(project, keys, args):
     except Exception as e:
         logging.error("could not seed project dns tsig keys %s: %s" % (
             project.name, e))
-        raise
 
 
 def domain_config_equal(new, current):
