@@ -313,7 +313,7 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		recordType = stringToRecordsetType(rt)
 	}
 
-	description := ""
+	description := DiscoRecordsetDescription
 	if desc, ok := ingress.GetAnnotations()[DiscoAnnotationRecordDescription]; ok {
 		description = desc
 	}
