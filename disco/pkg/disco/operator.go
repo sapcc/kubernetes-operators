@@ -21,7 +21,6 @@ package disco
 
 import (
 	"fmt"
-	"github.com/sapcc/kubernetes-operators/disco/pkg/metrics"
 	"reflect"
 	"sync"
 	"time"
@@ -29,12 +28,17 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/metrics"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	v1beta12 "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -56,6 +60,7 @@ type Operator struct {
 	RecheckInterval time.Duration
 	queue           workqueue.RateLimitingInterface
 	logger          log.Logger
+	eventRecorder   record.EventRecorder
 }
 
 // New creates a new operator using the given options
@@ -94,6 +99,15 @@ func New(options Options, logger log.Logger) *Operator {
 		return nil
 	}
 
+	b := record.NewBroadcaster()
+	b.StartLogging(logger.LogEvent)
+	b.StartRecordingToSink(&v12.EventSinkImpl{
+		Interface: clientset.CoreV1().Events(""),
+	})
+	eventRecorder := b.NewRecorder(scheme.Scheme, v1.EventSource{
+		Component: EventComponent,
+	})
+
 	operator := &Operator{
 		Options:         options,
 		clientset:       clientset,
@@ -103,6 +117,7 @@ func New(options Options, logger log.Logger) *Operator {
 		RecheckInterval: recheckInterval,
 		queue:           workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(30*time.Second, 600*time.Second)),
 		logger:          operatorLogger,
+		eventRecorder:   eventRecorder,
 	}
 
 	ingressInformer := v1beta12.NewIngressInformer(
@@ -203,7 +218,7 @@ func (disco *Operator) handleError(err error, key interface{}) {
 
 	disco.queue.Forget(key)
 
-	// Report to an external entity that, even after several retries, we could not successfully process this key
+	// Report to an external entity that, even after several retries, we could not successfully process this key.
 	runtime.HandleError(err)
 	disco.logger.LogError("removing pod from queue after error", err, "key", key)
 }
@@ -262,6 +277,13 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		"host":    host,
 	}
 
+	var err error
+	defer func() {
+		if err != nil {
+			disco.eventRecorder.Eventf(ingress, v1.EventTypeNormal, UpdateEvent, fmt.Sprintf("create recordset on ingress %s failed", ingressKey(ingress)))
+		}
+	}()
+
 	//TODO: maybe use https://github.com/patrickmn/go-cache instead of listing recordsets every time
 	zone, err := disco.dnsV2Client.getDesignateZoneByName(disco.ZoneName)
 	if err != nil {
@@ -292,8 +314,10 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		}
 		if err := disco.dnsV2Client.deleteDesignateRecordset(host, recordsetID, zone.ID); err != nil {
 			metrics.RecordsetDeletionFailedCounter.With(labels).Inc()
+			disco.eventRecorder.Eventf(ingress, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", ingressKey(ingress)))
 			return err
 		}
+		disco.eventRecorder.Eventf(ingress, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("deleted recordset on ingress %s successful", ingressKey(ingress)))
 		metrics.RecordsetDeletionSuccessCounter.With(labels).Inc()
 		return disco.ensureDiscoFinalizerRemoved(ingress)
 	}
@@ -330,6 +354,7 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		return err
 	}
 	metrics.RecordsetCreationSuccessCounter.With(labels).Inc()
+	disco.eventRecorder.Eventf(ingress, v1.EventTypeNormal, CreateEvent, fmt.Sprintf("create recordset on ingress %s successful", ingressKey(ingress)))
 	return nil
 }
 
@@ -366,7 +391,8 @@ func (disco *Operator) updateUpstreamIngress(ingress *v1beta1.Ingress) error {
 }
 
 func (disco *Operator) isIngressNeedsUpdate(iNew, iOld *v1beta1.Ingress) bool {
-	if !reflect.DeepEqual(iOld.Spec, iNew.Spec) || !reflect.DeepEqual(iOld.GetAnnotations(), iNew.GetAnnotations()) {
+	// Ingress needs update if spec or annotations changed or deletionTimestamp was added.
+	if !reflect.DeepEqual(iOld.Spec, iNew.Spec) || !reflect.DeepEqual(iOld.GetAnnotations(), iNew.GetAnnotations()) || !reflect.DeepEqual(iOld.GetDeletionTimestamp(), iNew.GetDeletionTimestamp()) {
 		return true
 	}
 	return false

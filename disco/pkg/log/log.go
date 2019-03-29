@@ -31,7 +31,7 @@ type Logger struct {
 	logger log.Logger
 }
 
-// NewLogger creates a new Logger
+// NewLogger creates a new Logger.
 func NewLogger(isDebug bool) Logger {
 	logLevel := level.AllowInfo()
 	if isDebug {
@@ -47,37 +47,42 @@ func NewLogger(isDebug bool) Logger {
 	}
 }
 
-// NewLoggerWith return a new Logger with additional keyvals
+// NewLoggerWith return a new Logger with additional keyvals.
 func NewLoggerWith(logger Logger, keyvals ...interface{}) Logger {
 	return Logger{
 		logger: log.With(logger.logger, keyvals...),
 	}
 }
 
-// LogInfo logs info messages
+// LogInfo logs info messages.
 func (l *Logger) LogInfo(msg string, keyvals ...interface{}) {
 	level.Info(l.logger).Log(append([]interface{}{"msg", msg}, keyvals...)...)
 }
 
-// LogDebug logs debug messages
+// LogDebug logs debug messages.
 func (l *Logger) LogDebug(msg string, keyvals ...interface{}) {
 	level.Debug(l.logger).Log(append([]interface{}{"msg", msg}, keyvals...)...)
 }
 
-// LogError logs error messages
+// LogError logs error messages.
 func (l *Logger) LogError(msg string, err error, keyvals ...interface{}) {
 	// prepend message and append err
 	keyvals = append([]interface{}{"msg", msg}, keyvals...)
 	level.Error(l.logger).Log(append(keyvals, []interface{}{"err", err}...)...)
 }
 
-// LogWarn logs warning messages
+// LogWarn logs warning messages.
 func (l *Logger) LogWarn(msg string, keyvals ...interface{}) {
 	level.Warn(l.logger).Log(append([]interface{}{"msg", msg}, keyvals...)...)
 }
 
-// LogFatal logs fatal messages and exits
+// LogFatal logs fatal messages and exits.
 func (l *Logger) LogFatal(msg string, keyvals ...interface{}) {
 	level.Error(l.logger).Log(append([]interface{}{"msg", msg}, keyvals...)...)
 	os.Exit(1)
+}
+
+// LogEvent logs events.
+func (l *Logger) LogEvent(format string, obj ...interface{}) {
+	level.Debug(l.logger).Log(append([]interface{}{"event", format},obj...)...)
 }

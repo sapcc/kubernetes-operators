@@ -34,5 +34,15 @@ const (
 	// DiscoAnnotationRecordDescription allows setting the records description.
 	DiscoAnnotationRecordDescription = "disco/record-description"
 
+	// CreateEvent is the type of an creation event.
+	CreateEvent = "CreateRecordset"
 
+	// UpdateEvent is the type of an update event.
+	UpdateEvent = "UpdateRecordset"
+
+	// DeleteEvent is the type of an deletion event.
+	DeleteEvent = "DeleteRecordset"
+
+	// EventComponent describes the component emitting an event.
+	EventComponent = "disco"
 )
