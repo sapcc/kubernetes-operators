@@ -55,6 +55,7 @@ type OpenstackSeedSpec struct {
 	Regions         []RegionSpec     `json:"regions,omitempty" yaml:"regions,omitempty"`                   // list keystone regions
 	Services        []ServiceSpec    `json:"services,omitempty" yaml:"services,omitempty"`                 // list keystone services and their endpoints
 	Flavors         []FlavorSpec     `json:"flavors,omitempty" yaml:"flavors,omitempty"`                   // list of nova flavors
+	ShareTypes      []ShareTypeSpec  `json:"share_types,omitempty" yaml:"share_types,omitempty"`           // list of Manila share types
 	Domains         []DomainSpec     `json:"domains,omitempty" yaml:"domains,omitempty"`                   // list keystone domains with their configuration, users, groups, projects, etc.
 	RBACPolicies    []RBACPolicySpec `json:"rbac_policies,omitempty" yaml:"rbac_policies,omitempty"`       // list of neutron rbac polices (currently only network rbacs are supported).
 }
@@ -114,6 +115,7 @@ type ProjectSpec struct {
 	Endpoints       []ProjectEndpointSpec `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`           // list of project endpoint filters
 	RoleAssignments []RoleAssignmentSpec  `json:"roles,omitempty" yaml:"roles,omitempty"`                   // list of project-role-assignments
 	Flavors         []string              `json:"flavors,omitempty" yaml:"flavors,omitempty"`               // list of nova flavor-id's
+	ShareTypes      []string              `json:"share_types,omitempty" yaml:"share_types,omitempty"`       // list of manila share types
 	AddressScopes   []AddressScopeSpec    `json:"address_scopes,omitempty" yaml:"address_scopes,omitempty"` // list of neutron address-scopes
 	SubnetPools     []SubnetPoolSpec      `json:"subnet_pools,omitempty" yaml:"subnet_pools,omitempty"`     // list of neutron subnet-pools
 	NetworkQuota    *NetworkQuotaSpec     `json:"network_quota,omitempty" yaml:"network_quota,omitempty"`   // neutron quota
@@ -178,6 +180,12 @@ type FlavorSpec struct {
 	IsPublic   *bool             `json:"is_public,omitempty" yaml:"is_public,omitempty"`
 	Disabled   *bool             `json:"disabled,omitempty" yaml:"disabled,omitempty"`
 	Ephemeral  int               `json:"ephemeral,omitempty" yaml:"ephemeral,omitempty"`
+	ExtraSpecs map[string]string `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // list of extra specs
+}
+
+// A Manila Share Type
+type ShareTypeSpec struct {
+	Name       string            `json:"name" yaml:"name"`                                   // Name of share type
 	ExtraSpecs map[string]string `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // list of extra specs
 }
 
@@ -470,6 +478,28 @@ func (e *OpenstackSeedSpec) MergeFlavor(flavor FlavorSpec) {
 	e.Flavors = append(e.Flavors, flavor)
 }
 
+func (e *OpenstackSeedSpec) MergeShareType(t ShareTypeSpec) {
+	if e.ShareTypes == nil {
+		e.ShareTypes = make([]ShareTypeSpec, 0)
+	}
+	for i, s := range e.ShareTypes {
+		if s.Name == t.Name {
+			glog.V(2).Info("merge Manila share type ", t)
+			if s.ExtraSpecs == nil {
+				s.ExtraSpecs = make(map[string]string)
+			}
+			for k, v := range t.ExtraSpecs {
+				s.ExtraSpecs[k] = v
+			}
+			utils.MergeStructFields(&s, t)
+			e.ShareTypes[i] = s
+			return
+		}
+	}
+	glog.V(2).Info("append Manila share type ", t)
+	e.ShareTypes = append(e.ShareTypes, t)
+}
+
 func (e *OpenstackSeedSpec) MergeDomain(domain DomainSpec) {
 	if e.Domains == nil {
 		e.Domains = make([]DomainSpec, 0)
@@ -550,6 +580,9 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 				}
 				if len(project.Flavors) > 0 {
 					v.Flavors = utils.MergeStringSlices(v.Flavors, project.Flavors)
+				}
+				if len(project.ShareTypes) > 0 {
+					v.ShareTypes = utils.MergeStringSlices(v.ShareTypes, project.ShareTypes)
 				}
 				e.Projects[i] = v
 				found = true
@@ -1227,6 +1260,13 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 			return errors.New("flavor name is required")
 		}
 		e.MergeFlavor(flavor)
+	}
+
+	for _, shareType := range spec.ShareTypes {
+		if shareType.Name == "" {
+			return errors.New("Share type name is required")
+		}
+		e.MergeShareType(shareType)
 	}
 
 	for _, rbacPolicy := range spec.RBACPolicies {
