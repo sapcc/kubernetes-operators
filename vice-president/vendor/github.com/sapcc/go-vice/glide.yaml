@@ -1,4 +1,0 @@
-package: github.com/sapcc/go-vice
-import:
-- package: github.com/google/go-querystring/query
-

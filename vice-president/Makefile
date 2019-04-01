@@ -18,7 +18,7 @@ GLIDE := $(shell command -v glide 2> /dev/null)
 
 all: bin/$(GOOS)/$(BINARY)
 
-bin/%/$(BINARY): $(GOFILES) Makefile
+bin/%/$(BINARY): vendor $(GOFILES) Makefile
 	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd
 
 build: tests bin/linux/$(BINARY)
