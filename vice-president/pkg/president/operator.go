@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2017 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -259,14 +259,13 @@ func (vp *Operator) syncHandler(key string) error {
 	}
 	// check each host
 	for _, tls := range ingress.Spec.TLS {
-		sKey := secretKey(ingress.GetNamespace(), tls.SecretName)
-		vp.logger.LogDebug("checking ingress", "key", key, "hosts", strings.Join(tls.Hosts, ", "), "secret", sKey)
+		vp.logger.LogDebug("checking ingress", "key", key, "hosts", strings.Join(tls.Hosts, ", "), "secret", secretKey(ingress.GetNamespace(), tls.SecretName))
 		if len(tls.Hosts) == 0 {
 			return fmt.Errorf("no hosts found in ingress.spec.tls. key %s", key)
 		}
 
 		// tls.Host[0] will be the CN, tls.Hosts[1:] the SANs of the certificate.
-		vc := NewViceCertificate(ingress, sKey, tls.Hosts[0], tls.Hosts[1:], vp.intermediateCertificate, vp.rootCertPool)
+		vc := NewViceCertificate(ingress, tls.SecretName, tls.Hosts[0], tls.Hosts[1:], vp.intermediateCertificate, vp.rootCertPool)
 		return vp.checkCertificate(vc)
 	}
 	return err
@@ -415,6 +414,8 @@ func (vp *Operator) getNextState(vc *ViceCertificate) string {
 }
 
 func (vp *Operator) getOrCreateSecret(vc *ViceCertificate) (*v1.Secret, error) {
+	fmt.Printf("%#v", vc)
+
 	secret, err := vp.clientset.Secrets(vc.ingress.GetNamespace()).Get(vc.secretName, meta_v1.GetOptions{})
 	if err != nil {
 		// Create secret if not found.

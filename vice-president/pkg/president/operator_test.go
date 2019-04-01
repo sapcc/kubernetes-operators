@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2017 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -103,20 +103,21 @@ func (s *TestSuite) TestStateMachine() {
 	err := s.ResetIngressInformerStoreAndAddIngress(ingress)
 	s.Require().NoError(err, "there must be no error resetting the ingress informer store")
 
-	// go for it. secret doesn't exist. this should result in below error. also the state should have changed to IngressStateEnroll
+	// Go for it: Secret doesn't exist. This should result in below error.
 	key, err := cache.MetaNamespaceKeyFunc(ingress)
 	s.Require().NoError(err, "there must be no error creating a key from an ingress")
 
+	// Add the ingress to the queue bypassing the informers.
 	s.VP.queue.Add(key)
 
 	if err := s.VP.syncHandler(key); err != nil {
-		// TODO: need to mock this. at least the state machine is triggered once
+		// TODO: At least the state machine is triggered once.
 		s.EqualError(err, "couldn't get nor create secret default/my-secret: couldn't create secret default/my-secret: the server could not find the requested resource (post secrets)")
 	}
 }
 
 func (s *TestSuite) TestRateLimitExceeded() {
-	// set rate limit
+	// Set rate limit of 2, meaning the 3rd attempt for the same host must fail.
 	s.VP.RateLimit = 2
 	hostName := "rateLimitedHost"
 	vc := &ViceCertificate{

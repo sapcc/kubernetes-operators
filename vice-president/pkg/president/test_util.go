@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2017 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -23,31 +23,27 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	log2 "github.com/sapcc/kubernetes-operators/vice-president/pkg/log"
+	"fmt"
+	"github.com/sapcc/kubernetes-operators/vice-president/pkg/log"
+	"github.com/stretchr/testify/suite"
 	"io/ioutil"
-	"log"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"net/http"
 	"net/url"
-	"path"
-	"time"
-
-	"fmt"
 	"os"
-
+	"path"
 	"strconv"
-
-	"github.com/stretchr/testify/suite"
-	"k8s.io/client-go/pkg/api/v1"
-
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
-// FIXTURES path to the subfolder containing fixtures
-const FIXTURES = "fixtures"
+const (
+	// FIXTURES path to the subfolder containing fixtures.
+	FIXTURES = "fixtures"
 
-// TESTPORT the port used by the MockServer
-const TESTPORT = 8001
+	// TESTPORT the port used by the MockServer.
+	TESTPORT = 8001
+)
 
 // TestSuite ..
 type TestSuite struct {
@@ -92,16 +88,15 @@ func (s *TestSuite) SetupMockEndpoints() {
 	s.respondWith("/vswebservices/rest/services/pickup", 200, headersPickup, "pickupCertificateResponse.xml")
 }
 
-// SetupSuite creates a new testsuite
+// SetupSuite creates a new TestSuite.
 func (s *TestSuite) SetupSuite() {
 	s.T().Logf("Initializing TestSuite")
 	testPort := strconv.Itoa(TESTPORT)
 	var err error
 
-	//read cert from fixtures
 	s.CertByte, err = s.readFixture("example.pem")
 	if err != nil {
-		log.Printf("Couldn't read example.pem")
+		s.T().Log("Couldn't read example.pem")
 	}
 	certBlock, _ := pem.Decode(s.CertByte)
 	if certBlock == nil {
@@ -114,13 +109,12 @@ func (s *TestSuite) SetupSuite() {
 
 	s.IntermediateCertByte, err = s.readFixture("intermediate.pem")
 	if err != nil {
-		log.Fatalf("Coulnd't load intermediate.pem")
+		s.T().Log("Coulnd't load intermediate.pem")
 	}
 
-	//read private key from fixtures
 	s.KeyByte, err = s.readFixture("example.key")
 	if err != nil {
-		log.Printf("Couldn't read example.key")
+		s.T().Log("Couldn't read example.key")
 	}
 	keyBlock, _ := pem.Decode(s.KeyByte)
 	if keyBlock == nil {
@@ -172,13 +166,12 @@ func (s *TestSuite) SetupSuite() {
 		IntermediateCertificate: "fixtures/intermediate.pem",
 	}
 
-	//create vice president
-	s.VP = New(opts, log2.NewLogger(true))
+	// Create vice president.
+	s.VP = New(opts, log.NewLogger(true))
 
 	s.VP.viceClient.BaseURL, _ = url.Parse(fmt.Sprintf("http://localhost:%s", testPort))
 
 	go s.setupMockServer(testPort)
-	time.Sleep(2 * time.Second)
 }
 
 // TearDownSuite tears down the testsuite

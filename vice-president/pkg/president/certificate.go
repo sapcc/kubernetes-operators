@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2017 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -58,6 +58,7 @@ type ViceCertificate struct {
 func NewViceCertificate(ingress *v1beta1.Ingress, secretName, host string, sans []string, intermediateCertificate *x509.Certificate, rootCertificates *x509.CertPool) *ViceCertificate {
 	vc := &ViceCertificate{
 		ingress:                 ingress,
+		secretName:              secretName,
 		intermediateCertificate: intermediateCertificate,
 		roots:                   rootCertificates,
 		host:                    host,
