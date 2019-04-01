@@ -365,8 +365,9 @@ func (vp *Operator) checkCertificate(vc *ViceCertificate) error {
 
 			tlsCert, tlsKey, err := getCertificateAndKeyFromSecret(secret, tlsKeySecretKey, tlsCertSecretKey)
 			if err != nil {
-				vp.logger.LogInfo("no certificate and/or key found in secret %s", vc.getSecretKey())
+				vp.logger.LogInfo("no certificate and/or key found in secret", "key", vc.getSecretKey())
 				nextState = IngressStateEnroll
+				continue
 			}
 			vc.certificate = tlsCert
 			vc.privateKey = tlsKey
