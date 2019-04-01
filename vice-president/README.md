@@ -16,11 +16,12 @@ which can be useful in case of an error.
 
 ## Features
 
-  - Discovers required certificates via Kubernetes API  
-  - Automatically requests Certificates via Symantec API
-  - Periodically verifies Certificates 
-  - Automatically renews certificates that would expire within one month
-  - Exposes Prometheus metrics 
+  - Discovers required certificates via Kubernetes API .
+  - Automatically requests Certificates via Symantec API.
+  - Periodically verifies Certificates.
+  - Automatically renews certificates that would expire within a configurable duration.
+  - Exposes Prometheus metrics.
+  - Creates Kubernetes events for successful, failed certificate creations.
 
 ## Requirements
 
@@ -42,14 +43,20 @@ An example VICE configuration can be found [here](./etc/vice-president/vice-pres
 
 ```
 Usage of vice-president:
-      --vice-config            string  Path to VICE config file with certificate parameters.
-      --vice-cert              string  A PEM encoded certificate file.
-      --vice-key               string  A PEM encoded private key file.
-      
-      optional:
-      --kubeconfig             string  Path to kubeconfig file with authorization and master location information. Optional if vice president is deployed in a cluster.
-      --ingress-annotation 	   string  Only an ingress with this annotation will be considered. (default: { "vice-president": true } )
-      --metric-listen-address  string  Port on which Prometheus metrics are exposed. (default ":9091")
+      --ca-cert string                          A PEM encoded root CA certificate. (optional. will attempt to download if not found) (default "/etc/vice-president/secrets/ca.cert")
+      --certificate-recheck-interval duration   Interval for checking certificates. (default 5m0s)
+      --debug                                   Enable debug logging.
+      --enable-symantec-metrics                 Export additional symantec metrics.
+      --enable-validate-remote-cert             Enable validation of remote certificate via TLS handshake.
+      --intermediate-cert string                A PEM encoded intermediate certificate. (default "/etc/vice-president/secrets/intermediate.cert")
+      --kubeconfig string                       Path to kubeconfig file with authorization and master location information.
+      --metric-port int                         Port on which Prometheus metrics are exposed. (default 9091)
+      --min-cert-validity-days int              Renew certificates that expire within n days. (default 30)
+      --rate-limit int                          Rate limit of certificate enrollments per host. (unlimited: -1) (default 2)
+      --resync-interval duration                Interval for resyncing informers. (default 2m0s)
+      --threadiness int                         Operator threadiness. (default 10)
+  -v, --v Level                                 log level for V logs
+      --vice-cert string                        A PEM encoded certificate file. (default "/etc/vice-president/secrets/vice.cert")
 ```
 
 Moreover the operator stores the TLS key and certificate in the secret using the following format:
@@ -70,6 +77,10 @@ metadata:
 Setting the annotation `vice-president/replace-cert: "true"` will immediately trigger the replacement of the certificate, 
 which might be helpful while switching from Symantec to Digicert CA.  
 
+## Development
+
+The vice president uses [dep](https://github.com/golang/dep) to manage its dependencies. 
+Run `make vendor` to install them.
 
 ## Debug
 
@@ -83,5 +94,6 @@ The vice president provides the following set of metrics, which can be useful fo
   `vice_president_successful_pickups`    
   `vice_president_failed_pickups`   
 
-Check the log for further info. 
+Moreover, CSRs are persistent to the `/tmp` folder. 
 Details on errors returned by the Symantec VICE API can be found [here](https://support.venafi.com/hc/en-us/articles/215914347-Info-VeriSign-Symantec-MPKI-Error-Codes).
+

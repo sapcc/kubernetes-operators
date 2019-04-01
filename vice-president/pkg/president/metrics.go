@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2017 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ package president
 
 import (
 	"fmt"
+	"github.com/sapcc/kubernetes-operators/vice-president/pkg/log"
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -32,103 +33,105 @@ const (
 	MetricNamespace = "vice_president"
 )
 
-var enrollSuccessCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Namespace: MetricNamespace,
-		Name:      "successful_enrollments",
-		Help:      "Counter for successful certificate enrollments.",
-	},
-	[]string{"ingress", "host", "sans"},
-)
+var (
+	enrollSuccessCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricNamespace,
+			Name:      "successful_enrollments",
+			Help:      "Counter for successful certificate enrollments.",
+		},
+		[]string{"ingress", "host", "sans"},
+	)
 
-var enrollFailedCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Namespace: MetricNamespace,
-		Name:      "failed_enrollments",
-		Help:      "Counter for failed certificate enrollments.",
-	},
-	[]string{"ingress", "host", "sans"},
-)
+	enrollFailedCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricNamespace,
+			Name:      "failed_enrollments",
+			Help:      "Counter for failed certificate enrollments.",
+		},
+		[]string{"ingress", "host", "sans"},
+	)
 
-var renewSuccessCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Namespace: MetricNamespace,
-		Name:      "successful_renewals",
-		Help:      "Counter for successful certificate renewals.",
-	},
-	[]string{"ingress", "host", "sans"},
-)
+	renewSuccessCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricNamespace,
+			Name:      "successful_renewals",
+			Help:      "Counter for successful certificate renewals.",
+		},
+		[]string{"ingress", "host", "sans"},
+	)
 
-var renewFailedCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Namespace: MetricNamespace,
-		Name:      "failed_renewals",
-		Help:      "Counter for failed certificate renewals.",
-	},
-	[]string{"ingress", "host", "sans"},
-)
+	renewFailedCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricNamespace,
+			Name:      "failed_renewals",
+			Help:      "Counter for failed certificate renewals.",
+		},
+		[]string{"ingress", "host", "sans"},
+	)
 
-var pickupSuccessCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Namespace: MetricNamespace,
-		Name:      "successful_pickups",
-		Help:      "Counter for successful certificate pickups.",
-	},
-	[]string{"ingress", "host", "sans"},
-)
+	pickupSuccessCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricNamespace,
+			Name:      "successful_pickups",
+			Help:      "Counter for successful certificate pickups.",
+		},
+		[]string{"ingress", "host", "sans"},
+	)
 
-var pickupFailedCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Namespace: MetricNamespace,
-		Name:      "failed_pickups",
-		Help:      "Counter for failed certificate pickups.",
-	},
-	[]string{"ingress", "host", "sans"},
-)
+	pickupFailedCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricNamespace,
+			Name:      "failed_pickups",
+			Help:      "Counter for failed certificate pickups.",
+		},
+		[]string{"ingress", "host", "sans"},
+	)
 
-var approveSuccessCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Namespace: MetricNamespace,
-		Name:      "successful_approvals",
-		Help:      "Counter for successful certificate approvals.",
-	},
-	[]string{"ingress", "host", "sans"},
-)
+	approveSuccessCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricNamespace,
+			Name:      "successful_approvals",
+			Help:      "Counter for successful certificate approvals.",
+		},
+		[]string{"ingress", "host", "sans"},
+	)
 
-var approveFailedCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Namespace: MetricNamespace,
-		Name:      "failed_approvals",
-		Help:      "Counter for failed certificate approvals.",
-	},
-	[]string{"ingress", "host", "sans"},
-)
+	approveFailedCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricNamespace,
+			Name:      "failed_approvals",
+			Help:      "Counter for failed certificate approvals.",
+		},
+		[]string{"ingress", "host", "sans"},
+	)
 
-var replaceSuccessCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Namespace: MetricNamespace,
-		Name:      "successful_replacements",
-		Help:      "Counter for successful certificate replacements.",
-	},
-	[]string{"ingress", "host", "sans"},
-)
+	replaceSuccessCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricNamespace,
+			Name:      "successful_replacements",
+			Help:      "Counter for successful certificate replacements.",
+		},
+		[]string{"ingress", "host", "sans"},
+	)
 
-var replaceFailedCounter = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Namespace: MetricNamespace,
-		Name:      "failed_replacements",
-		Help:      "Counter for failed certificate replacements.",
-	},
-	[]string{"ingress", "host", "sans"},
-)
+	replaceFailedCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricNamespace,
+			Name:      "failed_replacements",
+			Help:      "Counter for failed certificate replacements.",
+		},
+		[]string{"ingress", "host", "sans"},
+	)
 
-var apiRateLimitHitGauge = prometheus.NewGaugeVec(
-	prometheus.GaugeOpts{
-		Namespace: MetricNamespace,
-		Name:      "rate_limit_reached",
-		Help:      "Maximum number of VICE API requests within 1h reached",
-	},
-	[]string{"ingress", "host", "sans"},
+	apiRateLimitHitGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: MetricNamespace,
+			Name:      "rate_limit_reached",
+			Help:      "Maximum number of VICE API requests within 1h reached.",
+		},
+		[]string{"ingress", "host", "sans"},
+	)
 )
 
 func registerCollectors(collector prometheus.Collector) {
@@ -151,16 +154,19 @@ func registerCollectors(collector prometheus.Collector) {
 }
 
 // ExposeMetrics exposes the above defined metrics on <metricPort>:/metrics
-func ExposeMetrics(metricPort int, isEnableAdditionalSymantecMetrics bool, viceCertFilePath, viceKeyFilePath string) error {
-	if isEnableAdditionalSymantecMetrics {
-		registerCollectors(NewSymantecMetricsCollector(viceCertFilePath, viceKeyFilePath))
+func ExposeMetrics(options Options, logger log.Logger) error {
+	logger = log.NewLoggerWith(logger, "component", "metrics")
+
+	if options.IsEnableAdditionalSymantecMetrics {
+		registerCollectors(NewSymantecMetricsCollector(options, logger))
 	} else {
 		registerCollectors(nil)
 	}
+
 	http.Handle("/metrics", promhttp.Handler())
-	LogInfo("Exposing metrics on localhost:%v/metrics ", metricPort)
+	logger.LogInfo("exposing prometheus metrics", "host", "0.0.0.0", "port", options.MetricPort)
 	return http.ListenAndServe(
-		fmt.Sprintf("0.0.0.0:%v", metricPort),
+		fmt.Sprintf("0.0.0.0:%v", options.MetricPort),
 		nil,
 	)
 }

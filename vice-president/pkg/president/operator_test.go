@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2017 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -44,25 +44,25 @@ func TestMySuite(t *testing.T) {
 func (s *TestSuite) TestEnrollCertificate() {
 	err := s.VP.enrollCertificate(s.ViceCert)
 	s.NoError(err, "there should be no error enrolling a new certificate")
-	s.Equal("87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.TID)
+	s.Equal("87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.tid)
 }
 
 func (s *TestSuite) TestRenewCertificate() {
 	err := s.VP.renewCertificate(s.ViceCert)
 	s.NoError(err, "there should be no error renewing a certificate")
-	s.Equal("87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.TID)
+	s.Equal("87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.tid)
 }
 
 func (s *TestSuite) TestApproveCertificate() {
 	vc := s.ViceCert
-	vc.TID = "87d1adc3f1f262409092ec31fb09f4c7"
+	vc.tid = "87d1adc3f1f262409092ec31fb09f4c7"
 	err := s.VP.approveCertificate(vc)
 	s.NoError(err, "there should be no error approving a certificate")
 }
 
 func (s *TestSuite) TestPickupCertificate() {
 	vc := s.ViceCert
-	vc.TID = "87d1adc3f1f262409092ec31fb09f4c7"
+	vc.tid = "87d1adc3f1f262409092ec31fb09f4c7"
 
 	err := s.VP.pickupCertificate(s.ViceCert)
 	s.NoError(err, "there should be no error picking up a certificate")
@@ -103,27 +103,32 @@ func (s *TestSuite) TestStateMachine() {
 	err := s.ResetIngressInformerStoreAndAddIngress(ingress)
 	s.Require().NoError(err, "there must be no error resetting the ingress informer store")
 
-	// go for it. secret doesn't exist. this should result in below error. also the state should have changed to IngressStateEnroll
+	// Go for it: Secret doesn't exist. This should result in below error.
 	key, err := cache.MetaNamespaceKeyFunc(ingress)
 	s.Require().NoError(err, "there must be no error creating a key from an ingress")
 
+	// Add the ingress to the queue bypassing the informers.
 	s.VP.queue.Add(key)
 
 	if err := s.VP.syncHandler(key); err != nil {
-		// TODO: need to mock this. at least the state machine is triggered once
+		// TODO: At least the state machine is triggered once.
 		s.EqualError(err, "couldn't get nor create secret default/my-secret: couldn't create secret default/my-secret: the server could not find the requested resource (post secrets)")
 	}
 }
 
 func (s *TestSuite) TestRateLimitExceeded() {
-	// set rate limit
-	s.VP.VicePresidentConfig.RateLimit = 2
+	// Set rate limit of 2, meaning the 3rd attempt for the same host must fail.
+	s.VP.RateLimit = 2
 	hostName := "rateLimitedHost"
 	vc := &ViceCertificate{
-		Host: hostName,
+		host: hostName,
+		ingress: &v1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: Namespace,
+				Name:      IngressName,
+			},
+		},
 	}
-	vc.SetIngressKey(Namespace, IngressName)
-
 	s.Assert().NoError(s.VP.enrollCertificate(vc))
 	nReq, ok := s.VP.rateLimitMap.Load(hostName)
 	s.Assert().True(ok)

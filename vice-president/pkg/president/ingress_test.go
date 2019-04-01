@@ -1,3 +1,22 @@
+/*******************************************************************************
+*
+* Copyright 2019 SAP SE
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You should have received a copy of the License along with this
+* program. If not, you may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*
+*******************************************************************************/
+
 package president
 
 import (
@@ -103,7 +122,7 @@ func (s *TestSuite) TestIngressVicePresidentialAnnotation() {
 	}
 
 	for ingress, expectedBool := range testData {
-		s.Equal(expectedBool, isIngressHasAnnotation(ingress, AnnotationVicePresident), )
+		s.Equal(expectedBool, isIngressHasAnnotation(ingress, AnnotationVicePresident))
 	}
 }
 
@@ -113,7 +132,7 @@ func (s *TestSuite) TestIsIngressNeedsUpdate() {
 			Namespace: Namespace,
 			Name:      "DoNotIgnoreMe!",
 			Annotations: map[string]string{
-				"vice-president": "true",
+				"vice-president":              "true",
 				"vice-president/replace-cert": "true",
 			},
 		},
@@ -147,12 +166,12 @@ func (s *TestSuite) TestIsIngressNeedsUpdate() {
 
 	s.False(isIngressNeedsUpdate(iCur, iOld), "removing the annotation 'vice-president/replace-cert: \"true\"' should be ignored")
 
-  iOld.Annotations = map[string]string{}
-  iCur.Annotations = map[string]string{"vice-president/replace-cert": "true"}
-  s.True(isIngressNeedsUpdate(iCur, iOld), "adding the annotation 'vice-president/replace-cert: \"true\"' should trigger an update")
-  //reset
-  iOld.Annotations = map[string]string{"vice-president": "true", "vice-president/replace-cert": "true"}
-  iCur.Annotations = map[string]string{"vice-president/replace-cert": "true"}
+	iOld.Annotations = map[string]string{}
+	iCur.Annotations = map[string]string{"vice-president/replace-cert": "true"}
+	s.True(isIngressNeedsUpdate(iCur, iOld), "adding the annotation 'vice-president/replace-cert: \"true\"' should trigger an update")
+	//reset
+	iOld.Annotations = map[string]string{"vice-president": "true", "vice-president/replace-cert": "true"}
+	iCur.Annotations = map[string]string{"vice-president/replace-cert": "true"}
 
 	iCur.Annotations = map[string]string{}
 	s.True(isIngressNeedsUpdate(iCur, iOld), "removing the annotation 'vice-president: \"true\"' should be trigger an update")

@@ -1,3 +1,22 @@
+/*******************************************************************************
+*
+* Copyright 2019 SAP SE
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You should have received a copy of the License along with this
+* program. If not, you may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*
+*******************************************************************************/
+
 package president
 
 import (
@@ -14,13 +33,13 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 )
 
-func newEmptySecret(nameSpace, secretName string, labels map[string]string) *v1.Secret {
+func newEmptySecret(nameSpace, name string, labels map[string]string) *v1.Secret {
 	if labels == nil {
 		labels = map[string]string{}
 	}
 	return &v1.Secret{
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name:      secretName,
+			Name:      name,
 			Namespace: nameSpace,
 			Labels:    labels,
 		},
@@ -64,14 +83,12 @@ func getCertificateAndKeyFromSecret(secret *v1.Secret, tlsKeySecretKey, tlsCertS
 }
 
 func addCertificateAndKeyToSecret(viceCert *ViceCertificate, oldSecret *v1.Secret, tlsKeySecretKey, tlsCertSecretKey string) (*v1.Secret, error) {
-	certPEM, err := writeCertificatesToPEM(viceCert.WithIntermediateCertificate())
+	certPEM, err := writeCertificatesToPEM(viceCert.withIntermediateCertificate())
 	if err != nil {
-		LogError("Couldn't export certificate to PEM: %s", err)
 		return nil, err
 	}
-	keyPEM, err := writePrivateKeyToPEM(viceCert.PrivateKey)
+	keyPEM, err := writePrivateKeyToPEM(viceCert.privateKey)
 	if err != nil {
-		LogError("Couldn't export key to PEM: %s", err)
 		return nil, err
 	}
 
@@ -125,4 +142,8 @@ func isSecretDeleted(event watch.Event) (bool, error) {
 		return false, nil
 	}
 	return false, nil
+}
+
+func secretKey(ingressNamespace, secretName string) string {
+	return fmt.Sprintf("%s/%s", ingressNamespace, secretName)
 }

@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2017 SAP SE
+* Copyright 2019 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,12 +21,13 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
+	"github.com/sapcc/kubernetes-operators/vice-president/pkg/log"
 	"github.com/sapcc/kubernetes-operators/vice-president/pkg/president"
 	"github.com/spf13/pflag"
 )
@@ -40,16 +41,21 @@ func init() {
 	pflag.StringVar(&options.ViceKeyFile, "vice-key", "/etc/vice-president/secrets/vice.key", "A PEM encoded private key file.")
 	pflag.StringVar(&options.IntermediateCertificate, "intermediate-cert", "/etc/vice-president/secrets/intermediate.cert", "A PEM encoded intermediate certificate.")
 	pflag.StringVar(&options.RootCACertificate, "ca-cert", "/etc/vice-president/secrets/ca.cert", "A PEM encoded root CA certificate. (optional. will attempt to download if not found)")
-	pflag.IntVar(&options.MinCertValidityDays, "min-cert-validity-days", 30, "Renew certificates that expire within n days")
-	pflag.BoolVar(&options.EnableValidateRemoteCertificate, "enable-validate-remote-cert", false, "Enable validation of remote certificate via TLS handshake")
+	pflag.IntVar(&options.MinCertValidityDays, "min-cert-validity-days", 30, "Renew certificates that expire within n days.")
+	pflag.BoolVar(&options.EnableValidateRemoteCertificate, "enable-validate-remote-cert", false, "Enable validation of remote certificate via TLS handshake.")
 	pflag.IntVar(&options.MetricPort, "metric-port", 9091, "Port on which Prometheus metrics are exposed.")
-	pflag.BoolVar(&options.IsEnableAdditionalSymantecMetrics, "enable-symantec-metrics", false, "Export additional symantec metrics")
+	pflag.BoolVar(&options.IsEnableAdditionalSymantecMetrics, "enable-symantec-metrics", false, "Export additional symantec metrics.")
+	pflag.BoolVar(&options.IsDebug, "debug", false, "Enable debug logging.")
+	pflag.DurationVar(&options.CertificateCheckInterval, "certificate-recheck-interval", 5*time.Minute, "Interval for checking certificates.")
+	pflag.DurationVar(&options.ResyncInterval, "resync-interval", 2*time.Minute, "Interval for resyncing informers.")
+	pflag.IntVar(&options.RateLimit, "rate-limit", 2, "Rate limit of certificate enrollments per host. (unlimited: -1)")
+	pflag.IntVar(&options.Threadiness, "threadiness", 10, "Operator threadiness.")
 }
 
 func main() {
 	// Set logging output to standard console out
 
-	log.SetOutput(os.Stdout)
+	logger := log.NewLogger(options.IsDebug)
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
@@ -60,11 +66,11 @@ func main() {
 
 	wg := &sync.WaitGroup{} // Goroutines can add themselves to this to be waited on
 
-	go president.New(options).Run(10, stop, wg)
-	go president.ExposeMetrics(options.MetricPort, options.IsEnableAdditionalSymantecMetrics, options.ViceCrtFile, options.ViceKeyFile)
+	go president.New(options, logger).Run(options.Threadiness, stop, wg)
+	go president.ExposeMetrics(options, logger)
 
 	<-sigs // Wait for signals (this hangs until a signal arrives)
-	log.Printf("Shutting down...")
+	logger.LogInfo("Shutting down...")
 
 	close(stop) // Tell goroutines to stop themselves
 	wg.Wait()   // Wait for all to be stopped

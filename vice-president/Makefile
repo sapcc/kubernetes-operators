@@ -12,13 +12,11 @@ PACKAGES := $(shell find $(SRCDIRS) -type d)
 GOFILES  := $(addsuffix /*.go,$(PACKAGES))
 GOFILES  := $(wildcard $(GOFILES))
 
-GLIDE := $(shell command -v glide 2> /dev/null)
-
 .PHONY: all clean vendor tests static-check
 
 all: bin/$(GOOS)/$(BINARY)
 
-bin/%/$(BINARY): $(GOFILES) Makefile
+bin/%/$(BINARY): vendor $(GOFILES) Makefile
 	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd
 
 build: tests bin/linux/$(BINARY)
@@ -38,11 +36,7 @@ clean:
 	rm -rf bin/*
 
 vendor:
-	ifndef GLIDE
-		echo "Cannot vendor. Glide is not installed. Please do so now."
-	else
-		glide install --strip-vendor --strip-vcs
-	endif
+	if ! [ -d "vendor" ]; then dep ensure -vendor-only -v; fi
 
 generate-dummy-cert:
 	mkdir tmp
