@@ -103,7 +103,7 @@ func (s *TestSuite) TestIngressVicePresidentialAnnotation() {
 	}
 
 	for ingress, expectedBool := range testData {
-		s.Equal(expectedBool, isIngressHasAnnotation(ingress, AnnotationVicePresident), )
+		s.Equal(expectedBool, isIngressHasAnnotation(ingress, AnnotationVicePresident))
 	}
 }
 
@@ -113,7 +113,7 @@ func (s *TestSuite) TestIsIngressNeedsUpdate() {
 			Namespace: Namespace,
 			Name:      "DoNotIgnoreMe!",
 			Annotations: map[string]string{
-				"vice-president": "true",
+				"vice-president":              "true",
 				"vice-president/replace-cert": "true",
 			},
 		},
@@ -147,12 +147,12 @@ func (s *TestSuite) TestIsIngressNeedsUpdate() {
 
 	s.False(isIngressNeedsUpdate(iCur, iOld), "removing the annotation 'vice-president/replace-cert: \"true\"' should be ignored")
 
-  iOld.Annotations = map[string]string{}
-  iCur.Annotations = map[string]string{"vice-president/replace-cert": "true"}
-  s.True(isIngressNeedsUpdate(iCur, iOld), "adding the annotation 'vice-president/replace-cert: \"true\"' should trigger an update")
-  //reset
-  iOld.Annotations = map[string]string{"vice-president": "true", "vice-president/replace-cert": "true"}
-  iCur.Annotations = map[string]string{"vice-president/replace-cert": "true"}
+	iOld.Annotations = map[string]string{}
+	iCur.Annotations = map[string]string{"vice-president/replace-cert": "true"}
+	s.True(isIngressNeedsUpdate(iCur, iOld), "adding the annotation 'vice-president/replace-cert: \"true\"' should trigger an update")
+	//reset
+	iOld.Annotations = map[string]string{"vice-president": "true", "vice-president/replace-cert": "true"}
+	iCur.Annotations = map[string]string{"vice-president/replace-cert": "true"}
 
 	iCur.Annotations = map[string]string{}
 	s.True(isIngressNeedsUpdate(iCur, iOld), "removing the annotation 'vice-president: \"true\"' should be trigger an update")

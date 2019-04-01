@@ -70,6 +70,10 @@ metadata:
 Setting the annotation `vice-president/replace-cert: "true"` will immediately trigger the replacement of the certificate, 
 which might be helpful while switching from Symantec to Digicert CA.  
 
+## Development
+
+The vice president uses [dep](https://github.com/golang/dep) to manage its dependencies. 
+Run `make vendor` to install them.
 
 ## Debug
 

@@ -38,11 +38,7 @@ clean:
 	rm -rf bin/*
 
 vendor:
-	ifndef GLIDE
-		echo "Cannot vendor. Glide is not installed. Please do so now."
-	else
-		glide install --strip-vendor --strip-vcs
-	endif
+	dep ensure
 
 generate-dummy-cert:
 	mkdir tmp

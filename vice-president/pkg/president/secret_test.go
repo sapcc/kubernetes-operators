@@ -21,8 +21,8 @@ func (s *TestSuite) TestUpdateCertificateInSecret() {
 	certificate, privateKey, err := getCertificateAndKeyFromSecret(updatedSecret, SecretTLSKeyType, SecretTLSCertType)
 	s.NoError(err, "there should be no error retrieving the certificate and key from the secret")
 
-	s.Equal(s.ViceCert.Certificate, certificate, "the retrieved certificate should be equal to the one initially stored in the secret")
-	s.Equal(s.ViceCert.PrivateKey, privateKey, "the retrieved private key should be equal to the one initially stored in the secret")
+	s.Equal(s.ViceCert.certificate, certificate, "the retrieved certificate should be equal to the one initially stored in the secret")
+	s.Equal(s.ViceCert.privateKey, privateKey, "the retrieved private key should be equal to the one initially stored in the secret")
 }
 
 func (s *TestSuite) TestGetCertificateFromSecret() {
@@ -39,7 +39,7 @@ func (s *TestSuite) TestGetCertificateFromSecret() {
 		},
 		SecretTLSKeyType, SecretTLSCertType,
 	)
-  s.NoError(err, "there should be no error retrieving the certificate and key from the secret")
+	s.NoError(err, "there should be no error retrieving the certificate and key from the secret")
 	s.Equal(s.Cert, certificate, "should be equal to the certificate from the secret")
 	s.Equal(s.Key, privateKey, "should be equal to the private key from the secret")
 

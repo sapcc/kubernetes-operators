@@ -26,12 +26,13 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/ocsp"
+	"k8s.io/client-go/tools/cache"
 )
 
 func isAnyStringEmpty(s ...string) bool {
@@ -48,12 +49,11 @@ func isAnyStringEmpty(s ...string) bool {
 func readPrivateKeyFromPEM(keyPEM []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode(keyPEM)
 	if block == nil {
-		return nil, fmt.Errorf("Failed to decode public key from PEM block: %#v", keyPEM)
+		return nil, errors.New("failed to decode public key from PEM block")
 	}
 	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
-		LogError("Could not parse private key: %s", err.Error())
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't parse private key")
 	}
 	return key, nil
 }
@@ -67,7 +67,7 @@ func writePrivateKeyToPEM(key *rsa.PrivateKey) ([]byte, error) {
 		},
 	)
 	if keyPEM == nil {
-		return nil, fmt.Errorf("Couldn't encode private key to PEM: %#v", key)
+		return nil, errors.New("couldn't encode private key to PEM block")
 	}
 	return keyPEM, nil
 }
@@ -75,15 +75,14 @@ func writePrivateKeyToPEM(key *rsa.PrivateKey) ([]byte, error) {
 func readCertificateFromPEM(certPEM []byte) (*x509.Certificate, error) {
 	block, _ := pem.Decode(certPEM)
 	if block == nil {
-		return nil, fmt.Errorf("Failed to decode certificate from PEM block: %s", string(certPEM))
+		return nil, errors.New("couldn't decode certificate from PEM block")
 	}
 	if block.Type != CertificateType {
-		return nil, fmt.Errorf("Certificate contains invalid data: %#v", block)
+		return nil, errors.New("certificate contains invalid date")
 	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		LogError("Failed to parse certificate: %s", err.Error())
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to parse certificate")
 	}
 	return cert, nil
 }
@@ -106,7 +105,7 @@ func writeCertificatesToPEM(certs []*x509.Certificate) ([]byte, error) {
 	}
 
 	if certPEMs == nil {
-		return nil, fmt.Errorf("Couldn't encode certificate %#v", certPEMs)
+		return nil, errors.New("couldn't encode certificates")
 	}
 	return certPEMs, nil
 }
@@ -114,7 +113,6 @@ func writeCertificatesToPEM(certs []*x509.Certificate) ([]byte, error) {
 func readCertFromFile(filePath string) (*x509.Certificate, error) {
 	certPEM, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		log.Printf("Couldn't read file. %s", err)
 		return nil, err
 	}
 	return readCertificateFromPEM(certPEM)
@@ -123,75 +121,13 @@ func readCertFromFile(filePath string) (*x509.Certificate, error) {
 func readKeyFromFile(filePath string) (*rsa.PrivateKey, error) {
 	keyRaw, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		LogError("Couldn't read file. %s", err)
-		return nil, err
+		return nil, errors.Wrapf(err, "couldn't read file")
 	}
 	key, err := x509.ParsePKCS1PrivateKey(keyRaw)
 	if err != nil {
-		LogError("Couldn't parse key. %s", err)
-		return nil, err
+		return nil, errors.Wrapf(err, "couldn't parse file")
 	}
 	return key, nil
-}
-
-func isDebug() bool {
-	if os.Getenv("DEBUG") == "1" {
-		return true
-	}
-	return false
-}
-
-// LogInfo logs info messages
-func LogInfo(msg string, args ...interface{}) {
-	doLog(
-		"INFO",
-		msg,
-		args,
-	)
-}
-
-// LogError logs error messages
-func LogError(msg string, args ...interface{}) {
-	doLog(
-		"ERROR",
-		msg,
-		args,
-	)
-}
-
-// LogDebug logs debug messages, if DEBUG is enabled
-func LogDebug(msg string, args ...interface{}) {
-	if isDebug() {
-		doLog(
-			"DEBUG",
-			msg,
-			args,
-		)
-	}
-}
-
-// LogFatal logs debug messages, if DEBUG is enabled
-func LogFatal(msg string, args ...interface{}) {
-	if isDebug() {
-		doLog(
-			"FATAL",
-			msg,
-			args,
-		)
-	}
-}
-
-func doLog(logLevel string, msg string, args []interface{}) {
-	msg = fmt.Sprintf("%s: %s", logLevel, msg)
-	if logLevel == "FATAL" {
-		log.Fatalf(msg+"\n", args...)
-		return
-	}
-	if len(args) > 0 {
-		log.Printf(msg+"\n", args...)
-	} else {
-		log.Println(msg)
-	}
 }
 
 func removeSpecialCharactersFromPEM(pem []byte) []byte {
@@ -253,23 +189,12 @@ func downloadAndPersistFile(CAURI string, filePath string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	out, err := os.Create(filePath)
-	if err != nil {
-		return nil, err
-	}
-	defer out.Close()
-
 	bytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = out.Write(bytes)
-	if err != nil {
-		return bytes, err
-	}
-
-	return bytes, nil
+	return saveToFile(bytes, filePath)
 }
 
 func getFileNameFromURI(URI string) string {
@@ -284,4 +209,24 @@ func isStringSlicesEqual(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func keyFunc(obj interface{}) string {
+	key, _ := cache.MetaNamespaceKeyFunc(obj)
+	return key
+}
+
+func saveToFile(contentBytes []byte, filePath string) ([]byte, error) {
+	out, err := os.Create(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer out.Close()
+
+	_, err = out.Write(contentBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return contentBytes, nil
 }

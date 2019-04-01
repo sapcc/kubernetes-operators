@@ -21,27 +21,29 @@ package president
 
 import (
 	"fmt"
+	"time"
 )
 
-// Options to configure your vice president
+// Options to configure your vice president.
 type Options struct {
-	KubeConfig          string
-	VicePresidentConfig string
-
-	ViceKeyFile string
-	ViceCrtFile string
-
-	IntermediateCertificate string
-	RootCACertificate       string
-
-	MinCertValidityDays int
-	EnableValidateRemoteCertificate bool
-
+	KubeConfig                        string
+	VicePresidentConfig               string
+	ViceKeyFile                       string
+	ViceCrtFile                       string
+	IntermediateCertificate           string
+	RootCACertificate                 string
+	MinCertValidityDays               int
+	EnableValidateRemoteCertificate   bool
 	MetricPort                        int
 	IsEnableAdditionalSymantecMetrics bool
+	IsDebug                           bool
+	ResyncInterval                    time.Duration
+	CertificateCheckInterval          time.Duration
+	RateLimit                         int
+	Threadiness                       int
 }
 
-// CheckOptions verifies the Options and sets default values, if necessary
+// CheckOptions verifies the Options and sets default values if necessary.
 func (o *Options) CheckOptions() error {
 	if o.ViceCrtFile == "" {
 		return fmt.Errorf("path to vice certificate not provided. Aborting")
@@ -52,27 +54,18 @@ func (o *Options) CheckOptions() error {
 	if o.VicePresidentConfig == "" {
 		return fmt.Errorf("path to vice config not provided. Aborting")
 	}
-	if o.IntermediateCertificate == "" {
-		LogDebug("Intermediate certificate not provided")
-	}
-	if o.KubeConfig == "" {
-		LogDebug("Path to kubeconfig not provided. Using Default")
-	}
-
 	if o.MinCertValidityDays <= 0 {
-		LogDebug("Minimum certificate validity invalid. Using default: 30 days")
 		o.MinCertValidityDays = 30
 	}
-
 	if o.MetricPort == 0 {
 		o.MetricPort = 9091
-		LogDebug("Metric port not provided. Using default port: 9091")
 	}
-	if !o.IsEnableAdditionalSymantecMetrics {
-		LogDebug("Not exposing additional Symantec metrics")
-	} else {
-		LogDebug("Exposing additional Symantec metrics")
+	if o.CertificateCheckInterval < MinimalCertificateRecheckInterval {
+		o.CertificateCheckInterval = MinimalCertificateRecheckInterval
 	}
-
+	if o.RateLimit <= 0 {
+		// Unlimited power!
+		o.RateLimit = -1
+	}
 	return nil
 }

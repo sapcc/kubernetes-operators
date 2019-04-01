@@ -23,6 +23,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	log2 "github.com/sapcc/kubernetes-operators/vice-president/pkg/log"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -135,12 +136,21 @@ func (s *TestSuite) SetupSuite() {
 		s.T().Error(err)
 	}
 
-	s.ViceCert = &ViceCertificate{
-		Certificate: s.Cert,
-		PrivateKey:  s.Key,
-		Host:        "www.example.com",
-		IntermediateCertificate: intermediateCert,
-	}
+	s.ViceCert = NewViceCertificate(
+		&v1beta1.Ingress{
+			ObjectMeta: meta_v1.ObjectMeta{
+				Namespace: "default",
+				Name:      "my-ingress",
+			},
+		},
+		"my-secret",
+		"www.example.com",
+		[]string{"www.example.com"},
+		intermediateCert,
+		&x509.CertPool{},
+	)
+	s.ViceCert.privateKey = s.Key
+	s.ViceCert.certificate = s.Cert
 
 	s.Secret = &v1.Secret{
 		Type: v1.SecretTypeOpaque,
@@ -154,14 +164,16 @@ func (s *TestSuite) SetupSuite() {
 		},
 	}
 
-	//create vice president
-	s.VP = New(Options{
+	opts := Options{
 		ViceCrtFile:             "fixtures/example.pem",
 		ViceKeyFile:             "fixtures/example.key",
 		VicePresidentConfig:     "fixtures/example.vicepresidentconfig",
 		KubeConfig:              "fixtures/example.kubeconfig",
 		IntermediateCertificate: "fixtures/intermediate.pem",
-	})
+	}
+
+	//create vice president
+	s.VP = New(opts, log2.NewLogger(true))
 
 	s.VP.viceClient.BaseURL, _ = url.Parse(fmt.Sprintf("http://localhost:%s", testPort))
 

@@ -23,18 +23,18 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// VicePresidentConfig is a wrapper for both parts of the config
+// VicePresidentConfig is a wrapper for both parts of the config.
 type VicePresidentConfig struct {
-	ViceConfig              `yaml:"vice"`
-	OptionalPresidentConfig `yaml:"president"`
+	ViceConfig `yaml:"vice"`
 }
 
-// ViceConfig to define the parameters when talking to the Symantec VICE API
+// ViceConfig to define the parameters when talking to the Symantec VICE API.
 type ViceConfig struct {
 	FirstName          string `yaml:"first_name"`
 	LastName           string `yaml:"last_name"`
@@ -47,14 +47,7 @@ type ViceConfig struct {
 	DefaultChallenge   string `yaml:"default_challenge"`
 }
 
-// OptionalPresidentConfig to define the parameters used by the certificate operator
-type OptionalPresidentConfig struct {
-	ResyncPeriod             int `yaml:"resync_period_minutes"`
-	CertificateCheckInterval int `yaml:"certificate_check_interval_minutes"`
-	RateLimit                int `yaml:"rate_limit"`
-}
-
-// ReadConfig reads a given vice configuration file and returns the ViceConfig object and if applicable an error
+// ReadConfig reads a given vice configuration file and returns the ViceConfig object and if applicable an error.
 func ReadConfig(filePath string) (cfg VicePresidentConfig, err error) {
 	cfgBytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -64,13 +57,10 @@ func ReadConfig(filePath string) (cfg VicePresidentConfig, err error) {
 	if err != nil {
 		return cfg, fmt.Errorf("parse configuration: %s", err.Error())
 	}
-
-	cfg.checkConfig()
-
 	return cfg, nil
 }
 
-func newClientConfig(options Options) *rest.Config {
+func newClientConfig(options Options) (*rest.Config, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{}
 
@@ -80,21 +70,8 @@ func newClientConfig(options Options) *rest.Config {
 
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
 	if err != nil {
-		LogFatal("Couldn't get Kubernetes default config: %s", err)
+		return nil, errors.Wrapf(err, "couldn't get kubernetes default config")
 	}
 
-	return config
-}
-
-// enforce a minimal interval of 5 minute
-func (c *VicePresidentConfig) checkConfig() {
-	if c.CertificateCheckInterval < 5 {
-		c.CertificateCheckInterval = 5
-	}
-	if c.ResyncPeriod < 2 {
-		c.ResyncPeriod = 2
-	}
-	if c.RateLimit <= 0 {
-		c.RateLimit = -1
-	}
+	return config, nil
 }

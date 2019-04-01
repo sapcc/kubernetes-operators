@@ -1,6 +1,7 @@
 package president
 
 import (
+	"fmt"
 	"reflect"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,7 +38,10 @@ func isAnnotationRemoved(iCur, iOld *v1beta1.Ingress, annotation string) bool {
 }
 
 func isIngressHasAnnotation(ingress *v1beta1.Ingress, annotation string) bool {
-	return ingress.GetAnnotations()[annotation] == "true"
+	if val, ok := ingress.GetAnnotations()[annotation]; ok {
+		return val == "true"
+	}
+	return false
 }
 
 // isLastHostInIngressSpec checks if 'hostName' is the last host in ingress.Spec.TLS
@@ -73,4 +77,8 @@ func isIngressAnnotationRemoved(event watch.Event) (bool, error) {
 		return !isIngressHasAnnotation(ing, AnnotationCertificateReplacement), nil
 	}
 	return false, nil
+}
+
+func ingressKey(ingress *v1beta1.Ingress) string {
+	return fmt.Sprintf("%s/%s", ingress.GetNamespace(), ingress.GetName())
 }
