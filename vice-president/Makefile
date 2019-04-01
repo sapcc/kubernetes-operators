@@ -12,8 +12,6 @@ PACKAGES := $(shell find $(SRCDIRS) -type d)
 GOFILES  := $(addsuffix /*.go,$(PACKAGES))
 GOFILES  := $(wildcard $(GOFILES))
 
-GLIDE := $(shell command -v glide 2> /dev/null)
-
 .PHONY: all clean vendor tests static-check
 
 all: bin/$(GOOS)/$(BINARY)
@@ -38,7 +36,7 @@ clean:
 	rm -rf bin/*
 
 vendor:
-	dep ensure
+	if ! [ -d "vendor" ]; then dep ensure -vendor-only -v; fi
 
 generate-dummy-cert:
 	mkdir tmp

@@ -41,15 +41,15 @@ func init() {
 	pflag.StringVar(&options.ViceKeyFile, "vice-key", "/etc/vice-president/secrets/vice.key", "A PEM encoded private key file.")
 	pflag.StringVar(&options.IntermediateCertificate, "intermediate-cert", "/etc/vice-president/secrets/intermediate.cert", "A PEM encoded intermediate certificate.")
 	pflag.StringVar(&options.RootCACertificate, "ca-cert", "/etc/vice-president/secrets/ca.cert", "A PEM encoded root CA certificate. (optional. will attempt to download if not found)")
-	pflag.IntVar(&options.MinCertValidityDays, "min-cert-validity-days", 30, "Renew certificates that expire within n days")
-	pflag.BoolVar(&options.EnableValidateRemoteCertificate, "enable-validate-remote-cert", false, "Enable validation of remote certificate via TLS handshake")
+	pflag.IntVar(&options.MinCertValidityDays, "min-cert-validity-days", 30, "Renew certificates that expire within n days.")
+	pflag.BoolVar(&options.EnableValidateRemoteCertificate, "enable-validate-remote-cert", false, "Enable validation of remote certificate via TLS handshake.")
 	pflag.IntVar(&options.MetricPort, "metric-port", 9091, "Port on which Prometheus metrics are exposed.")
-	pflag.BoolVar(&options.IsEnableAdditionalSymantecMetrics, "enable-symantec-metrics", false, "Export additional symantec metrics")
-	pflag.BoolVar(&options.IsDebug, "debug", false, "Enable debug logging")
-	pflag.DurationVar(&options.CertificateCheckInterval, "certificate-recheck-interval", 5*time.Minute, "Interval for checking certificates")
-	pflag.DurationVar(&options.ResyncInterval, "resync-interval", 2*time.Minute, "Interval for resyncing informers")
+	pflag.BoolVar(&options.IsEnableAdditionalSymantecMetrics, "enable-symantec-metrics", false, "Export additional symantec metrics.")
+	pflag.BoolVar(&options.IsDebug, "debug", false, "Enable debug logging.")
+	pflag.DurationVar(&options.CertificateCheckInterval, "certificate-recheck-interval", 5*time.Minute, "Interval for checking certificates.")
+	pflag.DurationVar(&options.ResyncInterval, "resync-interval", 2*time.Minute, "Interval for resyncing informers.")
 	pflag.IntVar(&options.RateLimit, "rate-limit", 2, "Rate limit of certificate enrollments per host. (unlimited: -1)")
-	pflag.IntVar(&options.Threadiness, "threadiness", 10, "Operator threadiness")
+	pflag.IntVar(&options.Threadiness, "threadiness", 10, "Operator threadiness.")
 }
 
 func main() {

@@ -414,8 +414,6 @@ func (vp *Operator) getNextState(vc *ViceCertificate) string {
 }
 
 func (vp *Operator) getOrCreateSecret(vc *ViceCertificate) (*v1.Secret, error) {
-	fmt.Printf("%#v", vc)
-
 	secret, err := vp.clientset.Secrets(vc.ingress.GetNamespace()).Get(vc.secretName, meta_v1.GetOptions{})
 	if err != nil {
 		// Create secret if not found.
