@@ -606,6 +606,8 @@ def seed_projects(domain, projects, args, sess):
 
         flavors = project.pop('flavors', None)
 
+        share_types = project.pop('share_types', None)
+
         project = sanitize(project,
                            ('name', 'description', 'enabled', 'parent'))
 
@@ -722,6 +724,9 @@ def seed_projects(domain, projects, args, sess):
         if flavors:
             seed_project_flavors(resource, flavors, args, sess)
 
+        if share_types:
+            seed_project_share_types(resource, share_types, args, sess)
+
 
 def seed_project_flavors(project, flavors, args, sess):
     """
@@ -753,6 +758,11 @@ def seed_project_flavors(project, flavors, args, sess):
                     flavorid, project.name, e))
             raise
 
+def seed_project_share_types(source, share_types, args, sess):
+    """
+    seed a project share types
+    """
+    pass
 
 def seed_project_network_quota(project, quota, args, sess):
     """
@@ -1947,6 +1957,9 @@ def seed_flavor(flavor, args, sess, config):
         logging.error("Failed to seed flavor %s: %s" % (flavor, e))
         raise
 
+def seed_share_type(sharetype, args, sess, config):
+    """ seed manila share type """
+    pass
 
 def seed_rbac_policy(rbac, args, sess, keystone):
     """ seed a neutron rbac-policy """
@@ -2162,6 +2175,10 @@ def seed_config(config, args, sess):
     # seed custom quota (nova only for now)
     if 'quota_class_sets' in config:
         seed_quota_class_sets(config['quota_class_sets'], sess)
+
+    if 'share_types' in config:
+        for share_type in config['share_types']:
+            seed_share_type(share_type, args, sess, config)
 
     if group_members:
         resolve_group_members(keystone)
