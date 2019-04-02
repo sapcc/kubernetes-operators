@@ -10,6 +10,7 @@ setup(
         'python-neutronclient==6.11.0',
         'python-designateclient==2.11.0',
         'python-swiftclient==3.6.0',
+        'python-manilaclient==1.27.0',
         'osc-placement==1.3.0',
         'raven',
         'pyyaml>=4.2b4',
