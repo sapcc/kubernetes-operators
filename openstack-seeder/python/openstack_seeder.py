@@ -32,6 +32,7 @@ from keystoneclient.v3 import client as keystoneclient
 from neutronclient.v2_0 import client as neutronclient
 from novaclient import client as novaclient
 from novaclient import exceptions as novaexceptions
+from manilaclient.v2 import client as manilaclient
 from osc_placement.http import SessionClient as placementclient
 from osc_placement.resources.resource_class import PER_CLASS_URL
 from raven.base import Client
@@ -1959,7 +1960,76 @@ def seed_flavor(flavor, args, sess, config):
 
 def seed_share_type(sharetype, args, sess, config):
     """ seed manila share type """
-    pass
+    logging.debug("seeding Manila share type %s" % sharetype)
+
+    # intialize manila client
+    try:
+        client = manilaclient.Client(session=sess, api_version="2.46")
+        manager = client.share_types
+    except Exception as e :
+        logging.error("Failed to seed share type %s: %s" % (sharetype, e))
+        raise
+
+    def delete_type(id):
+        manager.delete(id)
+
+    def create_type(name, extra_specs=None, description=None):
+        dhss = True                     # always dhss in ccloud 
+        is_public = True                # always public
+        spec_snapshot_support = True    # always support snapshot
+        return manager.create(name, dhss, spec_snapshot_support, 
+                        is_public, extra_specs, description)
+
+    def get_type_by_name(name):
+        opts={'all_tenants': 1}
+        for t in manager.list(search_opts=opts):
+            if t.name == name:
+                return t
+        return None
+
+    def validate_extra_specs(obj):
+        extra_specs = getattr(obj, 'extra_specs', None)
+        if extra_specs:
+            if not isinstance(extra_specs, dict):
+                raise TypeError("extra_specs must be a dictionary")
+            # if 'share_backend_name' not in extra_specs.keys():
+                # raise AttributeError("share_backend_name is not found in extra_specs")
+        return extra_specs
+
+        # validation sharetype
+    sharetype = sanitize(sharetype, ('name'))
+    try:
+        name = getattr(sharetype, 'name')
+    except AttributeError:
+        logging.warn("skipping sharetype '%s': attribute 'name' not found" % sharetype)
+        return
+
+    # validate extra specs
+    try:
+        extra_specs = validate_extra_specs(sharetype)
+    except TypeError as e:
+        logging.warn("skipping share type '%s': invalid extra_specs" % sharetype)
+        extra_specs = None
+    # except AttributeError as e:
+    #     logging.warn("skipping share type '%s': %s" % (sharetype, e))
+    #     extra_specs = None
+
+    # delete share type if exists
+    t = get_type_by_name(name)
+    if t:
+        try:
+            delete_type(t.id) 
+        except Exception as e:
+            logging.error("Failed to delete share type %s" % t.id)
+            logging.error("Failed to seed share type %s: %s" % (sharetype, e))
+            raise
+    
+    # create type
+    try:
+        create_type(name, extra_specs)
+    except Exception as e :
+        logging.error("Failed to seed share type %s: %s" % (sharetype, e))
+        raise
 
 def seed_rbac_policy(rbac, args, sess, keystone):
     """ seed a neutron rbac-policy """
