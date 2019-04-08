@@ -177,10 +177,6 @@ func (vc *ViceCertificate) IsRevoked() bool {
 	}
 
 	for _, uri := range vc.ocspServers {
-		if uri == "" {
-			continue
-		}
-
 		ocspResponse, err := vc.issueOCSPRequest(uri)
 		if err != nil {
 			return false
@@ -202,11 +198,11 @@ func (vc *ViceCertificate) issueOCSPRequest(ocspURI string) (*ocsp.Response, err
 
 	ocspRequestReader := bytes.NewReader(ocspRequest)
 	httpResponse, err := http.Post(ocspURI, "application/ocsp-request", ocspRequestReader)
-	defer httpResponse.Body.Close()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "OCSP request failed")
 	}
 
+	defer httpResponse.Body.Close()
 	ocspResponseBytes, err := ioutil.ReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read request body")
