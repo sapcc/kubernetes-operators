@@ -1962,24 +1962,6 @@ def seed_share_type(sharetype, args, sess, config):
     """ seed manila share type """
     logging.debug("seeding Manila share type %s" % sharetype)
 
-    # intialize manila client
-    try:
-        client = manilaclient.Client(session=sess, api_version="2.46")
-        manager = client.share_types
-    except Exception as e :
-        logging.error("Failed to seed share type %s: %s" % (sharetype, e))
-        raise
-
-    def delete_type(id):
-        manager.delete(id)
-
-    def create_type(name, extra_specs=None, description=None):
-        dhss = True                     # always dhss in ccloud 
-        is_public = True                # always public
-        spec_snapshot_support = True    # always support snapshot
-        return manager.create(name, dhss, spec_snapshot_support, 
-                        is_public, extra_specs, description)
-
     def get_type_by_name(name):
         opts={'all_tenants': 1}
         for t in manager.list(search_opts=opts):
@@ -1987,49 +1969,69 @@ def seed_share_type(sharetype, args, sess, config):
                 return t
         return None
 
-    def validate_extra_specs(obj):
-        extra_specs = getattr(obj, 'extra_specs', None)
-        if extra_specs:
-            if not isinstance(extra_specs, dict):
-                raise TypeError("extra_specs must be a dictionary")
-            # if 'share_backend_name' not in extra_specs.keys():
-                # raise AttributeError("share_backend_name is not found in extra_specs")
-        return extra_specs
+    def validate_share_type(sharetype):
+        sharetype = sanitize(sharetype, ['name', 'extra_specs', 'is_public'])
+        try:
+            _ = sharetype['name']
+        except KeyError:
+            raise  KeyError('type name is not defined')
+        try:
+            extra_specs = sharetype['extra_specs']
+        except KeyError:
+            raise KeyError('extra_specs is not defined')
+        if not isinstance(extra_specs, dict):
+            raise TypeError("extra_specs is not of type dictionary")
+        if 'driver_handles_share_servers' not in extra_specs.keys():
+            raise KeyError("extra_specs.%s is not defined" % 'driver_handles_share_servers')
+        if 'snapshot_support' not in extra_specs:
+            raise KeyError("extra_specs.%s is not defined" % 'snapshot_support')
+        return sharetype
 
-        # validation sharetype
-    sharetype = sanitize(sharetype, ('name'))
+    def update_type(stype, extra_specs):
+        to_be_unset = []
+        for k in stype.extra_specs.keys():
+            if k not in extra_specs.keys():
+                to_be_unset.append(k)
+        stype.unset_keys(to_be_unset)
+        stype.set_keys(extra_specs)
+
+    def create_type(sharetype):
+        name = sharetype['name']
+        extra_specs = sharetype['extra_specs']
+        dhss = extra_specs.pop('driver_handles_share_servers')
+        spec_snapshot_support = extra_specs.pop('snapshot_support')
+        is_public = sharetype.get('is_public', True)
+        return manager.create(name, dhss, spec_snapshot_support, is_public, extra_specs)
+
+    # intialize manila client
     try:
-        name = getattr(sharetype, 'name')
-    except AttributeError:
-        logging.warn("skipping sharetype '%s': attribute 'name' not found" % sharetype)
+        client = manilaclient.Client("2.41", session=sess)
+        manager = client.share_types
+    except Exception as e :
+        logging.error("Fail to initialize client: %s" % e)
+        raise
+
+    # validation sharetype
+    try:
+        sharetype = validate_share_type(sharetype)
+    except Exception as e:
+        logging.warn("skipping share type '%s': %s" % (sharetype, e))
         return
 
-    # validate extra specs
-    try:
-        extra_specs = validate_extra_specs(sharetype)
-    except TypeError as e:
-        logging.warn("skipping share type '%s': invalid extra_specs" % sharetype)
-        extra_specs = None
-    # except AttributeError as e:
-    #     logging.warn("skipping share type '%s': %s" % (sharetype, e))
-    #     extra_specs = None
-
-    # delete share type if exists
-    t = get_type_by_name(name)
-    if t:
+    # update share type if exists
+    stype = get_type_by_name(sharetype['name'])
+    if stype:   
         try:
-            delete_type(t.id) 
+            update_type(stype, sharetype['extra_specs']) 
         except Exception as e:
-            logging.error("Failed to delete share type %s" % t.id)
+            logging.error("Failed to update share type %s: %s" % (sharetype, e))
+            raise
+    else: 
+        try:
+            create_type(sharetype)
+        except Exception as e :
             logging.error("Failed to seed share type %s: %s" % (sharetype, e))
             raise
-    
-    # create type
-    try:
-        create_type(name, extra_specs)
-    except Exception as e :
-        logging.error("Failed to seed share type %s: %s" % (sharetype, e))
-        raise
 
 def seed_rbac_policy(rbac, args, sess, keystone):
     """ seed a neutron rbac-policy """
