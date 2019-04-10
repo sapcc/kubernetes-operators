@@ -1970,21 +1970,10 @@ def seed_share_type(sharetype, args, sess, config):
         return None
 
     def validate_share_type(sharetype):
-        sharetype = sanitize(sharetype, ['name', 'extra_specs', 'is_public'])
-        try:
-            _ = sharetype['name']
-        except KeyError:
-            raise  KeyError('type name is not defined')
-        try:
-            extra_specs = sharetype['extra_specs']
-        except KeyError:
-            raise KeyError('extra_specs is not defined')
-        if not isinstance(extra_specs, dict):
-            raise TypeError("extra_specs is not of type dictionary")
-        if 'driver_handles_share_servers' not in extra_specs.keys():
-            raise KeyError("extra_specs.%s is not defined" % 'driver_handles_share_servers')
-        if 'snapshot_support' not in extra_specs:
-            raise KeyError("extra_specs.%s is not defined" % 'snapshot_support')
+        sharetype = sanitize(sharetype, [
+            'name', 'description', 'is_public', 'ddhs', 'snapshot_support', 'extra_specs'])
+        sharetype['extra_specs']['driver_handles_share_servers'] = sharetype.pop('ddhs')
+        sharetype['extra_specs']['snapshot_support'] = sharetype.pop('snapshot_support')
         return sharetype
 
     def update_type(stype, extra_specs):
@@ -1992,16 +1981,18 @@ def seed_share_type(sharetype, args, sess, config):
         for k in stype.extra_specs.keys():
             if k not in extra_specs.keys():
                 to_be_unset.append(k)
+        logging.debug(extra_specs)
         stype.unset_keys(to_be_unset)
         stype.set_keys(extra_specs)
 
     def create_type(sharetype):
         name = sharetype['name']
+        # description = sharetype.get('description')
+        is_public = sharetype.get('is_public')
         extra_specs = sharetype['extra_specs']
         dhss = extra_specs.pop('driver_handles_share_servers')
-        spec_snapshot_support = extra_specs.pop('snapshot_support')
-        is_public = sharetype.get('is_public', True)
-        return manager.create(name, dhss, spec_snapshot_support, is_public, extra_specs)
+        snapshot_support = extra_specs.pop('snapshot_support')
+        return manager.create(name, dhss, snapshot_support, is_public, extra_specs)
 
     # intialize manila client
     try:
@@ -2012,11 +2003,7 @@ def seed_share_type(sharetype, args, sess, config):
         raise
 
     # validation sharetype
-    try:
-        sharetype = validate_share_type(sharetype)
-    except Exception as e:
-        logging.warn("skipping share type '%s': %s" % (sharetype, e))
-        return
+    sharetype = validate_share_type(sharetype)
 
     # update share type if exists
     stype = get_type_by_name(sharetype['name'])
