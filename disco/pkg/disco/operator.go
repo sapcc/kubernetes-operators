@@ -208,7 +208,7 @@ func (disco *Operator) handleError(err error, key interface{}) {
 	}
 
 	if disco.queue.NumRequeues(key) < 5 {
-		disco.logger.LogError("error syncing pod", err, "key", key)
+		disco.logger.LogError("error syncing ingress", err, "key", key)
 
 		// Re-enqueue the key rate limited. Based on the rate limiter on the
 		// queue and the re-enqueue history, the key will be processed later again.
@@ -284,8 +284,14 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		}
 	}()
 
+	// Allow recordset in different DNS zone.
+	zoneName := disco.ZoneName
+	if zoneNameOverride, ok := ingress.GetAnnotations()[DiscoAnnotationRecordZoneName]; ok && zoneNameOverride != "" {
+		zoneName = zoneNameOverride
+	}
+
 	//TODO: maybe use https://github.com/patrickmn/go-cache instead of listing recordsets every time
-	zone, err := disco.dnsV2Client.getDesignateZoneByName(disco.ZoneName)
+	zone, err := disco.dnsV2Client.getDesignateZoneByName(zoneName)
 	if err != nil {
 		return err
 	}

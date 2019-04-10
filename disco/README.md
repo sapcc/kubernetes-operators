@@ -95,6 +95,11 @@ Moreover, a description can be provided via the annotation:
 disco/record-description: < description >
 ``` 
 
+Creation of records in a different zone is supported via the annotation:
+```
+disco/zone-name: <name of the zone>
+```
+
 All parameters and their defaults:
 ```
 Usage of disco:
