@@ -1971,9 +1971,12 @@ def seed_share_type(sharetype, args, sess, config):
 
     def validate_share_type(sharetype):
         sharetype = sanitize(sharetype, [
-            'name', 'description', 'is_public', 'ddhs', 'snapshot_support', 'extra_specs'])
-        sharetype['extra_specs']['driver_handles_share_servers'] = sharetype.pop('ddhs')
-        sharetype['extra_specs']['snapshot_support'] = sharetype.pop('snapshot_support')
+            'name', 'description', 'is_public', 'specs', 'extra_specs'])
+        specs = sharetype.pop('specs')
+        try:
+            sharetype['extra_specs'].update(specs)
+        except KeyError:
+            sharetype['extra_specs'] = specs
         return sharetype
 
     def update_type(stype, extra_specs):
@@ -1981,22 +1984,31 @@ def seed_share_type(sharetype, args, sess, config):
         for k in stype.extra_specs.keys():
             if k not in extra_specs.keys():
                 to_be_unset.append(k)
-        logging.debug(extra_specs)
         stype.unset_keys(to_be_unset)
         stype.set_keys(extra_specs)
 
     def create_type(sharetype):
-        name = sharetype['name']
-        # description = sharetype.get('description')
-        is_public = sharetype.get('is_public')
         extra_specs = sharetype['extra_specs']
-        dhss = extra_specs.pop('driver_handles_share_servers')
-        snapshot_support = extra_specs.pop('snapshot_support')
-        return manager.create(name, dhss, snapshot_support, is_public, extra_specs)
+        try:
+            dhss = extra_specs.pop('driver_handles_share_servers')
+            sharetype['spec_driver_handles_share_servers'] = dhss
+        except KeyError:
+            pass
+        try:
+            snapshot_support = extra_specs.pop('snapshot_support')
+            sharetype['spec_snapshot_support'] = snapshot_support
+        except KeyError:
+            pass
+        sharetype['extra_specs'] = extra_specs
+        try:
+            manager.create(**sharetype)
+        except:
+            sharetype.pop('description')
+            manager.create(**sharetype)
 
     # intialize manila client
     try:
-        client = manilaclient.Client("2.41", session=sess)
+        client = manilaclient.Client(session=sess)
         manager = client.share_types
     except Exception as e :
         logging.error("Fail to initialize client: %s" % e)
@@ -2004,6 +2016,7 @@ def seed_share_type(sharetype, args, sess, config):
 
     # validation sharetype
     sharetype = validate_share_type(sharetype)
+    logging.debug("Validated Manila share type %s" % sharetype)
 
     # update share type if exists
     stype = get_type_by_name(sharetype['name'])
@@ -2017,7 +2030,7 @@ def seed_share_type(sharetype, args, sess, config):
         try:
             create_type(sharetype)
         except Exception as e :
-            logging.error("Failed to seed share type %s: %s" % (sharetype, e))
+            logging.error("Failed to create share type %s: %s" % (sharetype, e))
             raise
 
 def seed_rbac_policy(rbac, args, sess, keystone):

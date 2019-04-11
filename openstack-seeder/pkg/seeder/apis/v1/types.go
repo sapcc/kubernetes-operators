@@ -185,12 +185,14 @@ type FlavorSpec struct {
 
 // A Manila Share Type (see https://developer.openstack.org/api-ref/shared-file-system/?expanded=create-share-type-detail#share-types )
 type ShareTypeSpec struct {
-	Name                      string            `json:"name" yaml:"name"`                                   // name of share type
-	Description               string            `json:"description,omitempty" yaml:"description,omitempty"` // description of the share type
-	IsPublic                  bool              `json:"is_public,omitempty" yaml:"is_public,omitempty"`     // boolean flag to indicate if the share type is public
-	DriverHandlesShareServers bool              `json:"ddhs" yaml:"ddhs"`                                   // boolean flag for driver-handles-share-servers
-	SnapshotSupport           bool              `json:"snapshot_support" yaml:"snapshot_support"`           // boolean flag for snapshot support
-	ExtraSpecs                map[string]string `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // list of extra specs
+	Name        string            `json:"name" yaml:"name"`                                   // name of share type
+	Description string            `json:"description,omitempty" yaml:"description,omitempty"` // description of the share type
+	IsPublic    bool              `json:"is_public,omitempty" yaml:"is_public,omitempty"`     // boolean flag to indicate if the share type is public
+	ExtraSpecs  map[string]string `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // list of extra specs that is not validated in specs
+	Specs       struct {
+		DHSS            bool `json:"driver_handles_share_servers" yaml:"driver_handles_share_servers"` // boolean flag for driver-handles-share-servers
+		SnapshotSupport bool `json:"snapshot_support,omitempty" yaml:"snapshot_support,omitempty"`     // boolean flag for snapshot support
+	} `json:"specs" yaml:"specs"` // specs that needs validation
 }
 
 // A neutron address scope (see https://developer.openstack.org/api-ref/networking/v2/index.html  UNDOCUMENTED)
