@@ -759,11 +759,49 @@ def seed_project_flavors(project, flavors, args, sess):
                     flavorid, project.name, e))
             raise
 
-def seed_project_share_types(source, share_types, args, sess):
+def seed_project_share_types(project, share_types, args, sess):
     """
     seed a project share types
     """
-    pass
+    # intialize manila client
+    try:
+        client = manilaclient.Client(session=sess)
+        shareTypeManager = client.share_types
+        shareTypeAccessManager = client.share_type_access
+    except Exception as e :
+        logging.error("Fail to initialize manila client: %s" % e)
+        raise
+
+    all_private_share_types = [ t for t in shareTypeManager.list() 
+                                if t.is_public is False ]
+    validated_types = [ t for t in all_private_share_types 
+                            if t.name in share_types ]
+    validated_type_names = [ t.name for t in validated_types ]
+
+    for t in share_types:
+        if t not in validated_type_names:
+            logging.warn('Share type `%s` does not exists or is not private', t)
+
+    logging.info('Assign %s to project %s', validated_types, project.id)
+
+    def list_type_projects(stype):
+        return [l.project_id for l in shareTypeAccessManager.list(stype)]
+    current_types = [ t for t in all_private_share_types 
+                        if project.id in list_type_projects(t) ]
+
+    logging.info(current_types)
+
+    to_add = [t for t in validated_types if t not in current_types]
+    to_remove = [t for t in current_types if t not in validated_types]
+
+    logging.info('add share types %s' % to_add)
+    logging.info('remove share types %s' % to_remove)
+
+    for t in to_remove:
+        shareTypeAccessManager.remove_project_access(t, project.id)
+    for t in to_add:
+        shareTypeAccessManager.add_project_access(t, project.id)
+
 
 def seed_project_network_quota(project, quota, args, sess):
     """
@@ -2020,7 +2058,7 @@ def seed_share_type(sharetype, args, sess, config):
 
     # update share type if exists
     stype = get_type_by_name(sharetype['name'])
-    if stype:   
+    if stype:
         try:
             update_type(stype, sharetype['extra_specs']) 
         except Exception as e:
