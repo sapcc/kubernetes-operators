@@ -185,14 +185,16 @@ type FlavorSpec struct {
 
 // A Manila Share Type (see https://developer.openstack.org/api-ref/shared-file-system/?expanded=create-share-type-detail#share-types )
 type ShareTypeSpec struct {
-	Name        string            `json:"name" yaml:"name"`                                   // name of share type
-	Description string            `json:"description,omitempty" yaml:"description,omitempty"` // description of the share type
-	IsPublic    *bool             `json:"is_public,omitempty" yaml:"is_public,omitempty"`     // boolean flag to indicate if the share type is public
-	ExtraSpecs  map[string]string `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // list of extra specs that is not validated in specs
-	Specs       struct {
-		DHSS            *bool `json:"driver_handles_share_servers" yaml:"driver_handles_share_servers"` // boolean flag for driver-handles-share-servers
-		SnapshotSupport *bool `json:"snapshot_support,omitempty" yaml:"snapshot_support,omitempty"`     // boolean flag for snapshot support
-	} `json:"specs" yaml:"specs"` // specs that needs validation
+	Name        string                   `json:"name" yaml:"name"`                                   // share type name
+	Description string                   `json:"description,omitempty" yaml:"description,omitempty"` // description
+	IsPublic    *bool                    `json:"is_public,omitempty" yaml:"is_public,omitempty"`     // share type is public or private; deafult is public
+	Specs       *ShareTypeSpecifiedSpecs `json:"specs" yaml:"specs"`                                 // specs that are typed
+	ExtraSpecs  map[string]string        `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // extra specs that are not typed or validated
+}
+
+type ShareTypeSpecifiedSpecs struct {
+	DHSS            *bool `json:"driver_handles_share_servers" yaml:"driver_handles_share_servers"` // driver_handles_share_servers, required
+	SnapshotSupport *bool `json:"snapshot_support,omitempty" yaml:"snapshot_support,omitempty"`     // snapshot support, optional
 }
 
 // A neutron address scope (see https://developer.openstack.org/api-ref/networking/v2/index.html  UNDOCUMENTED)
