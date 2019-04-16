@@ -33,6 +33,7 @@ from neutronclient.v2_0 import client as neutronclient
 from novaclient import client as novaclient
 from novaclient import exceptions as novaexceptions
 from manilaclient.v2 import client as manilaclient
+from manilaclient import api_versions
 from osc_placement.http import SessionClient as placementclient
 from osc_placement.resources.resource_class import PER_CLASS_URL
 from raven.base import Client
@@ -765,7 +766,8 @@ def seed_project_share_types(project, share_types, args, sess):
     """
     # intialize manila client
     try:
-        client = manilaclient.Client(session=sess)
+        api_version = api_versions.APIVersion("2.40")
+        client = manilaclient.Client(session=sess, api_version=api_version)
         shareTypeManager = client.share_types
         shareTypeAccessManager = client.share_type_access
     except Exception as e :
@@ -2046,7 +2048,8 @@ def seed_share_type(sharetype, args, sess, config):
 
     # intialize manila client
     try:
-        client = manilaclient.Client(session=sess)
+        api_version = api_versions.APIVersion("2.40")
+        client = manilaclient.Client(session=sess, api_version=api_version)
         manager = client.share_types
     except Exception as e :
         logging.error("Fail to initialize client: %s" % e)
