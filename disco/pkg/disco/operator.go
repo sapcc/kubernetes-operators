@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
+	expiringCache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
@@ -61,6 +63,7 @@ type Operator struct {
 	queue           workqueue.RateLimitingInterface
 	logger          log.Logger
 	eventRecorder   record.EventRecorder
+	zoneCache       *expiringCache.Cache
 }
 
 // New creates a new operator using the given options
@@ -118,6 +121,7 @@ func New(options Options, logger log.Logger) *Operator {
 		queue:           workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(30*time.Second, 600*time.Second)),
 		logger:          operatorLogger,
 		eventRecorder:   eventRecorder,
+		zoneCache:       expiringCache.New(recheckInterval, 2*recheckInterval),
 	}
 
 	ingressInformer := v1beta12.NewIngressInformer(
@@ -290,8 +294,7 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		zoneName = zoneNameOverride
 	}
 
-	//TODO: maybe use https://github.com/patrickmn/go-cache instead of listing recordsets every time
-	zone, err := disco.dnsV2Client.getDesignateZoneByName(zoneName)
+	zone, err := disco.getZoneByName(zoneName)
 	if err != nil {
 		return err
 	}
@@ -438,4 +441,20 @@ func (disco *Operator) ensureDiscoFinalizerRemoved(ingress *v1beta1.Ingress) err
 		}
 	}
 	return nil
+}
+
+func (disco *Operator) getZoneByName(zoneName string) (zones.Zone, error) {
+	if o, ok := disco.zoneCache.Get(zoneName); ok {
+		zone := o.(zones.Zone)
+		disco.logger.LogDebug("found zone in cache", "zone", zone.Name)
+		return zone, nil
+	}
+
+	zone, err := disco.dnsV2Client.getDesignateZoneByName(zoneName)
+	if err != nil {
+		return zone, err
+	}
+
+	disco.zoneCache.Set(zoneName, zone, expiringCache.DefaultExpiration)
+	return zone, nil
 }
