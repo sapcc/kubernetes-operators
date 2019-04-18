@@ -32,6 +32,8 @@ from keystoneclient.v3 import client as keystoneclient
 from neutronclient.v2_0 import client as neutronclient
 from novaclient import client as novaclient
 from novaclient import exceptions as novaexceptions
+from manilaclient.v2 import client as manilaclient
+from manilaclient import api_versions
 from osc_placement.http import SessionClient as placementclient
 from osc_placement.resources.resource_class import PER_CLASS_URL
 from raven.base import Client
@@ -606,6 +608,8 @@ def seed_projects(domain, projects, args, sess):
 
         flavors = project.pop('flavors', None)
 
+        share_types = project.pop('share_types', None)
+
         project = sanitize(project,
                            ('name', 'description', 'enabled', 'parent'))
 
@@ -722,6 +726,9 @@ def seed_projects(domain, projects, args, sess):
         if flavors:
             seed_project_flavors(resource, flavors, args, sess)
 
+        if share_types:
+            seed_project_share_types(resource, share_types, args, sess)
+
 
 def seed_project_flavors(project, flavors, args, sess):
     """
@@ -752,6 +759,50 @@ def seed_project_flavors(project, flavors, args, sess):
                 "could not add flavor-id '%s' access for project '%s': %s" % (
                     flavorid, project.name, e))
             raise
+
+def seed_project_share_types(project, share_types, args, sess):
+    """
+    seed a project share types
+    """
+    # intialize manila client
+    try:
+        api_version = api_versions.APIVersion("2.40")
+        client = manilaclient.Client(session=sess, api_version=api_version)
+        shareTypeManager = client.share_types
+        shareTypeAccessManager = client.share_type_access
+    except Exception as e :
+        logging.error("Fail to initialize manila client: %s" % e)
+        raise
+
+    all_private_share_types = [ t for t in shareTypeManager.list() 
+                                if t.is_public is False ]
+    validated_types = [ t for t in all_private_share_types 
+                            if t.name in share_types ]
+    validated_type_names = [ t.name for t in validated_types ]
+
+    for t in share_types:
+        if t not in validated_type_names:
+            logging.warn('Share type `%s` does not exists or is not private', t)
+
+    logging.info('Assign %s to project %s', validated_types, project.id)
+
+    def list_type_projects(stype):
+        return [l.project_id for l in shareTypeAccessManager.list(stype)]
+    current_types = [ t for t in all_private_share_types 
+                        if project.id in list_type_projects(t) ]
+
+    logging.info(current_types)
+
+    to_add = [t for t in validated_types if t not in current_types]
+    to_remove = [t for t in current_types if t not in validated_types]
+
+    logging.info('add share types %s' % to_add)
+    logging.info('remove share types %s' % to_remove)
+
+    for t in to_remove:
+        shareTypeAccessManager.remove_project_access(t, project.id)
+    for t in to_add:
+        shareTypeAccessManager.add_project_access(t, project.id)
 
 
 def seed_project_network_quota(project, quota, args, sess):
@@ -1947,6 +1998,81 @@ def seed_flavor(flavor, args, sess, config):
         logging.error("Failed to seed flavor %s: %s" % (flavor, e))
         raise
 
+def seed_share_type(sharetype, args, sess, config):
+    """ seed manila share type """
+    logging.debug("seeding Manila share type %s" % sharetype)
+
+    def get_type_by_name(name):
+        opts={'all_tenants': 1}
+        for t in manager.list(search_opts=opts):
+            if t.name == name:
+                return t
+        return None
+
+    def validate_share_type(sharetype):
+        sharetype = sanitize(sharetype, [
+            'name', 'description', 'is_public', 'specs', 'extra_specs'])
+        specs = sharetype.pop('specs')
+        try:
+            sharetype['extra_specs'].update(specs)
+        except KeyError:
+            sharetype['extra_specs'] = specs
+        return sharetype
+
+    def update_type(stype, extra_specs):
+        to_be_unset = []
+        for k in stype.extra_specs.keys():
+            if k not in extra_specs.keys():
+                to_be_unset.append(k)
+        stype.unset_keys(to_be_unset)
+        stype.set_keys(extra_specs)
+
+    def create_type(sharetype):
+        extra_specs = sharetype['extra_specs']
+        try:
+            dhss = extra_specs.pop('driver_handles_share_servers')
+            sharetype['spec_driver_handles_share_servers'] = dhss
+        except KeyError:
+            pass
+        try:
+            snapshot_support = extra_specs.pop('snapshot_support')
+            sharetype['spec_snapshot_support'] = snapshot_support
+        except KeyError:
+            pass
+        sharetype['extra_specs'] = extra_specs
+        try:
+            manager.create(**sharetype)
+        except:
+            sharetype.pop('description')
+            manager.create(**sharetype)
+
+    # intialize manila client
+    try:
+        api_version = api_versions.APIVersion("2.40")
+        client = manilaclient.Client(session=sess, api_version=api_version)
+        manager = client.share_types
+    except Exception as e :
+        logging.error("Fail to initialize client: %s" % e)
+        raise
+
+    # validation sharetype
+    sharetype = validate_share_type(sharetype)
+    logging.debug("Validated Manila share type %s" % sharetype)
+
+    # update share type if exists
+    stype = get_type_by_name(sharetype['name'])
+    if stype:
+        try:
+            update_type(stype, sharetype['extra_specs']) 
+        except Exception as e:
+            logging.error("Failed to update share type %s: %s" % (sharetype, e))
+            raise
+    else: 
+        try:
+            create_type(sharetype)
+        except Exception as e :
+            logging.error("Failed to create share type %s: %s" % (sharetype, e))
+            raise
 
 def seed_rbac_policy(rbac, args, sess, keystone):
     """ seed a neutron rbac-policy """
@@ -2162,6 +2288,10 @@ def seed_config(config, args, sess):
     # seed custom quota (nova only for now)
     if 'quota_class_sets' in config:
         seed_quota_class_sets(config['quota_class_sets'], sess)
+
+    if 'share_types' in config:
+        for share_type in config['share_types']:
+            seed_share_type(share_type, args, sess, config)
 
     if group_members:
         resolve_group_members(keystone)
