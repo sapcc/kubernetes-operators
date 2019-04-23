@@ -1,5 +1,5 @@
-hash: 021505d7b8f2bea6e3dc1ce112f9c88dd01bd0c3ead6f11c9e034df507d55a0e
-updated: 2018-05-02T15:29:56.68313+02:00
+hash: 3a43c44c21f73bc8a2e34b3f0ecbe7ac2c77a52e40cabefaec73b01a19fa45b2
+updated: 2019-04-23T10:18:08.784078+02:00
 imports:
 - name: github.com/certifi/gocertifi
   version: a4ab0227d360091084658029ec8ae45f989fba3e
@@ -163,7 +163,7 @@ imports:
   - pkg/client/clientset/clientset/scheme
   - pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 - name: k8s.io/apimachinery
-  version: 1cb2cdd78d38df243e686d1b572b76e190469842
+  version: c44b40f648ea8310317b60c4805f212a5d707a9b
   subpackages:
   - pkg/api/equality
   - pkg/api/errors
@@ -210,7 +210,7 @@ imports:
   - pkg/watch
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
-  version: d92e8497f71b7b4e0494e5bd204b48d34bd6f254
+  version: 0cdf7ac6ed103d89206cfff7fd3a9f4074771d22
   subpackages:
   - discovery
   - kubernetes/scheme
