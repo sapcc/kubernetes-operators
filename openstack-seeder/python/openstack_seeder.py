@@ -2002,6 +2002,15 @@ def seed_share_type(sharetype, args, sess, config):
     """ seed manila share type """
     logging.debug("seeding Manila share type %s" % sharetype)
 
+    # intialize manila client
+    try:
+        api_version = api_versions.APIVersion("2.40")
+        client = manilaclient.Client(session=sess, api_version=api_version)
+        manager = client.share_types
+    except Exception as e :
+        logging.error("Fail to initialize client: %s" % e)
+        raise
+
     def get_type_by_name(name):
         opts={'all_tenants': 1}
         for t in manager.list(search_opts=opts):
@@ -2046,16 +2055,7 @@ def seed_share_type(sharetype, args, sess, config):
             sharetype.pop('description')
             manager.create(**sharetype)
 
-    # intialize manila client
-    try:
-        api_version = api_versions.APIVersion("2.40")
-        client = manilaclient.Client(session=sess, api_version=api_version)
-        manager = client.share_types
-    except Exception as e :
-        logging.error("Fail to initialize client: %s" % e)
-        raise
-
-    # validation sharetype
+   # validation sharetype
     sharetype = validate_share_type(sharetype)
     logging.debug("Validated Manila share type %s" % sharetype)
 
