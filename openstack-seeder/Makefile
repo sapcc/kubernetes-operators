@@ -51,6 +51,8 @@ push:
 
 clean:
 	rm -rf bin/*
+	rm -rf _output/*
+	rm -rf vendor/*
 
 include code-generate.mk
 code-gen: client-gen informer-gen lister-gen deepcopy-gen generate-openapi
@@ -76,9 +78,8 @@ ifndef HAS_GLIDE_VC
 endif
 
 $(GOBIN)/openapi-gen:
-	go get -u -v -d k8s.io/code-generator/cmd/openapi-gen
-	cd $(GOPATH)/src/k8s.io/code-generator; git checkout release-1.8
-	go install k8s.io/code-generator/cmd/openapi-gen
+	go get -u -d k8s.io/code-generator/cmd/openapi-gen@kubernetes-1.10.13
+	cd ${GOPATH}/src/k8s.io/code-generator/cmd/openapi-gen && git checkout release-1.10 && go install
 
 linux:  bin/linux/openstack-seeder
 darwin: bin/darwin/openstack-seeder

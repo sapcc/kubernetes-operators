@@ -1,5 +1,5 @@
-hash: 15b054e1e499d80ad76d1a8027644a372a9ec16c2611a7958260d12398730cbd
-updated: 2018-08-21T14:07:55.580449+02:00
+hash: f922a2bbfde4d2771ba7268b3da780c90c939d4e0232238ddff449e36f3988a1
+updated: 2019-04-24T14:27:23.759313+02:00
 imports:
 - name: github.com/ant31/crd-validation
   version: 4ddfba1968124025521d3ec98a61b2123bdcaf75
@@ -137,7 +137,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 670d4cfef0544295bc27a114dbac37980d83185a
 - name: k8s.io/api
-  version: 8b7507fac302640dd5f1efbf9643199952cc58db
+  version: c89978d5f86d7427bef2fc7752732c8c60b1d188
   subpackages:
   - admission/v1beta1
   - admissionregistration/v1alpha1
@@ -169,7 +169,7 @@ imports:
   - storage/v1alpha1
   - storage/v1beta1
 - name: k8s.io/apiextensions-apiserver
-  version: f584b16eb23bd2a3fd292a027d698d95db427c5d
+  version: f0729a5940c5414a9b9da2f18ba8d5c4b559ec9a
   subpackages:
   - pkg/apis/apiextensions
   - pkg/apis/apiextensions/v1beta1
@@ -177,7 +177,7 @@ imports:
   - pkg/client/clientset/clientset/scheme
   - pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 - name: k8s.io/apimachinery
-  version: e386b2658ed20923da8cc9250e552f082899a1ee
+  version: d49e237a2683fa6dc43a86c7b1b766e0219fb6e7
   subpackages:
   - pkg/api/errors
   - pkg/api/meta
@@ -221,7 +221,7 @@ imports:
   - third_party/forked/golang/json
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
-  version: a312bfe35c401f70e5ea0add48b50da283031dc3
+  version: 36368dede29baa5ecd253416d70ddc0c76bde69b
   subpackages:
   - discovery
   - discovery/fake
@@ -374,7 +374,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/code-generator
-  version: 9de8e796a74d16d2a285165727d04c185ebca6dc
+  version: edc41f23fa918716df540b1486477d62237010e4
   subpackages:
   - cmd/client-gen
   - cmd/client-gen/args
@@ -392,6 +392,8 @@ imports:
   - cmd/lister-gen
   - cmd/lister-gen/args
   - cmd/lister-gen/generators
+  - cmd/openapi-gen
+  - cmd/openapi-gen/args
   - pkg/util
 - name: k8s.io/gengo
   version: 01a732e01d00cb9a81bb0ca050d3e6d2b947927b
@@ -410,5 +412,6 @@ imports:
   version: 39cb288412c48cb533ba4be5d6c28620b9a0c1b4
   subpackages:
   - pkg/common
+  - pkg/generators
   - pkg/util/proto
 testImports: []
