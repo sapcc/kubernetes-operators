@@ -1,5 +1,5 @@
-hash: f922a2bbfde4d2771ba7268b3da780c90c939d4e0232238ddff449e36f3988a1
-updated: 2019-04-24T14:27:23.759313+02:00
+hash: 60557ab239d7649e6827696cabdf41ffbba5c506ba1a58be278bb07766064749
+updated: 2019-04-25T10:49:39.775322+02:00
 imports:
 - name: github.com/ant31/crd-validation
   version: 4ddfba1968124025521d3ec98a61b2123bdcaf75
@@ -139,7 +139,6 @@ imports:
 - name: k8s.io/api
   version: c89978d5f86d7427bef2fc7752732c8c60b1d188
   subpackages:
-  - admission/v1beta1
   - admissionregistration/v1alpha1
   - admissionregistration/v1beta1
   - apps/v1
@@ -400,9 +399,6 @@ imports:
   subpackages:
   - args
   - examples/deepcopy-gen/generators
-  - examples/defaulter-gen/generators
-  - examples/import-boss/generators
-  - examples/set-gen/generators
   - examples/set-gen/sets
   - generator
   - namer
