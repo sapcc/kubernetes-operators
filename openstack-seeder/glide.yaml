@@ -9,21 +9,16 @@ import:
 - package: github.com/go-openapi/jsonpointer
 - package: github.com/go-openapi/jsonreference
 - package: k8s.io/client-go
-#  version: v7.0.0
-  version: 36368dede29baa5ecd253416d70ddc0c76bde69b
+  version: v7.0.0
 - package: k8s.io/api
   version: release-1.10
 - package: k8s.io/apiextensions-apiserver
   version: release-1.10
 - package: k8s.io/apimachinery
-#  version: release-1.10
-  version: d49e237a2683fa6dc43a86c7b1b766e0219fb6e7
-  subpackages:
-  - pkg/apis/meta/v1
+  version: release-1.10
 - package: k8s.io/code-generator
   version: release-1.10
 - package: k8s.io/kube-openapi
-# version: release-1.10
-  version: 39cb288412c48cb533ba4be5d6c28620b9a0c1b4
+  version: release-1.10
 - package: github.com/ant31/crd-validation
 - package: k8s.io/gengo

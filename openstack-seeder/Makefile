@@ -55,12 +55,7 @@ clean:
 	rm -rf vendor/*
 
 include code-generate.mk
-code-gen: client-gen informer-gen lister-gen deepcopy-gen generate-openapi
-
-v1/openapi_generated.go: $(GOBIN)/openapi-gen
-	openapi-gen  -i $(REPO)/pkg/apis/seeder/v1 -p $(REPO)/pkg/apis/seeder/v1 --go-header-file="$(GOPATH)/src/github.com/ant31/crd-validation/.header" --logtostderr
-
-generate-openapi: v1/openapi_generated.go
+code-gen: client-gen informer-gen lister-gen deepcopy-gen openapi-gen
 
 vendor:
 ifndef HAS_GLIDE_VC
@@ -76,10 +71,6 @@ endif
 ifndef HAS_GLIDE_VC
 	go get -u github.com/sgotti/glide-vc
 endif
-
-$(GOBIN)/openapi-gen:
-	go get -u -d k8s.io/code-generator/cmd/openapi-gen@kubernetes-1.10.13
-	cd ${GOPATH}/src/k8s.io/code-generator/cmd/openapi-gen && git checkout release-1.10 && go install
 
 linux:  bin/linux/openstack-seeder
 darwin: bin/darwin/openstack-seeder

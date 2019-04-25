@@ -5,7 +5,7 @@ API_BASE       := $(INPUT_BASE)/pkg/apis
 GENERATED_BASE := $(INPUT_BASE)/pkg/client
 BIN            := $(OUTPUT)/bin
 
-.PHONY: client-gen informer-gen lister-gen deepcopy-gen
+.PHONY: client-gen informer-gen lister-gen deepcopy-gen openapi-gen
 
 client-gen: $(BIN)/client-gen
 	@rm -rf ./pkg/client/clientset
@@ -50,6 +50,13 @@ deepcopy-gen: $(BIN)/deepcopy-gen
 	  --output-base $(OUTPUT_BASE) \
 	  --go-header-file hack/custom-boilerplate.go.txt
 
+openapi-gen: $(BIN)/openapi-gen
+	@rm -rf $(API_BASE)/seeder/v1/openapi_generated
+	$(BIN)/openapi-gen  \
+	  --logtostderr \
+	  -i $(API_BASE)/seeder/v1 \
+	  -p $(API_BASE)/seeder/v1 \
+	  --go-header-file hack/custom-boilerplate.go.txt 
 
 $(OUTPUT)/bin/%:
 	@mkdir -p _output/bin
