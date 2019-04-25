@@ -1268,9 +1268,22 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 						},
-						"resource_classes": {
+						"share_types": {
 							SchemaProps: spec.SchemaProps{
 								Description: "list of nova flavors",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ShareTypeSpec"),
+										},
+									},
+								},
+							},
+						},
+						"resource_classes": {
+							SchemaProps: spec.SchemaProps{
+								Description: "list of Manila share types",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1312,7 +1325,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DomainSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.FlavorSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RBACPolicySpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RegionSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ServiceSpec"},
+				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DomainSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.FlavorSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RBACPolicySpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RegionSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ServiceSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ShareTypeSpec"},
 		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.OpenstackSeedStatus": {
 			Schema: spec.Schema{
@@ -1446,9 +1459,23 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 						},
-						"address_scopes": {
+						"share_types": {
 							SchemaProps: spec.SchemaProps{
 								Description: "list of nova flavor-id's",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+						"address_scopes": {
+							SchemaProps: spec.SchemaProps{
+								Description: "list of manila share types",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1870,6 +1897,58 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{
 				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.EndpointSpec"},
+		},
+		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ShareTypeSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "A Manila Share Type (see https://developer.openstack.org/api-ref/shared-file-system/?expanded=create-share-type-detail#share-types )",
+					Properties: map[string]spec.Schema{
+						"name": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"description": {
+							SchemaProps: spec.SchemaProps{
+								Description: "share type name",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"is_public": {
+							SchemaProps: spec.SchemaProps{
+								Description: "description",
+								Type:        []string{"boolean"},
+								Format:      "",
+							},
+						},
+						"specs": {
+							SchemaProps: spec.SchemaProps{
+								Description: "share type is public or private; deafult is public",
+								Ref:         ref("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ShareTypeSpecifiedSpecs"),
+							},
+						},
+						"extra_specs": {
+							SchemaProps: spec.SchemaProps{
+								Description: "specs that are typed",
+								Type:        []string{"object"},
+								AdditionalProperties: &spec.SchemaOrBool{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+					},
+					Required: []string{"name", "specs"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ShareTypeSpecifiedSpecs"},
 		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.SubnetPoolSpec": {
 			Schema: spec.Schema{

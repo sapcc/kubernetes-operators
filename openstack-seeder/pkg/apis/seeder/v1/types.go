@@ -53,6 +53,7 @@ type OpenstackSeedSpec struct {
 	Regions         []RegionSpec     `json:"regions,omitempty" yaml:"regions,omitempty"`                   // list keystone regions
 	Services        []ServiceSpec    `json:"services,omitempty" yaml:"services,omitempty"`                 // list keystone services and their endpoints
 	Flavors         []FlavorSpec     `json:"flavors,omitempty" yaml:"flavors,omitempty"`                   // list of nova flavors
+	ShareTypes      []ShareTypeSpec  `json:"share_types,omitempty" yaml:"share_types,omitempty"`           // list of Manila share types
 	ResourceClasses []string         `json:"resource_classes,omitempty" yaml:"resource_classes,omitempty"` // list of resource classes for the placement service (currently still part of nova)
 	Domains         []DomainSpec     `json:"domains,omitempty" yaml:"domains,omitempty"`                   // list keystone domains with their configuration, users, groups, projects, etc.
 	RBACPolicies    []RBACPolicySpec `json:"rbac_policies,omitempty" yaml:"rbac_policies,omitempty"`       // list of neutron rbac polices (currently only network rbacs are supported).
@@ -179,6 +180,7 @@ type ProjectSpec struct {
 	Endpoints       []ProjectEndpointSpec `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`           // list of project endpoint filters
 	RoleAssignments []RoleAssignmentSpec  `json:"roles,omitempty" yaml:"roles,omitempty"`                   // list of project-role-assignments
 	Flavors         []string              `json:"flavors,omitempty" yaml:"flavors,omitempty"`               // list of nova flavor-id's
+	ShareTypes      []string              `json:"share_types,omitempty" yaml:"share_types,omitempty"`       // list of manila share types
 	AddressScopes   []AddressScopeSpec    `json:"address_scopes,omitempty" yaml:"address_scopes,omitempty"` // list of neutron address-scopes
 	SubnetPools     []SubnetPoolSpec      `json:"subnet_pools,omitempty" yaml:"subnet_pools,omitempty"`     // list of neutron subnet-pools
 	NetworkQuota    *NetworkQuotaSpec     `json:"network_quota,omitempty" yaml:"network_quota,omitempty"`   // neutron quota
@@ -249,6 +251,21 @@ type FlavorSpec struct {
 	Disabled   *bool             `json:"disabled,omitempty" yaml:"disabled,omitempty"`
 	Ephemeral  int               `json:"ephemeral,omitempty" yaml:"ephemeral,omitempty"`
 	ExtraSpecs map[string]string `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // list of extra specs
+}
+
+// A Manila Share Type (see https://developer.openstack.org/api-ref/shared-file-system/?expanded=create-share-type-detail#share-types )
+// +k8s:openapi-gen=true
+type ShareTypeSpec struct {
+	Name        string                   `json:"name" yaml:"name"`                                   // share type name
+	Description string                   `json:"description,omitempty" yaml:"description,omitempty"` // description
+	IsPublic    *bool                    `json:"is_public,omitempty" yaml:"is_public,omitempty"`     // share type is public or private; deafult is public
+	Specs       *ShareTypeSpecifiedSpecs `json:"specs" yaml:"specs"`                                 // specs that are typed
+	ExtraSpecs  map[string]string        `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // extra specs that are not typed or validated
+}
+
+type ShareTypeSpecifiedSpecs struct {
+	DHSS            *bool `json:"driver_handles_share_servers" yaml:"driver_handles_share_servers"` // driver_handles_share_servers, required
+	SnapshotSupport *bool `json:"snapshot_support,omitempty" yaml:"snapshot_support,omitempty"`     // snapshot support, optional
 }
 
 // A neutron address scope (see https://developer.openstack.org/api-ref/networking/v2/index.html  UNDOCUMENTED)

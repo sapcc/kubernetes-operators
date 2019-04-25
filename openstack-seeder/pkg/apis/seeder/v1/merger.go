@@ -118,6 +118,28 @@ func (e *OpenstackSeedSpec) MergeFlavor(flavor FlavorSpec) {
 	e.Flavors = append(e.Flavors, flavor)
 }
 
+func (e *OpenstackSeedSpec) MergeShareType(t ShareTypeSpec) {
+	if e.ShareTypes == nil {
+		e.ShareTypes = make([]ShareTypeSpec, 0)
+	}
+	for i, s := range e.ShareTypes {
+		if s.Name == t.Name {
+			glog.V(2).Info("merge Manila share type ", t)
+			if s.ExtraSpecs == nil {
+				s.ExtraSpecs = make(map[string]string)
+			}
+			for k, v := range t.ExtraSpecs {
+				s.ExtraSpecs[k] = v
+			}
+			utils.MergeStructFields(&s, t)
+			e.ShareTypes[i] = s
+			return
+		}
+	}
+	glog.V(2).Info("append Manila share type ", t)
+	e.ShareTypes = append(e.ShareTypes, t)
+}
+
 // MergeResourceClass merges resource-class by name into the spec
 func (e *OpenstackSeedSpec) MergeResourceClass(resourceClass string) {
 	if e.ResourceClasses == nil {
@@ -225,6 +247,9 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 				}
 				if len(project.Flavors) > 0 {
 					v.Flavors = utils.MergeStringSlices(v.Flavors, project.Flavors)
+				}
+				if len(project.ShareTypes) > 0 {
+					v.ShareTypes = utils.MergeStringSlices(v.ShareTypes, project.ShareTypes)
 				}
 				e.Projects[i] = v
 				found = true
@@ -896,6 +921,13 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 			return errors.New("flavor name is required")
 		}
 		e.MergeFlavor(flavor)
+	}
+
+	for _, shareType := range spec.ShareTypes {
+		if shareType.Name == "" {
+			return errors.New("Share type name is required")
+		}
+		e.MergeShareType(shareType)
 	}
 
 	for _, resourceClass := range spec.ResourceClasses {
