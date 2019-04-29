@@ -363,6 +363,7 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		return err
 	}
 	metrics.RecordsetCreationSuccessCounter.With(labels).Inc()
+	disco.logger.LogInfo("create recordset successful", "ingress", ingressKey(ingress), "host", host, "record", addSuffixIfRequired(record), "zone", addSuffixIfRequired(zone.Name))
 	disco.eventRecorder.Eventf(ingress, v1.EventTypeNormal, CreateEvent, fmt.Sprintf("create recordset on ingress %s successful", ingressKey(ingress)))
 	return nil
 }
