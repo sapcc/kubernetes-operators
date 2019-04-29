@@ -35,7 +35,7 @@ const (
 	DiscoAnnotationRecordDescription = "disco/record-description"
 
 	// DiscoAnnotationRecordZoneName allows creating a record in a different DNS zone.
-	DiscoAnnotationRecordZoneName = "disc/zone-name"
+	DiscoAnnotationRecordZoneName = "disco/zone-name"
 
 	// CreateEvent is the type of an creation event.
 	CreateEvent = "CreateRecordset"
