@@ -7,11 +7,11 @@ RUN echo 'precedence ::ffff:0:0/96  100' >> /etc/gai.conf && \
     apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install -y --no-install-recommends ca-certificates wget curl && \
-    wget -O /usr/local/share/ca-certificates/SAP_Global_Root_CA.crt http://10.21.21.160/aia/SAP%20Global%20Root%20CA.crt && \
-    wget -O /usr/local/share/ca-certificates/SAP_Global_Sub_CA_02.crt http://10.21.21.160/aia/SAP%20Global%20Sub%20CA%2002.crt && \
-    wget -O /usr/local/share/ca-certificates/SAP_Global_Sub_CA_04.crt http://10.21.21.160/aia/SAP%20Global%20Sub%20CA%2004.crt && \
-    wget -O /usr/local/share/ca-certificates/SAP_Global_Sub_CA_05.crt http://10.21.21.160/aia/SAP%20Global%20Sub%20CA%2005.crt && \
-    wget -O /usr/local/share/ca-certificates/SAPNetCA_G2.crt http://10.21.21.160/aia/SAPNetCA_G2.crt && \
+    wget -O /usr/local/share/ca-certificates/SAP_Global_Root_CA.crt http://cdp.pki.co.sap.com/cdp/SAP%20Global%20Root%20CA.crt && \
+    wget -O /usr/local/share/ca-certificates/SAP_Global_Sub_CA_02.crt http://cdp.pki.co.sap.com/cdp/SAP%20Global%20Sub%20CA%2002.crt && \
+    wget -O /usr/local/share/ca-certificates/SAP_Global_Sub_CA_04.crt http://cdp.pki.co.sap.com/cdp/SAP%20Global%20Sub%20CA%2004.crt && \
+    wget -O /usr/local/share/ca-certificates/SAP_Global_Sub_CA_05.crt http://cdp.pki.co.sap.com/cdp/SAP%20Global%20Sub%20CA%2005.crt && \
+    wget -O /usr/local/share/ca-certificates/SAPNetCA_G2.crt http://cdp.pki.co.sap.com/cdp/SAPNetCA_G2.crt && \
     update-ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache
