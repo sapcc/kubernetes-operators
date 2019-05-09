@@ -481,12 +481,7 @@ func (vp *Operator) enrollCertificate(vc *ViceCertificate) error {
 	if vp.isRateLimitForHostExceeded(vc) {
 		return nil
 	}
-
-	if err := vp.viceClient.enroll(vc); err != nil {
-		vp.logger.LogError("couldn't enroll certificate", err, "host", vc.host)
-		return err
-	}
-	return nil
+	return vp.viceClient.enroll(vc)
 }
 
 // renewCertificate triggers the renewal of a certificate if rate limit is not exceeded
@@ -494,20 +489,12 @@ func (vp *Operator) renewCertificate(vc *ViceCertificate) error {
 	if vp.isRateLimitForHostExceeded(vc) {
 		return nil
 	}
-	if err := vp.viceClient.renew(vc); err != nil {
-		vp.logger.LogError("couldn't renew certificate", err, "host", vc.host)
-		return err
-	}
-	return nil
+	return vp.viceClient.renew(vc)
 }
 
 // approveCertificate triggers the approval of a certificate. no rate limit. always approve
 func (vp *Operator) approveCertificate(vc *ViceCertificate) error {
-	if err := vp.viceClient.approve(vc); err != nil {
-		vp.logger.LogError("couldn't approve certificate", err, "host", vc.host)
-		return err
-	}
-	return nil
+	return vp.viceClient.approve(vc)
 }
 
 // pickupCertificate picks up a given certificate if rate limit is not exceeded
@@ -515,11 +502,7 @@ func (vp *Operator) pickupCertificate(vc *ViceCertificate) error {
 	if vp.isRateLimitForHostExceeded(vc) {
 		return nil
 	}
-	if err := vp.viceClient.pickup(vc); err != nil {
-		vp.logger.LogError("couldn't approve certificate", err, "host", vc.host)
-		return err
-	}
-	return nil
+	return vp.viceClient.pickup(vc)
 }
 
 // replaceCertificate triggers the replacement of the certificate if rate limit is not exceeded
@@ -527,11 +510,7 @@ func (vp *Operator) replaceCertificate(vc *ViceCertificate) error {
 	if vp.isRateLimitForHostExceeded(vc) {
 		return nil
 	}
-	if err := vp.viceClient.replace(vc); err != nil {
-		vp.logger.LogError("couldn't replace certificate", err, "host", vc.host)
-		return err
-	}
-	return nil
+	return vp.viceClient.replace(vc)
 }
 
 func (vp *Operator) ingressAdd(obj interface{}) {
