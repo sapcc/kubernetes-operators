@@ -606,6 +606,8 @@ def seed_projects(domain, projects, args, sess):
 
         dns_tsig_keys = project.pop('dns_tsigkeys', None)
 
+        ec2_creds = project.pop('ec2_creds', None)
+
         flavors = project.pop('flavors', None)
 
         share_types = project.pop('share_types', None)
@@ -721,6 +723,10 @@ def seed_projects(domain, projects, args, sess):
         # seed designate tsig keys
         if dns_tsig_keys:
             seed_project_tsig_keys(resource, dns_tsig_keys, args)
+
+        # seed ec2 credentials
+        if ec2_creds:
+            seed_project_ec2_creds(resource, ec2_creds, args, sess)
 
         # seed flavors
         if flavors:
@@ -1772,6 +1778,49 @@ def seed_project_tsig_keys(project, keys, args):
         logging.error("could not seed project dns tsig keys %s: %s" % (
             project.name, e))
 
+
+def seed_project_ec2_creds(project, creds, args, sess):
+    """
+    Seed a projects ec2 credentials
+    :param user:
+    :param access:
+    :param key:
+    :return:
+    """
+
+    logging.debug("seeding ec2 credentials of project %s" % project.name)
+
+    # grab a keystone client
+    keystone = keystoneclient.Client(session=sess,
+                                     interface=args.interface)
+    
+    try:
+        for cred in creds:
+            cred = sanitize(cred, ('user', 'user_domain', 'access', 'key'))
+        
+        domain_id = get_domain_id(cred['user_domain'], keystone)
+        project_id = get_project_id(domain_id, name.project, keystone)
+        user_id = get_user_id(domain_id, cred['user'], keystone)
+
+        result = keystone.users.list(domain=domain_id,
+                                         name=user_id)
+            if not result:
+                logging.info(
+                    "user %s does not exist" % cred['user']
+                )
+            elif cred.get('access') == None or cred.get('key') == None:
+                logging.info(
+                    "missing access or key for ec2 credentials"
+                )
+            # Check if credential exsist - Update if exists
+            else:
+                keystone.credentials.create(user=user_id, type="ec2", project=project_id,
+                                            blob='{"access:" ' + cred['access'] + 
+                                                 ', "secret": ' + cred['secret'])
+
+    except Exception as e:
+        logging.error("could not seed project ec2 credentials %s: %s" % (
+            project.name, e))
 
 def domain_config_equal(new, current):
     """

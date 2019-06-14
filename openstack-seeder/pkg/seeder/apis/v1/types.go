@@ -125,6 +125,7 @@ type ProjectSpec struct {
 	DNSQuota        *DNSQuotaSpec         `json:"dns_quota,omitempty" yaml:"dns_quota,omitempty"`           // designate quota
 	DNSZones        []DNSZoneSpec         `json:"dns_zones,omitempty" yaml:"dns_zones,omitempty"`           // designate zones, recordsets
 	DNSTSIGKeys     []DNSTSIGKeySpec      `json:"dns_tsigkeys,omitempty" yaml:"dns_tsigkeys,omitempty"`     // designate tsig keys
+	Ec2Creds        []Ec2CredSpec         `json:"ec2_creds,omitempty" yaml:"ec2_creds,omitempty"`           // ec2 credentials for user
 }
 
 // A project endpoint filter (see https://developer.openstack.org/api-ref/identity/v3-ext/#os-ep-filter-api)
@@ -366,6 +367,13 @@ type DNSTSIGKeySpec struct {
 	ResourceId string `json:"resource_id,omitempty" yaml:"resource_id,omitempty"` // resource id for this tsigkey which can be either zone or pool id
 }
 
+type Ec2CredSpec struct {
+	User       string `json:"user" yaml:"user"`                     // user to attach ec2 credentials to
+	UserDomain string `json:"user_domain" yaml:"user_domain"`       // domain user is defined in
+	Access     string `json:"access" yaml:"access"`                 // access key for user's ec2 credentials
+	Key        string `json:"key" yaml:"key"`                       // secret key for user's ec2 credentials
+}
+
 func (e *OpenstackSeedSpec) MergeRbacPolicy(rbac RBACPolicySpec) {
 	if e.RBACPolicies == nil {
 		e.RBACPolicies = make([]RBACPolicySpec, 0)
@@ -585,6 +593,9 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 				}
 				if len(project.DNSTSIGKeys) > 0 {
 					v.MergeDNSTSIGKeys(project)
+				}
+				if len(project.Ec2Creds) > 0 {
+					v.MergeEc2Creds(project)
 				}
 				if len(project.Flavors) > 0 {
 					v.Flavors = utils.MergeStringSlices(v.Flavors, project.Flavors)
@@ -929,6 +940,29 @@ func (e *ProjectSpec) MergeDNSTSIGKeys(project ProjectSpec) {
 		if !found {
 			glog.V(2).Info("append project dns tsig key ", z)
 			e.DNSTSIGKeys = append(e.DNSTSIGKeys, z)
+		}
+	}
+}
+
+func (e *ProjectSpec) MergeEc2Creds(project ProjectSpec) {
+	if e.Ec2Creds == nil {
+		e.Ec2Creds = make([]Ec2CredSpec, 0)
+	}
+
+	for _, z := range project.Ec2Creds {
+		found := false
+		for i, v := range e.Ec2Creds {
+			if v.User == z.User {
+				glog.V(2).Info("merge ec2 credentials", z)
+				utils.MergeStructFields(&v, z)
+				e.Ec2Creds[i] = v
+				found = true
+				break
+			}
+		}
+		if !found {
+			glog.V(2).Info("append ec2 credentials", z)
+			e.Ec2Creds = append(e.Ec2Creds, z)
 		}
 	}
 }
