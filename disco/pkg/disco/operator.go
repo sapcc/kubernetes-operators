@@ -319,12 +319,15 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 	// there was an attempt to delete the ingress. cleanup recordset
 	if ingressHasDeletionTimestamp(ingress) {
 		if recordsetID == "" {
-			return fmt.Errorf("would delete recordset %s in zone %s but was unable to find its uid", host, zone.Name)
+			disco.logger.LogInfo("would delete recordset but was unable to find its uid", "host", host, "zoneName", zone.Name)
+			disco.eventRecorder.Eventf(ingress, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", ingressKey(ingress)))
+			return disco.ensureDiscoFinalizerRemoved(ingress)
 		}
 		if err := disco.dnsV2Client.deleteDesignateRecordset(host, recordsetID, zone.ID); err != nil {
 			metrics.RecordsetDeletionFailedCounter.With(labels).Inc()
+			disco.logger.LogError("failed to delete recordset", err)
 			disco.eventRecorder.Eventf(ingress, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", ingressKey(ingress)))
-			return err
+			return disco.ensureDiscoFinalizerRemoved(ingress)
 		}
 		disco.eventRecorder.Eventf(ingress, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("deleted recordset on ingress %s successful", ingressKey(ingress)))
 		metrics.RecordsetDeletionSuccessCounter.With(labels).Inc()
