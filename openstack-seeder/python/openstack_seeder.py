@@ -1804,19 +1804,19 @@ def seed_project_ec2_creds(project, creds, args, sess):
 
         result = keystone.users.list(domain=domain_id,
                                          name=user_id)
-            if not result:
-                logging.info(
-                    "user %s does not exist" % cred['user']
-                )
-            elif cred.get('access') == None or cred.get('key') == None:
-                logging.info(
-                    "missing access or key for ec2 credentials"
-                )
-            # Check if credential exsist - Update if exists
-            else:
-                keystone.credentials.create(user=user_id, type="ec2", project=project_id,
-                                            blob='{"access:" ' + cred['access'] + 
-                                                 ', "secret": ' + cred['secret'])
+        if not result:
+            logging.info(
+                "user %s does not exist" % cred['user']
+            )
+        elif cred.get('access') == None or cred.get('key') == None:
+            logging.info(
+                "missing access or key for ec2 credentials"
+            )
+        # Check if credential exsist - Update if exists
+        else:
+            keystone.credentials.create(user=user_id, type="ec2", project=project_id,
+                                        blob='{"access:" ' + cred['access'] + 
+                                                ', "secret": ' + cred['secret'])
 
     except Exception as e:
         logging.error("could not seed project ec2 credentials %s: %s" % (
