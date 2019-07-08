@@ -2329,9 +2329,7 @@ def seed_config(config, args, sess):
 
     if 'domains' in config:
         for domain in config['domains']:
-            for project in domain['projects']:
-                if 'ec2_creds' in project.keys():
-                    seed_domain(domain, args, sess)
+            seed_domain(domain, args, sess)
 
     if 'rbac_policies' in config:
         for rbac in config['rbac_policies']:
