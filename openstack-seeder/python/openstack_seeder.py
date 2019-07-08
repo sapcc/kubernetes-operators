@@ -27,6 +27,7 @@ import yaml
 from designateclient.v2 import client as designateclient
 from keystoneauth1 import session
 from keystoneauth1.loading import cli
+from keystoneauth1 import exceptions as keystoneauthexceptions
 from keystoneclient import exceptions
 from keystoneclient.v3 import client as keystoneclient
 from neutronclient.v2_0 import client as neutronclient
@@ -726,7 +727,7 @@ def seed_projects(domain, projects, args, sess):
 
         # seed ec2 credentials
         if ec2_creds:
-            seed_project_ec2_creds(resource, ec2_creds, args, sess)
+            seed_project_ec2_creds(resource, domain, ec2_creds, args, sess)
 
         # seed flavors
         if flavors:
@@ -1779,7 +1780,7 @@ def seed_project_tsig_keys(project, keys, args):
             project.name, e))
 
 
-def seed_project_ec2_creds(project, creds, args, sess):
+def seed_project_ec2_creds(project, domain, creds, args, sess):
     """
     Seed a projects ec2 credentials
     :param user:
@@ -1789,38 +1790,38 @@ def seed_project_ec2_creds(project, creds, args, sess):
     """
 
     logging.debug("seeding ec2 credentials of project %s" % project.name)
-
-    # grab a keystone client
-    keystone = keystoneclient.Client(session=sess,
-                                     interface=args.interface)
     
     try:
-        for cred in creds:
-            cred = sanitize(cred, ('user', 'user_domain', 'access', 'key'))
-        
-        domain_id = get_domain_id(cred['user_domain'], keystone)
-        project_id = get_project_id(domain_id, name.project, keystone)
-        user_id = get_user_id(domain_id, cred['user'], keystone)
+        # grab a keystone client
+        keystone = keystoneclient.Client(session=sess,
+                                         interface=args.interface)
+    except Exception as e:
+        logging.error("Couldn't get keystone client")
+        return
 
-        result = keystone.users.list(domain=domain_id,
-                                         name=user_id)
-        if not result:
-            logging.info(
-                "user %s does not exist" % cred['user']
-            )
-        elif cred.get('access') == None or cred.get('key') == None:
-            logging.info(
+    for cred in creds:
+        cred = sanitize(cred, ('user', 'user_domain', 'access', 'key'))
+        domain_id = get_domain_id(cred['user_domain'], keystone)
+        project_id = get_project_id(domain.name, project.name, keystone)
+        user_id = get_user_id(cred['user_domain'], cred['user'], keystone)
+    
+        if cred.get('access') == None or cred.get('key') == None:
+            logging.error(
                 "missing access or key for ec2 credentials"
             )
-        # Check if credential exsist - Update if exists
-        else:
+            return
+        
+        try:
+            # Check if credential exsist - Update if exists
             keystone.credentials.create(user=user_id, type="ec2", project=project_id,
-                                        blob='{"access:" ' + cred['access'] + 
-                                                ', "secret": ' + cred['secret'])
+                                        blob='{"access":"' + cred['access'] + 
+                                        '", "secret":"' + cred['key'] +'"}')   
+        except keystoneauthexceptions.http.Conflict as e:
+            logging.info("Ec2 credentials already exist")
+            return
+        except Exception as e:
+            logging.error("Could not seed ec2 credentials")                              
 
-    except Exception as e:
-        logging.error("could not seed project ec2 credentials %s: %s" % (
-            project.name, e))
 
 def domain_config_equal(new, current):
     """
@@ -2328,7 +2329,9 @@ def seed_config(config, args, sess):
 
     if 'domains' in config:
         for domain in config['domains']:
-            seed_domain(domain, args, sess)
+            for project in domain['projects']:
+                if 'ec2_creds' in project.keys():
+                    seed_domain(domain, args, sess)
 
     if 'rbac_policies' in config:
         for rbac in config['rbac_policies']:
