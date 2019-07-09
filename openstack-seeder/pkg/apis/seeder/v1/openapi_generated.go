@@ -210,6 +210,44 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
+		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.Ec2CredSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "Ec2CredSpec creats ec2 credentials for a user ((see https://developer.openstack.org/api-ref/identity/v3/index.html?expanded=#credentials)",
+					Properties: map[string]spec.Schema{
+						"user": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"user_domain": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Openstack domain of user",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"access": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The access id for the creds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"key": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The key for the acces id",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"name"},
+				},
+			},
+			Dependencies: []string{},
+		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DNSZoneSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
