@@ -43,6 +43,7 @@ Seeding currently only supports creating or updating of entities (upserts).
         - dns_zones
             - recordsets
         - dns_tsigkeys
+        - ec2_creds
         - flavors
     - groups
         - group-role-assignments
