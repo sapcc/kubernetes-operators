@@ -245,6 +245,9 @@ func (e *DomainSpec) MergeProjects(domain DomainSpec) {
 				if len(project.DNSTSIGKeys) > 0 {
 					v.MergeDNSTSIGKeys(project)
 				}
+				if len(project.Ec2Creds) > 0 {
+					v.MergeEc2Creds(project)
+				}
 				if len(project.Flavors) > 0 {
 					v.Flavors = utils.MergeStringSlices(v.Flavors, project.Flavors)
 				}
@@ -637,6 +640,28 @@ func (e *ProjectSpec) MergeDNSTSIGKeys(project ProjectSpec) {
 		if !found {
 			glog.V(2).Info("append project dns tsig key ", z)
 			e.DNSTSIGKeys = append(e.DNSTSIGKeys, z)
+		}
+	}
+}
+
+func (e *ProjectSpec) MergeEc2Creds(project ProjectSpec) {
+	if e.Ec2Creds == nil {
+		e.Ec2Creds = make([]Ec2CredSpec, 0)
+	}
+	for _, z := range project.Ec2Creds {
+		found := false
+		for i, v := range e.Ec2Creds {
+			if v.User == z.User {
+				glog.V(2).Info("merge ec2 credentials", z)
+				utils.MergeStructFields(&v, z)
+				e.Ec2Creds[i] = v
+				found = true
+				break
+			}
+		}
+		if !found {
+			glog.V(2).Info("append ec2 credentials", z)
+			e.Ec2Creds = append(e.Ec2Creds, z)
 		}
 	}
 }
