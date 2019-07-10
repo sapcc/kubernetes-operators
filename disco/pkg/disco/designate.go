@@ -182,11 +182,17 @@ func (c *DNSV2Client) createDesignateRecordset(zoneID, rsName string, records []
 		return err
 	}
 
-	var res gophercloud.Result
-	if _, res.Err = c.client.Post(url, &rec, &res.Body, &opts); res.Err != nil {
-		return errors.Wrapf(err, "Could not create recordset name: %s, type: %s, records: %v, ttl: %v in zone %s. Error: %#v ", rsName, rsType, records, rsTTL, zoneID)
+	var (
+		res gophercloud.Result
+		rs recordsets.RecordSet
+	)
+
+	_, res.Err = c.client.Post(url, &rec, &res.Body, &opts)
+	err = res.ExtractInto(&rs)
+	if err != nil {
+		return errors.Wrapf(err, "could not create recordset name: %s, type: %s, records: %v, ttl: %v in zone %s", rsName, rsType, records, rsTTL, zoneID)
 	}
-	c.logger.LogInfo("created recordset", "name", rsName, "type", rsType, "records", strings.Join(records, ","), "ttl", rsTTL, "zoneID", zoneID)
+	c.logger.LogInfo("created recordset", "name", rs.Name, "id", rs.ID, "type", rs.Type, "records", strings.Join(rs.Records, ", "), "zoneName", rs.ZoneName, "zoneID", rs.ZoneID)
 	return nil
 }
 

@@ -284,6 +284,7 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 	var err error
 	defer func() {
 		if err != nil {
+			// Just emit the event here. The error is logged in he processNextWorkItem.
 			disco.eventRecorder.Eventf(ingress, v1.EventTypeNormal, UpdateEvent, fmt.Sprintf("create recordset on ingress %s failed", ingressKey(ingress)))
 		}
 	}()
@@ -354,10 +355,15 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		description = desc
 	}
 
+	// Only make it a FQDN if not an IP address.
+	if recordType != RecordsetType.A {
+		record = addSuffixIfRequired(record)
+	}
+
 	if err := disco.dnsV2Client.createDesignateRecordset(
 		zone.ID,
 		addSuffixIfRequired(host),
-		[]string{addSuffixIfRequired(record)},
+		[]string{record},
 		disco.RecordsetTTL,
 		recordType,
 		description,
@@ -366,7 +372,7 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		return err
 	}
 	metrics.RecordsetCreationSuccessCounter.With(labels).Inc()
-	disco.logger.LogInfo("create recordset successful", "ingress", ingressKey(ingress), "host", host, "record", addSuffixIfRequired(record), "zone", addSuffixIfRequired(zone.Name))
+	disco.logger.LogInfo("create recordset successful", "ingress", ingressKey(ingress), "host", host, "record", record, "zone", addSuffixIfRequired(zone.Name), "recordType", recordType)
 	disco.eventRecorder.Eventf(ingress, v1.EventTypeNormal, CreateEvent, fmt.Sprintf("create recordset on ingress %s successful", ingressKey(ingress)))
 	return nil
 }
