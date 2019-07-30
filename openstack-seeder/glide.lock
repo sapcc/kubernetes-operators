@@ -1,8 +1,8 @@
 hash: 3a43c44c21f73bc8a2e34b3f0ecbe7ac2c77a52e40cabefaec73b01a19fa45b2
-updated: 2019-04-23T10:18:08.784078+02:00
+updated: 2019-08-06T12:08:14.892127+02:00
 imports:
 - name: github.com/certifi/gocertifi
-  version: a4ab0227d360091084658029ec8ae45f989fba3e
+  version: deb3ae2ef2610fde3330947281941c562861188b
 - name: github.com/davecgh/go-spew
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
@@ -19,7 +19,7 @@ imports:
 - name: github.com/emicklei/go-restful-swagger12
   version: dcef7f55730566d41eae5db10e7d6981829720f6
 - name: github.com/getsentry/raven-go
-  version: c9de0b92586aaba092c2a231cb7384354b178544
+  version: ed7bcb39ff10f39ab08e317ce16df282845852fa
 - name: github.com/ghodss/yaml
   version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - name: github.com/go-openapi/analysis
@@ -63,7 +63,7 @@ imports:
   - vanity
   - vanity/command
 - name: github.com/golang/glog
-  version: 44145f04b68cf362d9c4df2182967c2275eaefed
+  version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
 - name: github.com/hashicorp/golang-lru
@@ -83,15 +83,15 @@ imports:
   - jlexer
   - jwriter
 - name: github.com/pkg/errors
-  version: f15c970de5b76fac0b59abb32d62c17cc7bed265
+  version: 816c9085562cd7ee03e7f8188a1cfd942858cded
 - name: github.com/PuerkitoBio/purell
   version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
 - name: github.com/PuerkitoBio/urlesc
   version: 5bd2802263f21d8788851d5305584c82a5c75d7e
 - name: github.com/spf13/cobra
-  version: 19e54c4a2b8a78c9d54b2bed61b1a6c5e1bfcf6f
+  version: 1e58aa3361fd650121dceeedc399e7189c05674a
 - name: github.com/spf13/pflag
-  version: 4c012f6dcd9546820e378d0bdda4d8fc772cdfea
+  version: 3ebe029320b2676d667ae88da602a5f854788a8a
 - name: github.com/ugorji/go
   version: ded73eae5db7e7a0ef6f55aace87a2873c5d2b74
   subpackages:
@@ -153,7 +153,7 @@ imports:
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
 - name: gopkg.in/yaml.v2
-  version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
+  version: 670d4cfef0544295bc27a114dbac37980d83185a
 - name: k8s.io/apiextensions-apiserver
   version: 718d845dac8d60d16967cd230c1ea21265cc7f85
   subpackages:

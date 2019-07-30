@@ -49,15 +49,28 @@ type OpenstackSeedList struct {
 //
 // Cross kubernetes namespace dependencies can be defined by using a fully qualified **requires** notation that includes a namespace: namespace/specname
 type OpenstackSeedSpec struct {
-	Dependencies    []string         `json:"requires,omitempty" yaml:"requires,omitempty"`                 // list of required specs that need to be resolved before the current one
-	Roles           []string         `json:"roles,omitempty" yaml:"roles,omitempty"`                       // list of keystone roles
-	ResourceClasses []string         `json:"resource_classes,omitempty" yaml:"resource_classes,omitempty"` // list of resource classes for the placement service (currently still part of nova)
-	Regions         []RegionSpec     `json:"regions,omitempty" yaml:"regions,omitempty"`                   // list keystone regions
-	Services        []ServiceSpec    `json:"services,omitempty" yaml:"services,omitempty"`                 // list keystone services and their endpoints
-	Flavors         []FlavorSpec     `json:"flavors,omitempty" yaml:"flavors,omitempty"`                   // list of nova flavors
-	ShareTypes      []ShareTypeSpec  `json:"share_types,omitempty" yaml:"share_types,omitempty"`           // list of Manila share types
-	Domains         []DomainSpec     `json:"domains,omitempty" yaml:"domains,omitempty"`                   // list keystone domains with their configuration, users, groups, projects, etc.
-	RBACPolicies    []RBACPolicySpec `json:"rbac_policies,omitempty" yaml:"rbac_policies,omitempty"`       // list of neutron rbac polices (currently only network rbacs are supported).
+	Dependencies    []string            `json:"requires,omitempty" yaml:"requires,omitempty"`                 // list of required specs that need to be resolved before the current one
+	Roles           []RoleSpec          `json:"roles,omitempty" yaml:"roles,omitempty"`                       // list of keystone roles
+	RoleInferences  []RoleInferenceSpec `json:"role_inferences,omitempty" yaml:"role_inferences,omitempty"`   // list of implied roles
+	ResourceClasses []string            `json:"resource_classes,omitempty" yaml:"resource_classes,omitempty"` // list of resource classes for the placement service (currently still part of nova)
+	Regions         []RegionSpec        `json:"regions,omitempty" yaml:"regions,omitempty"`                   // list keystone regions
+	Services        []ServiceSpec       `json:"services,omitempty" yaml:"services,omitempty"`                 // list keystone services and their endpoints
+	Flavors         []FlavorSpec        `json:"flavors,omitempty" yaml:"flavors,omitempty"`                   // list of nova flavors
+	ShareTypes      []ShareTypeSpec     `json:"share_types,omitempty" yaml:"share_types,omitempty"`           // list of Manila share types
+	Domains         []DomainSpec        `json:"domains,omitempty" yaml:"domains,omitempty"`                   // list keystone domains with their configuration, users, groups, projects, etc.
+	RBACPolicies    []RBACPolicySpec    `json:"rbac_policies,omitempty" yaml:"rbac_policies,omitempty"`       // list of neutron rbac polices (currently only network rbacs are supported).
+}
+
+// A keystone role (see https://developer.openstack.org/api-ref/identity/v3/index.html#roles)
+type RoleSpec struct {
+	Name        string `json:"name" yaml:"name"`                                   // the role name
+	Description string `json:"description,omitempty" yaml:"description,omitempty"` // the role description
+}
+
+// A keystone role inference (see https://developer.openstack.org/api-ref/identity/v3/index.html#roles)
+type RoleInferenceSpec struct {
+	PriorRole   string `json:"prior_role" yaml:"prior_role"`     // the prior role name
+	ImpliedRole string `json:"implied_role" yaml:"implied_role"` // the implied role
 }
 
 // A keystone region (see https://developer.openstack.org/api-ref/identity/v3/index.html#regions)
@@ -86,14 +99,15 @@ type EndpointSpec struct {
 
 // A keystone domain (see https://developer.openstack.org/api-ref/identity/v3/index.html#domains)
 type DomainSpec struct {
-	Name            string               `json:"name" yaml:"name"`                                   // domain name
-	Description     string               `json:"description,omitempty" yaml:"description,omitempty"` // domain description
-	Enabled         *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`         // boolean flag to indicate if the domain is enabled
-	Users           []UserSpec           `json:"users,omitempty" yaml:"users,omitempty"`             // list of domain users
-	Groups          []GroupSpec          `json:"groups,omitempty" yaml:"groups,omitempty"`           // list of domain groups
-	Projects        []ProjectSpec        `json:"projects,omitempty" yaml:"projects,omitempty"`       // list of domain projects
-	RoleAssignments []RoleAssignmentSpec `json:"roles,omitempty" yaml:"roles,omitempty"`             // list of domain-role-assignments
-	Config          DomainConfigSpec     `json:"config,omitempty" yaml:"config,omitempty"`           // optional domain configuration
+	Name            string               `json:"name" yaml:"name"`                                             // domain name
+	Description     string               `json:"description,omitempty" yaml:"description,omitempty"`           // domain description
+	Enabled         *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`                   // boolean flag to indicate if the domain is enabled
+	Users           []UserSpec           `json:"users,omitempty" yaml:"users,omitempty"`                       // list of domain users
+	Groups          []GroupSpec          `json:"groups,omitempty" yaml:"groups,omitempty"`                     // list of domain groups
+	Projects        []ProjectSpec        `json:"projects,omitempty" yaml:"projects,omitempty"`                 // list of domain projects
+	Roles           []RoleSpec           `json:"roles,omitempty" yaml:"roles,omitempty"`                       // list of domain-roles
+	RoleAssignments []RoleAssignmentSpec `json:"role_assignments,omitempty" yaml:"role_assignments,omitempty"` // list of domain-role-assignments
+	Config          DomainConfigSpec     `json:"config,omitempty" yaml:"config,omitempty"`                     // optional domain configuration
 }
 
 // A keystone domain configuation (see https://developer.openstack.org/api-ref/identity/v3/index.html#domain-configuration)
@@ -107,25 +121,25 @@ type DomainConfigSpec struct {
 
 // A keystone project (see https://developer.openstack.org/api-ref/identity/v3/index.html#projects)
 type ProjectSpec struct {
-	Name            string                `json:"name" yaml:"name"`                                         // project name
-	Description     string                `json:"description,omitempty" yaml:"description,omitempty"`       // project description
-	Enabled         *bool                 `json:"enabled,omitempty" yaml:"enabled,omitempty"`               // boolean flag to indicate if the project is enabled
-	Parent          string                `json:"parent,omitempty" yaml:"parent,omitempty"`                 // (optional) parent project id
-	IsDomain        *bool                 `json:"is_domain,omitempty" yaml:"is_domain,omitempty"`           // is the project actually a domain?
-	Endpoints       []ProjectEndpointSpec `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`           // list of project endpoint filters
-	RoleAssignments []RoleAssignmentSpec  `json:"roles,omitempty" yaml:"roles,omitempty"`                   // list of project-role-assignments
-	Flavors         []string              `json:"flavors,omitempty" yaml:"flavors,omitempty"`               // list of nova flavor-id's
-	ShareTypes      []string              `json:"share_types,omitempty" yaml:"share_types,omitempty"`       // list of manila share types
-	AddressScopes   []AddressScopeSpec    `json:"address_scopes,omitempty" yaml:"address_scopes,omitempty"` // list of neutron address-scopes
-	SubnetPools     []SubnetPoolSpec      `json:"subnet_pools,omitempty" yaml:"subnet_pools,omitempty"`     // list of neutron subnet-pools
-	NetworkQuota    *NetworkQuotaSpec     `json:"network_quota,omitempty" yaml:"network_quota,omitempty"`   // neutron quota
-	Networks        []NetworkSpec         `json:"networks,omitempty" yaml:"networks,omitempty"`             // neutron networks
-	Routers         []RouterSpec          `json:"routers,omitempty" yaml:"routers,omitempty"`               // neutron routers
-	Swift           *SwiftAccountSpec     `json:"swift,omitempty" yaml:"swift,omitempty"`                   // swift account
-	DNSQuota        *DNSQuotaSpec         `json:"dns_quota,omitempty" yaml:"dns_quota,omitempty"`           // designate quota
-	DNSZones        []DNSZoneSpec         `json:"dns_zones,omitempty" yaml:"dns_zones,omitempty"`           // designate zones, recordsets
-	DNSTSIGKeys     []DNSTSIGKeySpec      `json:"dns_tsigkeys,omitempty" yaml:"dns_tsigkeys,omitempty"`     // designate tsig keys
-	Ec2Creds        []Ec2CredSpec         `json:"ec2_creds,omitempty" yaml:"ec2_creds,omitempty"`           // ec2 credentials for user
+	Name            string                `json:"name" yaml:"name"`                                             // project name
+	Description     string                `json:"description,omitempty" yaml:"description,omitempty"`           // project description
+	Enabled         *bool                 `json:"enabled,omitempty" yaml:"enabled,omitempty"`                   // boolean flag to indicate if the project is enabled
+	Parent          string                `json:"parent,omitempty" yaml:"parent,omitempty"`                     // (optional) parent project id
+	IsDomain        *bool                 `json:"is_domain,omitempty" yaml:"is_domain,omitempty"`               // is the project actually a domain?
+	Endpoints       []ProjectEndpointSpec `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`               // list of project endpoint filters
+	RoleAssignments []RoleAssignmentSpec  `json:"role_assignments,omitempty" yaml:"role_assignments,omitempty"` // list of project-role-assignments
+	Flavors         []string              `json:"flavors,omitempty" yaml:"flavors,omitempty"`                   // list of nova flavor-id's
+	ShareTypes      []string              `json:"share_types,omitempty" yaml:"share_types,omitempty"`           // list of manila share types
+	AddressScopes   []AddressScopeSpec    `json:"address_scopes,omitempty" yaml:"address_scopes,omitempty"`     // list of neutron address-scopes
+	SubnetPools     []SubnetPoolSpec      `json:"subnet_pools,omitempty" yaml:"subnet_pools,omitempty"`         // list of neutron subnet-pools
+	NetworkQuota    *NetworkQuotaSpec     `json:"network_quota,omitempty" yaml:"network_quota,omitempty"`       // neutron quota
+	Networks        []NetworkSpec         `json:"networks,omitempty" yaml:"networks,omitempty"`                 // neutron networks
+	Routers         []RouterSpec          `json:"routers,omitempty" yaml:"routers,omitempty"`                   // neutron routers
+	Swift           *SwiftAccountSpec     `json:"swift,omitempty" yaml:"swift,omitempty"`                       // swift account
+	DNSQuota        *DNSQuotaSpec         `json:"dns_quota,omitempty" yaml:"dns_quota,omitempty"`               // designate quota
+	DNSZones        []DNSZoneSpec         `json:"dns_zones,omitempty" yaml:"dns_zones,omitempty"`               // designate zones, recordsets
+	DNSTSIGKeys     []DNSTSIGKeySpec      `json:"dns_tsigkeys,omitempty" yaml:"dns_tsigkeys,omitempty"`         // designate tsig keys
+	Ec2Creds        []Ec2CredSpec         `json:"ec2_creds,omitempty" yaml:"ec2_creds,omitempty"`               // ec2 credentials for user
 }
 
 // A project endpoint filter (see https://developer.openstack.org/api-ref/identity/v3-ext/#os-ep-filter-api)
@@ -146,6 +160,7 @@ type RoleAssignmentSpec struct {
 	Domain    string `json:"domain,omitempty" yaml:"domain,omitempty"`         // domain-role-assigment: the domain name
 	Project   string `json:"project,omitempty" yaml:"project,omitempty"`       // project-role-assignment: project_name@domain_name
 	ProjectID string `json:"project_id,omitempty" yaml:"project_id,omitempty"` // project-role assignment: project id
+	System    string `json:"system,omitempty" yaml:"system,omitempty"`         // system-role assignment (currently only 'all' is supported)
 	Group     string `json:"group,omitempty" yaml:"group,omitempty"`           // group name (for project/domain group-role-assignment)
 	User      string `json:"user,omitempty" yaml:"user,omitempty"`             // user name (for project/domain user-role-assignment)
 	Inherited *bool  `json:"inherited,omitempty" yaml:"inherited,omitempty"`   // boolean flag to indicate if the role-assignment should be inherited
@@ -153,20 +168,20 @@ type RoleAssignmentSpec struct {
 
 // A keystone user (see https://developer.openstack.org/api-ref/identity/v3/#users)
 type UserSpec struct {
-	Name             string               `json:"name" yaml:"name"`                                           // username
-	Description      string               `json:"description,omitempty" yaml:"description,omitempty"`         // description of the user
-	Password         string               `json:"password,omitempty" yaml:"password,omitempty"`               // password of the user (only evaluated on user creation)
-	Enabled          *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`                 // boolean flag to indicate if the user is enabled
-	RoleAssignments  []RoleAssignmentSpec `json:"roles,omitempty" yaml:"roles,omitempty"`                     // list of the users role-assignments
-	DefaultProjectID string               `json:"default_project,omitempty" yaml:"default_project,omitempty"` // default project scope for the user
+	Name             string               `json:"name" yaml:"name"`                                             // username
+	Description      string               `json:"description,omitempty" yaml:"description,omitempty"`           // description of the user
+	Password         string               `json:"password,omitempty" yaml:"password,omitempty"`                 // password of the user (only evaluated on user creation)
+	Enabled          *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`                   // boolean flag to indicate if the user is enabled
+	RoleAssignments  []RoleAssignmentSpec `json:"role_assignments,omitempty" yaml:"role_assignments,omitempty"` // list of the users role-assignments
+	DefaultProjectID string               `json:"default_project,omitempty" yaml:"default_project,omitempty"`   // default project scope for the user
 }
 
 // A keystone group (see https://developer.openstack.org/api-ref/identity/v3/#groups)
 type GroupSpec struct {
-	Name            string               `json:"name" yaml:"name"`                                   // group name
-	Description     string               `json:"description,omitempty" yaml:"description,omitempty"` // description of the group
-	Users           []string             `json:"users,omitempty" yaml:"users,omitempty"`             // a list of group members (user names)
-	RoleAssignments []RoleAssignmentSpec `json:"roles,omitempty" yaml:"roles,omitempty"`             // list of the groups role-assignments
+	Name            string               `json:"name" yaml:"name"`                                             // group name
+	Description     string               `json:"description,omitempty" yaml:"description,omitempty"`           // description of the group
+	Users           []string             `json:"users,omitempty" yaml:"users,omitempty"`                       // a list of group members (user names)
+	RoleAssignments []RoleAssignmentSpec `json:"role_assignments,omitempty" yaml:"role_assignments,omitempty"` // list of the groups role-assignments
 }
 
 // A nova flavor (see https://developer.openstack.org/api-ref/compute/#flavors)
@@ -368,10 +383,10 @@ type DNSTSIGKeySpec struct {
 }
 
 type Ec2CredSpec struct {
-	User       string `json:"user" yaml:"user"`                     // user to attach ec2 credentials to
-	UserDomain string `json:"user_domain" yaml:"user_domain"`       // domain user is defined in
-	Access     string `json:"access" yaml:"access"`                 // access key for user's ec2 credentials
-	Key        string `json:"key" yaml:"key"`                       // secret key for user's ec2 credentials
+	User       string `json:"user" yaml:"user"`               // user to attach ec2 credentials to
+	UserDomain string `json:"user_domain" yaml:"user_domain"` // domain user is defined in
+	Access     string `json:"access" yaml:"access"`           // access key for user's ec2 credentials
+	Key        string `json:"key" yaml:"key"`                 // secret key for user's ec2 credentials
 }
 
 func (e *OpenstackSeedSpec) MergeRbacPolicy(rbac RBACPolicySpec) {
@@ -387,17 +402,36 @@ func (e *OpenstackSeedSpec) MergeRbacPolicy(rbac RBACPolicySpec) {
 	e.RBACPolicies = append(e.RBACPolicies, rbac)
 }
 
-func (e *OpenstackSeedSpec) MergeRole(role string) {
+func (e *OpenstackSeedSpec) MergeRole(role RoleSpec) {
 	if e.Roles == nil {
-		e.Roles = make([]string, 0)
+		e.Roles = make([]RoleSpec, 0)
 	}
-	for _, v := range e.Roles {
-		if v == role {
+	for i, v := range e.Roles {
+		if v.Name == role.Name {
+			glog.V(2).Info("merge role ", role.Name)
+			utils.MergeStructFields(&v, role)
+			e.Roles[i] = v
 			return
 		}
 	}
 	glog.V(2).Info("append role ", role)
 	e.Roles = append(e.Roles, role)
+}
+
+func (e *OpenstackSeedSpec) MergeRoleInference(roleInference RoleInferenceSpec) {
+	if e.RoleInferences == nil {
+		e.RoleInferences = make([]RoleInferenceSpec, 0)
+	}
+	for i, v := range e.RoleInferences {
+		if v.PriorRole == roleInference.PriorRole && v.ImpliedRole == roleInference.ImpliedRole {
+			glog.V(2).Info("merge role-inference ", roleInference.PriorRole)
+			utils.MergeStructFields(&v, roleInference)
+			e.RoleInferences[i] = v
+			return
+		}
+	}
+	glog.V(2).Info("append role-inference ", roleInference)
+	e.RoleInferences = append(e.RoleInferences, roleInference)
 }
 
 // MergeResourceClass merges resource-class by name into the spec
@@ -533,6 +567,9 @@ func (e *OpenstackSeedSpec) MergeDomain(domain DomainSpec) {
 			if len(domain.Projects) > 0 {
 				v.MergeProjects(domain)
 			}
+			if len(domain.Roles) > 0 {
+				v.MergeRoles(domain)
+			}
 			if len(domain.RoleAssignments) > 0 {
 				v.MergeRoleAssignments(domain)
 			}
@@ -664,6 +701,28 @@ func (e *DomainSpec) MergeGroups(domain DomainSpec) {
 		if !found {
 			glog.V(2).Info("append group ", group)
 			e.Groups = append(e.Groups, group)
+		}
+	}
+}
+
+func (e *DomainSpec) MergeRoles(domain DomainSpec) {
+	if e.Roles == nil {
+		e.Roles = make([]RoleSpec, 0)
+	}
+	for _, ra := range domain.Roles {
+		found := false
+		for i, v := range e.Roles {
+			if v.Name == ra.Name {
+				glog.V(2).Info("merge domain-role ", ra)
+				utils.MergeStructFields(&v, ra)
+				e.Roles[i] = v
+				found = true
+				break
+			}
+		}
+		if !found {
+			glog.V(2).Info("append domain-role ", ra)
+			e.Roles = append(e.Roles, ra)
 		}
 	}
 }
@@ -1186,10 +1245,20 @@ func (e *DNSZoneSpec) MergeDNSRecordsets(zone DNSZoneSpec) {
 func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 	// sanitize and merge the spec
 	for _, role := range spec.Roles {
-		if role == "" {
+		if role.Name == "" {
 			return errors.New("role name is required")
 		}
 		e.MergeRole(role)
+	}
+
+	for _, roleInference := range spec.RoleInferences {
+		if roleInference.PriorRole == "" {
+			return errors.New("prior-role name is required")
+		}
+		if roleInference.ImpliedRole == "" {
+			return errors.New("implied-role name is required")
+		}
+		e.MergeRoleInference(roleInference)
 	}
 
 	for _, resourceClass := range spec.ResourceClasses {
@@ -1231,6 +1300,12 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 		if domain.Name == "" {
 			return fmt.Errorf("domain %s: a domain name is required", domain.Description)
 		}
+		for _, role := range spec.Roles {
+			if role.Name == "" {
+				return errors.New("domain role name is required")
+			}
+			e.MergeRole(role)
+		}
 		for _, r := range domain.RoleAssignments {
 			if r.User != "" && r.Group != "" {
 				return fmt.Errorf("domain %s: role-assignment should target either user or a group, not both", domain.Name)
@@ -1240,6 +1315,9 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 			}
 			if r.Role == "" {
 				return fmt.Errorf("domain %s: role-assignment with no role", domain.Name)
+			}
+			if r.System != "" || r.Project != "" || r.ProjectID != "" {
+				return fmt.Errorf("domain %s: domain-role-assignment should not also target a project or system", domain.Name)
 			}
 		}
 		for _, project := range domain.Projects {
@@ -1256,6 +1334,9 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 				if r.Role == "" {
 					return fmt.Errorf("project %s/%s: role-assignment with no role", domain.Name, project.Name)
 				}
+				if r.System != "" || r.Domain != "" {
+					return fmt.Errorf("project %s: project-role-assignment should not also target a domain or system", domain.Name)
+				}
 			}
 		}
 		for _, user := range domain.Users {
@@ -1263,11 +1344,17 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 				return fmt.Errorf("domain %s, user %s: a user name is required", domain.Name, user.Description)
 			}
 			for _, r := range user.RoleAssignments {
-				if (r.Project != "" || r.ProjectID != "") && r.Domain != "" {
-					return fmt.Errorf("user %s/%s: role-assignment should target either project or a domain, not both", domain.Name, user.Name)
-				}
-				if r.Project == "" && r.ProjectID == "" && r.Domain == "" {
-					return fmt.Errorf("user %s/%s: role-assignment should target a project or a domain", domain.Name, user.Name)
+				if r.System != "" {
+					if r.System != "all" {
+						return fmt.Errorf("user %s/%s: system-role-assignment can curently only target 'all'", domain.Name, user.Name)
+					}
+				} else {
+					if (r.Project != "" || r.ProjectID != "") && r.Domain != "" {
+						return fmt.Errorf("user %s/%s: role-assignment should target either project or a domain, not both", domain.Name, user.Name)
+					}
+					if r.Project == "" && r.ProjectID == "" && r.Domain == "" {
+						return fmt.Errorf("user %s/%s: role-assignment should target a project or a domain", domain.Name, user.Name)
+					}
 				}
 				if r.Role == "" {
 					return fmt.Errorf("user %s/%s: role-assignment with no role", domain.Name, user.Name)
@@ -1279,11 +1366,17 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 				return fmt.Errorf("domain %s, group %s: a group name is required", domain.Name, group.Description)
 			}
 			for _, r := range group.RoleAssignments {
-				if (r.Project != "" || r.ProjectID != "") && r.Domain != "" {
-					return fmt.Errorf("group %s/%s: role-assignment should target either project or a domain, not both", domain.Name, group.Name)
-				}
-				if r.Project == "" && r.ProjectID == "" && r.Domain == "" {
-					return fmt.Errorf("group %s/%s: role-assignment should target a project or a domain", domain.Name, group.Name)
+				if r.System != "" {
+					if r.System != "all" {
+						return fmt.Errorf("group %s/%s: system-role-assignment can curently only target 'all'", domain.Name, group.Name)
+					}
+				} else {
+					if (r.Project != "" || r.ProjectID != "") && r.Domain != "" {
+						return fmt.Errorf("group %s/%s: role-assignment should target either project or a domain, not both", domain.Name, group.Name)
+					}
+					if r.Project == "" && r.ProjectID == "" && r.Domain == "" {
+						return fmt.Errorf("group %s/%s: role-assignment should target a project or a domain", domain.Name, group.Name)
+					}
 				}
 				if r.Role == "" {
 					return fmt.Errorf("group %s/%s: role-assignment with no role", domain.Name, group.Name)

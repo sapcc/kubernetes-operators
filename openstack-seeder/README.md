@@ -17,6 +17,7 @@ Seeding currently only supports creating or updating of entities (upserts).
 
 - regions
 - roles
+- role_inferences
 - services
     - endpoints
 - flavors
@@ -49,6 +50,7 @@ Seeding currently only supports creating or updating of entities (upserts).
         - group-role-assignments
     - users
         - user-role-assignments
+    - roles
        
     
 ## Spec format
@@ -70,10 +72,19 @@ Example seed spec of a keystone seed to be deployed via helm:
         heritage: "{{ .Release.Service }}"
     spec:
       roles:
-      - admin
-      - member
-      - service
+      - name: admin
+        description: 'Keystone Administration'
+      - name: member
+        description: 'Keystone Member'
+      - name: reader
+        description: 'Keystone Read-Only'
+      - name: service
+        description: 'Keystone Service'
     
+      role_inferences:
+      - prior_role: admin
+        implied_role: member
+        
       regions:
       - id: eu
         description: 'Europe'
@@ -114,7 +125,7 @@ Example seed spec of a keystone seed to be deployed via helm:
           description: Openstack Cloud Administrator
           enabled: true
           password: secret123
-          roles:
+          role_assignments:
           - domain: Default
             role: admin
           - project: admin
@@ -125,7 +136,7 @@ Example seed spec of a keystone seed to be deployed via helm:
         groups:
         - name: administrators
           description: Administrators
-          roles:
+          role_assignments:
           - domain: Default
             role: admin
           - project: admin
@@ -136,7 +147,7 @@ Example seed spec of a keystone seed to be deployed via helm:
           - admin
         - name: members
           description: Members
-          roles:
+          role_assignments:
           - domain: Default
             role: member
         projects:

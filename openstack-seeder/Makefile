@@ -32,6 +32,7 @@ push: build
 
 clean:
 	rm -rf bin/*
+	rm -rf vendor/*
 
 vendor:
 	glide install --strip-vendor && glide update --strip-vendor
