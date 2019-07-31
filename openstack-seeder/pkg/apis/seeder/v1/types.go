@@ -190,6 +190,7 @@ type ProjectSpec struct {
 	DNSQuota        *DNSQuotaSpec         `json:"dns_quota,omitempty" yaml:"dns_quota,omitempty"`           // designate quota
 	DNSZones        []DNSZoneSpec         `json:"dns_zones,omitempty" yaml:"dns_zones,omitempty"`           // designate zones, recordsets
 	DNSTSIGKeys     []DNSTSIGKeySpec      `json:"dns_tsigkeys,omitempty" yaml:"dns_tsigkeys,omitempty"`     // designate tsig keys
+	Ec2Creds        []Ec2CredSpec         `json:"ec2_creds,omitempty" yaml:"ec2_creds,omitempty"`           // ec2 credentions for user
 }
 
 // A project endpoint filter (see https://developer.openstack.org/api-ref/identity/v3-ext/#os-ep-filter-api)
@@ -454,4 +455,13 @@ type DNSTSIGKeySpec struct {
 	Secret     string `json:"secret,omitempty" yaml:"secret,omitempty"`           // The actual key to be used
 	Scope      string `json:"scope,omitempty" yaml:"scope,omitempty"`             // scope for this tsigkey which can be either ZONE or POOL scope
 	ResourceId string `json:"resource_id,omitempty" yaml:"resource_id,omitempty"` // resource id for this tsigkey which can be either zone or pool id
+}
+
+// Ec2CredSPec defines an ec2 credential for a user (see https://developer.openstack.org/api-ref/identity/v3/index.html?expanded=#credentials)
+// *k8s:openapi-gen=true
+type Ec2CredSpec struct {
+	User       string `json:"user" yaml:"user"`
+	UserDomain string `json:"user_domain" yaml"user_domain"`
+	Access     string `json:"access" yaml:"access"`
+	Key        string `json:"key" yaml:"key"`
 }
