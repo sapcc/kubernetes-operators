@@ -210,44 +210,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.Ec2CredSpec": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "Ec2CredSpec creats ec2 credentials for a user ((see https://developer.openstack.org/api-ref/identity/v3/index.html?expanded=#credentials)",
-					Properties: map[string]spec.Schema{
-						"user": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"user_domain": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Openstack domain of user",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"access": {
-							SchemaProps: spec.SchemaProps{
-								Description: "The access id for the creds",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"key": {
-							SchemaProps: spec.SchemaProps{
-								Description: "The key for the acces id",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-					},
-					Required: []string{"name"},
-				},
-			},
-			Dependencies: []string{},
-		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DNSZoneSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -400,6 +362,19 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleSpec"),
+										},
+									},
+								},
+							},
+						},
+						"role_assignments": {
+							SchemaProps: spec.SchemaProps{
+								Description: "list of domain-roles",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
 											Ref: ref("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleAssignmentSpec"),
 										},
 									},
@@ -417,7 +392,45 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DomainConfigSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.GroupSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ProjectSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleAssignmentSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.UserSpec"},
+				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DomainConfigSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.GroupSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ProjectSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleAssignmentSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.UserSpec"},
+		},
+		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.Ec2CredSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "Ec2CredSpec defines an ec2 credential for a user (see https://developer.openstack.org/api-ref/identity/v3/index.html?expanded=#credentials)",
+					Properties: map[string]spec.Schema{
+						"user": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"user_domain": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Username",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"access": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Openstack domain of the user",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"key": {
+							SchemaProps: spec.SchemaProps{
+								Description: "EC2 access id of the credential",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"user", "user_domain", "access", "key"},
+				},
+			},
+			Dependencies: []string{},
 		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.EndpointSpec": {
 			Schema: spec.Schema{
@@ -646,7 +659,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 						},
-						"roles": {
+						"role_assignments": {
 							SchemaProps: spec.SchemaProps{
 								Description: "a list of group members (user names)",
 								Type:        []string{"array"},
@@ -1260,8 +1273,20 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Type:   []string{"string"},
-											Format: "",
+											Ref: ref("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleSpec"),
+										},
+									},
+								},
+							},
+						},
+						"role_inferences": {
+							SchemaProps: spec.SchemaProps{
+								Description: "list of keystone roles",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleInferenceSpec"),
 										},
 									},
 								},
@@ -1269,7 +1294,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"regions": {
 							SchemaProps: spec.SchemaProps{
-								Description: "list of keystone roles",
+								Description: "list of implied roles",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1363,7 +1388,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DomainSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.FlavorSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RBACPolicySpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RegionSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ServiceSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ShareTypeSpec"},
+				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DomainSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.FlavorSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RBACPolicySpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RegionSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleInferenceSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ServiceSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ShareTypeSpec"},
 		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.OpenstackSeedStatus": {
 			Schema: spec.Schema{
@@ -1470,7 +1495,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 						},
-						"roles": {
+						"role_assignments": {
 							SchemaProps: spec.SchemaProps{
 								Description: "list of project endpoint filters",
 								Type:        []string{"array"},
@@ -1607,12 +1632,25 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 						},
+						"ec2_creds": {
+							SchemaProps: spec.SchemaProps{
+								Description: "designate tsig keys",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.Ec2CredSpec"),
+										},
+									},
+								},
+							},
+						},
 					},
 					Required: []string{"name"},
 				},
 			},
 			Dependencies: []string{
-				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.AddressScopeSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DNSQuotaSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DNSTSIGKeySpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DNSZoneSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.NetworkQuotaSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.NetworkSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ProjectEndpointSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleAssignmentSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RouterSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.SubnetPoolSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.SwiftAccountSpec"},
+				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.AddressScopeSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DNSQuotaSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DNSTSIGKeySpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DNSZoneSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.Ec2CredSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.NetworkQuotaSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.NetworkSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ProjectEndpointSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleAssignmentSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RouterSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.SubnetPoolSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.SwiftAccountSpec"},
 		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RBACPolicySpec": {
 			Schema: spec.Schema{
@@ -1715,9 +1753,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "",
 							},
 						},
-						"group": {
+						"system": {
 							SchemaProps: spec.SchemaProps{
 								Description: "project-role assignment: project id",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"group": {
+							SchemaProps: spec.SchemaProps{
+								Description: "system-role assignment (currently only 'all' is supported)",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -2318,7 +2363,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "",
 							},
 						},
-						"roles": {
+						"role_assignments": {
 							SchemaProps: spec.SchemaProps{
 								Description: "boolean flag to indicate if the user is enabled",
 								Type:        []string{"array"},

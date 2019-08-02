@@ -61,6 +61,7 @@ role_assignments = []
 resource_classes = set()
 
 
+# todo: role.domainId ?
 def get_role_id(name, keystone):
     """ get a (cached) role-id for a role name """
     result = None
@@ -234,14 +235,53 @@ def seed_role(role, keystone):
     """ seed a keystone role """
     logging.debug("seeding role %s" % role)
 
-    result = keystone.roles.list(name=role)
+    role = sanitize(role, ('name', 'description', 'domainId'))
+
+    # todo: role.domainId ?
+    if 'domainId' in role:
+        result = keystone.roles.list(name=role['name'], domain=role['domainId'])
+    else:
+        result = keystone.roles.list(name=role['name'])
     if not result:
         logging.info("create role '%s'" % role)
-        resource = keystone.roles.create(name=role)
+        resource = keystone.roles.create(**role)
     else:
         resource = result[0]
+        for attr in role.keys():
+            if role[attr] != resource._info.get(attr, ''):
+                logging.info(
+                    "%s differs. update role '%s'" % (attr, role))
+                keystone.roles.update(resource.id, **role)
+                break
 
+    # todo: role.domainId ?
     role_cache[resource.name] = resource.id
+
+
+def seed_role_inference(role_inference, keystone):
+    """ seed a keystone role inference """
+    logging.debug("seeding role-inference %s" % role_inference)
+
+    # todo: role.domainId ? just for global roles?
+
+    role_inference = sanitize(role_inference, ('prior_role', 'implied_role'))
+
+    # resolve role-id's
+    prior_role_id = get_role_id(role_inference['prior_role'], keystone)
+    if not prior_role_id:
+        logging.warn(
+            "skipping role-inference '%s', since its prior_role is unknown" % role_inference)
+        return
+    implied_role_id = get_role_id(role_inference['implied_role'], keystone)
+    if not implied_role_id:
+        logging.warn(
+            "skipping role-inference '%s', since its implied_role is unknown" % role_inference)
+        return
+
+    result = keystone.inference_rules.get(prior_role_id, implied_role_id)
+    if not result:
+        logging.info("create role-inference '%s'" % role_inference)
+        keystone.inference_rules.create(prior_role_id, implied_role_id)
 
 
 def seed_region(region, keystone):
@@ -374,9 +414,9 @@ def seed_users(domain, users, keystone):
     logging.debug("seeding users %s %s" % (domain.name, users))
 
     for user in users:
-        roles = None
-        if 'roles' in user:
-            roles = user.pop('roles')
+        ra = None
+        if 'role_assignments' in user:
+            ra = user.pop('role_assignments')
 
         if '@' not in user['name']:
             user = sanitize(user, (
@@ -413,24 +453,27 @@ def seed_users(domain, users, keystone):
             user_cache[domain.name][resource.name] = resource.id
 
         # add the users role assignments to the list to be resolved later on
-        if roles:
-            for role in roles:
+        if ra:
+            for role in ra:
                 assignment = dict()
                 assignment['role'] = role['role']
                 assignment['user'] = '%s@%s' % (
                     user['name'], domain.name)
-                if 'project' in role:
-                    if '@' in role['project']:
-                        assignment['project'] = role['project']
-                    else:
-                        assignment['project'] = '%s@%s' % (
-                            role['project'], domain.name)
-                elif 'project_id' in role:
-                    assignment['project_id'] = role['project_id']
-                elif 'domain' in role:
-                    assignment['domain'] = role['domain']
-                if 'inherited' in role:
-                    assignment['inherited'] = role['inherited']
+                if 'system' in role:
+                    assignment['system'] = role['system']
+                else:
+                    if 'project' in role:
+                        if '@' in role['project']:
+                            assignment['project'] = role['project']
+                        else:
+                            assignment['project'] = '%s@%s' % (
+                                role['project'], domain.name)
+                    elif 'project_id' in role:
+                        assignment['project_id'] = role['project_id']
+                    elif 'domain' in role:
+                        assignment['domain'] = role['domain']
+                    if 'inherited' in role:
+                        assignment['inherited'] = role['inherited']
 
                 role_assignments.append(assignment)
 
@@ -443,9 +486,9 @@ def seed_groups(domain, groups, keystone):
         users = None
         if 'users' in group:
             users = group.pop('users')
-        roles = None
-        if 'roles' in group:
-            roles = group.pop('roles')
+        ra = None
+        if 'role_assignments' in group:
+            ra = group.pop('role_assignments')
 
         group = sanitize(group, ('name', 'description'))
 
@@ -487,24 +530,26 @@ def seed_groups(domain, groups, keystone):
                         '%s@%s' % (user, domain.name))
 
         # add the groups role assignments to the list to be resolved later on
-        if roles:
-            for role in roles:
+        if ra:
+            for role in ra:
                 assignment = dict()
                 assignment['role'] = role['role']
-                assignment['group'] = '%s@%s' % (
-                    group['name'], domain.name)
-                if 'project' in role:
-                    if '@' in role['project']:
-                        assignment['project'] = role['project']
-                    else:
-                        assignment['project'] = '%s@%s' % (
-                            role['project'], domain.name)
-                elif 'project_id' in role:
-                    assignment['project_id'] = role['project_id']
-                elif 'domain' in role:
-                    assignment['domain'] = role['domain']
-                if 'inherited' in role:
-                    assignment['inherited'] = role['inherited']
+                assignment['group'] = '%s@%s' % (group['name'], domain.name)
+                if 'system' in role:
+                    assignment['system'] = role['system']
+                else:
+                    if 'project' in role:
+                        if '@' in role['project']:
+                            assignment['project'] = role['project']
+                        else:
+                            assignment['project'] = '%s@%s' % (
+                                role['project'], domain.name)
+                    elif 'project_id' in role:
+                        assignment['project_id'] = role['project_id']
+                    elif 'domain' in role:
+                        assignment['domain'] = role['domain']
+                    if 'inherited' in role:
+                        assignment['inherited'] = role['inherited']
                 role_assignments.append(assignment)
 
 
@@ -572,9 +617,9 @@ def seed_projects(domain, projects, args, sess):
                                      interface=args.interface)
 
     for project in projects:
-        roles = None
-        if 'roles' in project:
-            roles = project.pop('roles', None)
+        ra = None
+        if 'role_assignments' in project:
+            ra = project.pop('role_assignments', None)
         endpoints = None
         if 'project_endpoints' in project:
             endpoints = project.pop('project_endpoints', None)
@@ -664,8 +709,8 @@ def seed_projects(domain, projects, args, sess):
             seed_project_endpoints(resource, endpoints, keystone)
 
         # add the projects role assignments to the list to be resolved later on
-        if roles:
-            for role in roles:
+        if ra:
+            for role in ra:
                 assignment = dict()
                 assignment['role'] = role['role']
                 assignment['project'] = '%s@%s' % (
@@ -756,15 +801,14 @@ def seed_project_flavors(project, flavors, args, sess):
             if project.id not in access:
                 # add it
                 logging.info(
-                    "adding flavor '%s' access to project '%s" % (
-                        flavorid, project.name))
-                nova.flavor_access.add_tenant_access(flavorid,
-                                                     project.id)
+                    "adding flavor '%s' access to project '%s" % (flavorid, project.name))
+                nova.flavor_access.add_tenant_access(flavorid, project.id)
         except Exception as e:
             logging.error(
                 "could not add flavor-id '%s' access for project '%s': %s" % (
                     flavorid, project.name, e))
             raise
+
 
 def seed_project_share_types(project, share_types, args, sess):
     """
@@ -776,15 +820,15 @@ def seed_project_share_types(project, share_types, args, sess):
         client = manilaclient.Client(session=sess, api_version=api_version)
         shareTypeManager = client.share_types
         shareTypeAccessManager = client.share_type_access
-    except Exception as e :
+    except Exception as e:
         logging.error("Fail to initialize manila client: %s" % e)
         raise
 
-    all_private_share_types = [ t for t in shareTypeManager.list() 
-                                if t.is_public is False ]
-    validated_types = [ t for t in all_private_share_types 
-                            if t.name in share_types ]
-    validated_type_names = [ t.name for t in validated_types ]
+    all_private_share_types = [t for t in shareTypeManager.list()
+                               if t.is_public is False]
+    validated_types = [t for t in all_private_share_types
+                       if t.name in share_types]
+    validated_type_names = [t.name for t in validated_types]
 
     for t in share_types:
         if t not in validated_type_names:
@@ -794,8 +838,9 @@ def seed_project_share_types(project, share_types, args, sess):
 
     def list_type_projects(stype):
         return [l.project_id for l in shareTypeAccessManager.list(stype)]
-    current_types = [ t for t in all_private_share_types 
-                        if project.id in list_type_projects(t) ]
+
+    current_types = [t for t in all_private_share_types
+                     if project.id in list_type_projects(t)]
 
     logging.info(current_types)
 
@@ -1222,8 +1267,7 @@ def seed_project_routers(project, routers, args, sess):
 
                 for attr in router.keys():
                     if attr == 'external_gateway_info':
-                        if 'network_id' in router[
-                            attr] and resource.get(attr, ''):
+                        if 'network_id' in router[attr] and resource.get(attr, ''):
                             if router[attr]['network_id'] != \
                                     resource[attr]['network_id']:
                                 update = True
@@ -1308,8 +1352,7 @@ def seed_router_interfaces(router, interfaces, args, sess):
         result = neutron.list_ports(retrieve_all=True, **query)
         found = False
         for port in result['ports']:
-            if 'port_id' in interface and port['id'] == interface[
-                'port_id']:
+            if 'port_id' in interface and port['id'] == interface['port_id']:
                 found = True
                 break
             elif 'subnet_id' in interface:
@@ -1705,8 +1748,7 @@ def seed_dns_zone_recordsets(zone, recordsets, designate):
                                         zone['name'], recordset['name'],
                                         record))
                                 designate.recordsets.update(zone['id'],
-                                                            resource[
-                                                                'id'],
+                                                            resource['id'],
                                                             recordset)
                                 break
                     elif recordset[attr] != resource.get(attr, ''):
@@ -1789,7 +1831,7 @@ def seed_project_ec2_creds(project, domain, creds, args, sess):
     """
 
     logging.debug("seeding ec2 credentials of project %s" % project.name)
-    
+
     try:
         # grab a keystone client
         keystone = keystoneclient.Client(session=sess,
@@ -1800,26 +1842,25 @@ def seed_project_ec2_creds(project, domain, creds, args, sess):
 
     for cred in creds:
         cred = sanitize(cred, ('user', 'user_domain', 'access', 'key'))
-        domain_id = get_domain_id(cred['user_domain'], keystone)
         project_id = get_project_id(domain.name, project.name, keystone)
         user_id = get_user_id(cred['user_domain'], cred['user'], keystone)
-    
-        if cred.get('access') == None or cred.get('key') == None:
+
+        if cred.get('access') is None or cred.get('key') is None:
             logging.error(
                 "missing access or key for ec2 credentials"
             )
             return
-        
+
         try:
             # Check if credential exsist - Update if exists
             keystone.credentials.create(user=user_id, type="ec2", project=project_id,
-                                        blob='{"access":"' + cred['access'] + 
-                                        '", "secret":"' + cred['key'] +'"}')   
+                                        blob='{"access":"' + cred['access'] +
+                                             '", "secret":"' + cred['key'] + '"}')
         except keystoneauthexceptions.http.Conflict as e:
             logging.info("Ec2 credentials already exist")
             return
         except Exception as e:
-            logging.error("Could not seed ec2 credentials")  
+            logging.error("Could not seed ec2 credentials")
 
 
 def domain_config_equal(new, current):
@@ -1883,6 +1924,9 @@ def seed_domain(domain, args, sess):
     roles = None
     if 'roles' in domain:
         roles = domain.pop('roles', None)
+    ra = None
+    if 'role_assignments' in domain:
+        ra = domain.pop('role_assignments', None)
 
     domain = sanitize(domain, ('name', 'description', 'enabled'))
 
@@ -1919,6 +1963,10 @@ def seed_domain(domain, args, sess):
         seed_groups(resource, groups, keystone)
     if roles:
         for role in roles:
+            role['domainId'] = resource.id
+            seed_role(role, keystone)
+    if ra:
+        for role in ra:
             assignment = dict()
             assignment['role'] = role['role']
             assignment['domain'] = domain['name']
@@ -2047,6 +2095,7 @@ def seed_flavor(flavor, args, sess, config):
         logging.error("Failed to seed flavor %s: %s" % (flavor, e))
         raise
 
+
 def seed_share_type(sharetype, args, sess, config):
     """ seed manila share type """
     logging.debug("seeding Manila share type %s" % sharetype)
@@ -2056,12 +2105,12 @@ def seed_share_type(sharetype, args, sess, config):
         api_version = api_versions.APIVersion("2.40")
         client = manilaclient.Client(session=sess, api_version=api_version)
         manager = client.share_types
-    except Exception as e :
+    except Exception as e:
         logging.error("Fail to initialize client: %s" % e)
         raise
 
     def get_type_by_name(name):
-        opts={'all_tenants': 1}
+        opts = {'all_tenants': 1}
         for t in manager.list(search_opts=opts):
             if t.name == name:
                 return t
@@ -2104,7 +2153,7 @@ def seed_share_type(sharetype, args, sess, config):
             sharetype.pop('description')
             manager.create(**sharetype)
 
-   # validation sharetype
+    # validation sharetype
     sharetype = validate_share_type(sharetype)
     logging.debug("Validated Manila share type %s" % sharetype)
 
@@ -2112,16 +2161,17 @@ def seed_share_type(sharetype, args, sess, config):
     stype = get_type_by_name(sharetype['name'])
     if stype:
         try:
-            update_type(stype, sharetype['extra_specs']) 
+            update_type(stype, sharetype['extra_specs'])
         except Exception as e:
             logging.error("Failed to update share type %s: %s" % (sharetype, e))
             raise
-    else: 
+    else:
         try:
             create_type(sharetype)
-        except Exception as e :
+        except Exception as e:
             logging.error("Failed to create share type %s: %s" % (sharetype, e))
             raise
+
 
 def seed_rbac_policy(rbac, args, sess, keystone):
     """ seed a neutron rbac-policy """
@@ -2234,29 +2284,32 @@ def resolve_role_assignments(keystone):
                         assignment['group'])
                     continue
                 role_assignment['group'] = id
-            if 'domain' in assignment:
-                id = get_domain_id(assignment['domain'], keystone)
-                if not id:
-                    logging.warn(
-                        "domain %s not found, skipping role assignment.." %
-                        assignment['domain'])
-                    continue
-                role_assignment['domain'] = id
-            if 'project' in assignment:
-                project, domain = assignment['project'].split('@')
-                id = get_project_id(domain, project, keystone)
-                if not id:
-                    logging.warn(
-                        "project %s not found, skipping role assignment.." %
-                        assignment['project'])
-                    continue
-                role_assignment['project'] = id
-            elif 'project_id' in assignment:
-                role_assignment['project'] = assignment['project_id']
+            if 'system' in assignment:
+                role_assignment['system'] = assignment['system']
+            else:
+                if 'domain' in assignment:
+                    id = get_domain_id(assignment['domain'], keystone)
+                    if not id:
+                        logging.warn(
+                            "domain %s not found, skipping role assignment.." %
+                            assignment['domain'])
+                        continue
+                    role_assignment['domain'] = id
+                if 'project' in assignment:
+                    project, domain = assignment['project'].split('@')
+                    id = get_project_id(domain, project, keystone)
+                    if not id:
+                        logging.warn(
+                            "project %s not found, skipping role assignment.." %
+                            assignment['project'])
+                        continue
+                    role_assignment['project'] = id
+                elif 'project_id' in assignment:
+                    role_assignment['project'] = assignment['project_id']
 
-            if 'inherited' in assignment:
-                role_assignment['os_inherit_extension_inherited'] = \
-                    assignment['inherited']
+                if 'inherited' in assignment:
+                    role_assignment['os_inherit_extension_inherited'] = \
+                        assignment['inherited']
 
             try:
                 keystone.roles.check(role_id, **role_assignment)
@@ -2342,6 +2395,11 @@ def seed_config(config, args, sess):
         for share_type in config['share_types']:
             seed_share_type(share_type, args, sess, config)
 
+    if 'role_inferences' in config:
+        for role_inference in config['role_inferences']:
+            if role_inference:
+                seed_role_inference(role_inference, keystone)
+
     if group_members:
         resolve_group_members(keystone)
 
@@ -2354,11 +2412,11 @@ def seed(args):
         if args.input:
             # get seed content from file
             with open(args.input, 'r') as f:
-                config = yaml.load(f)
+                config = yaml.load(f, Loader=yaml.SafeLoader)
         else:
             # get seed content from stdin
             seed_content = sys.stdin.read()
-            config = yaml.load(seed_content)
+            config = yaml.load(seed_content, Loader=yaml.SafeLoader)
     except Exception as e:
         logging.error("could not parse seed input: %s" % e)
         return 1

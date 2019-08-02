@@ -25,17 +25,35 @@ import (
 	utils "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/seeder"
 )
 
-func (e *OpenstackSeedSpec) MergeRole(role string) {
+func (e *OpenstackSeedSpec) MergeRole(role RoleSpec) {
 	if e.Roles == nil {
-		e.Roles = make([]string, 0)
+		e.Roles = make([]RoleSpec, 0)
 	}
-	for _, v := range e.Roles {
-		if v == role {
-			return
+	for i, v := range e.Roles {
+		if v.Name == role.Name {
+			glog.V(2).Info("merge role ", role.Name)
+			utils.MergeStructFields(&v, role)
+			e.Roles[i] = v
 		}
 	}
 	glog.V(2).Info("append role ", role)
 	e.Roles = append(e.Roles, role)
+}
+
+func (e *OpenstackSeedSpec) MergeRoleInference(roleInference RoleInferenceSpec) {
+	if e.RoleInferences == nil {
+		e.RoleInferences = make([]RoleInferenceSpec, 0)
+	}
+	for i, v := range e.RoleInferences {
+		if v.PriorRole == roleInference.PriorRole && v.ImpliedRole == roleInference.ImpliedRole {
+			glog.V(2).Info("merge role-inference ", roleInference.PriorRole)
+			utils.MergeStructFields(&v, roleInference)
+			e.RoleInferences[i] = v
+			return
+		}
+	}
+	glog.V(2).Info("append role-inference ", roleInference)
+	e.RoleInferences = append(e.RoleInferences, roleInference)
 }
 
 func (e *OpenstackSeedSpec) MergeRegion(region RegionSpec) {
@@ -170,6 +188,9 @@ func (e *OpenstackSeedSpec) MergeDomain(domain DomainSpec) {
 			}
 			if len(domain.Projects) > 0 {
 				v.MergeProjects(domain)
+			}
+			if len(domain.Roles) > 0 {
+				v.MergeRoles(domain)
 			}
 			if len(domain.RoleAssignments) > 0 {
 				v.MergeRoleAssignments(domain)
@@ -315,6 +336,28 @@ func (e *DomainSpec) MergeGroups(domain DomainSpec) {
 		if !found {
 			glog.V(2).Info("append group ", group)
 			e.Groups = append(e.Groups, group)
+		}
+	}
+}
+
+func (e *DomainSpec) MergeRoles(domain DomainSpec) {
+	if e.Roles == nil {
+		e.Roles = make([]RoleSpec, 0)
+	}
+	for _, ra := range domain.Roles {
+		found := false
+		for i, v := range e.Roles {
+			if v.Name == ra.Name {
+				glog.V(2).Info("merge domain-role ", ra)
+				utils.MergeStructFields(&v, ra)
+				e.Roles[i] = v
+				found = true
+				break
+			}
+		}
+		if !found {
+			glog.V(2).Info("append domain-role ", ra)
+			e.Roles = append(e.Roles, ra)
 		}
 	}
 }
@@ -838,7 +881,7 @@ func (e *DNSZoneSpec) MergeDNSRecordsets(zone DNSZoneSpec) {
 func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 	// sanitize and merge the spec
 	for _, role := range spec.Roles {
-		if role == "" {
+		if role.Name == "" {
 			return errors.New("role name is required")
 		}
 		e.MergeRole(role)
@@ -875,6 +918,12 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 		if domain.Name == "" {
 			return fmt.Errorf("domain %s: a domain name is required", domain.Description)
 		}
+		for _, role := range spec.Roles {
+			if role.Name == "" {
+				return fmt.Errorf("domain %s: a domain role name is required", domain.Name)
+			}
+			e.MergeRole(role)
+		}
 		for _, r := range domain.RoleAssignments {
 			if r.User != "" && r.Group != "" {
 				return fmt.Errorf("domain %s: role-assignment should target either user or a group, not both", domain.Name)
@@ -884,6 +933,9 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 			}
 			if r.Role == "" {
 				return fmt.Errorf("domain %s: role-assignment with no role", domain.Name)
+			}
+			if r.System != "" || r.Project != "" || r.ProjectID != "" {
+				return fmt.Errorf("domain %s: domain-role-assignment should not also target a project or system", domain.Name)
 			}
 		}
 		for _, project := range domain.Projects {
@@ -900,6 +952,9 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 				if r.Role == "" {
 					return fmt.Errorf("project %s/%s: role-assignment with no role", domain.Name, project.Name)
 				}
+				if r.System != "" || r.Domain != "" {
+					return fmt.Errorf("project %s: project-role-assignment should not also target a domain or system", domain.Name)
+				}
 			}
 		}
 		for _, user := range domain.Users {
@@ -907,11 +962,17 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 				return fmt.Errorf("domain %s, user %s: a user name is required", domain.Name, user.Description)
 			}
 			for _, r := range user.RoleAssignments {
-				if (r.Project != "" || r.ProjectID != "") && r.Domain != "" {
-					return fmt.Errorf("user %s/%s: role-assignment should target either project or a domain, not both", domain.Name, user.Name)
-				}
-				if r.Project == "" && r.ProjectID == "" && r.Domain == "" {
-					return fmt.Errorf("user %s/%s: role-assignment should target a project or a domain", domain.Name, user.Name)
+				if r.System != "" {
+					if r.System != "all" {
+						return fmt.Errorf("user %s/%s: system-role-assignment can curently only target 'all'", domain.Name, user.Name)
+					}
+				} else {
+					if (r.Project != "" || r.ProjectID != "") && r.Domain != "" {
+						return fmt.Errorf("user %s/%s: role-assignment should target either project or a domain, not both", domain.Name, user.Name)
+					}
+					if r.Project == "" && r.ProjectID == "" && r.Domain == "" {
+						return fmt.Errorf("user %s/%s: role-assignment should target a project or a domain", domain.Name, user.Name)
+					}
 				}
 				if r.Role == "" {
 					return fmt.Errorf("user %s/%s: role-assignment with no role", domain.Name, user.Name)
@@ -923,11 +984,17 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 				return fmt.Errorf("domain %s, group %s: a group name is required", domain.Name, group.Description)
 			}
 			for _, r := range group.RoleAssignments {
-				if (r.Project != "" || r.ProjectID != "") && r.Domain != "" {
-					return fmt.Errorf("group %s/%s: role-assignment should target either project or a domain, not both", domain.Name, group.Name)
-				}
-				if r.Project == "" && r.ProjectID == "" && r.Domain == "" {
-					return fmt.Errorf("group %s/%s: role-assignment should target a project or a domain", domain.Name, group.Name)
+				if r.System != "" {
+					if r.System != "all" {
+						return fmt.Errorf("group %s/%s: system-role-assignment can curently only target 'all'", domain.Name, group.Name)
+					}
+				} else {
+					if (r.Project != "" || r.ProjectID != "") && r.Domain != "" {
+						return fmt.Errorf("group %s/%s: role-assignment should target either project or a domain, not both", domain.Name, group.Name)
+					}
+					if r.Project == "" && r.ProjectID == "" && r.Domain == "" {
+						return fmt.Errorf("group %s/%s: role-assignment should target a project or a domain", domain.Name, group.Name)
+					}
 				}
 				if r.Role == "" {
 					return fmt.Errorf("group %s/%s: role-assignment with no role", domain.Name, group.Name)
@@ -953,6 +1020,16 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 			return errors.New("Share type name is required")
 		}
 		e.MergeShareType(shareType)
+	}
+
+	for _, roleInference := range spec.RoleInferences {
+		if roleInference.PriorRole == "" {
+			return errors.New("prior-role name is required")
+		}
+		if roleInference.ImpliedRole == "" {
+			return errors.New("implied-role name is required")
+		}
+		e.MergeRoleInference(roleInference)
 	}
 
 	for _, resourceClass := range spec.ResourceClasses {

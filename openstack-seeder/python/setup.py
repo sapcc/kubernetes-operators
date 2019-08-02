@@ -2,16 +2,16 @@ from setuptools import setup
 
 setup(
     name='openstack_seeder',
-    version='0.1.5',
+    version='2.0.0',
     packages='.',
     install_requires=[
-        'python-keystoneclient==3.18.0',
-        'python-novaclient==11.1.0',
-        'python-neutronclient==6.11.0',
+        'python-keystoneclient==3.20.0',
+        'python-novaclient==14.2.0',
+        'python-neutronclient==6.12.0',
         'python-designateclient==2.11.0',
-        'python-swiftclient==3.6.0',
+        'python-swiftclient==3.8.0',
         'python-manilaclient==1.27.0',
-        'osc-placement==1.3.0',
+        'osc-placement==1.4.0',
         'raven',
         'pyyaml>=4.2b4',
     ],
