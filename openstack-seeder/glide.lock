@@ -1,5 +1,5 @@
-hash: 46781f572cc31c9138ede99d7cfc04ab90b61d5612e1f735f6c9ef3e3ade7e29
-updated: 2019-04-25T11:36:08.093668+02:00
+hash: 39692235baaa1b525e1709e42d31547e4da2ed79ce69efaed07ba5f026d5c96f
+updated: 2019-08-05T13:45:03.51571+02:00
 imports:
 - name: github.com/ant31/crd-validation
   version: 4ddfba1968124025521d3ec98a61b2123bdcaf75
@@ -220,7 +220,7 @@ imports:
   - third_party/forked/golang/json
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
-  version: 23781f4d6632d88e869066eaebb743857aa1ef9b
+  version: 36368dede29baa5ecd253416d70ddc0c76bde69b
   subpackages:
   - discovery
   - discovery/fake

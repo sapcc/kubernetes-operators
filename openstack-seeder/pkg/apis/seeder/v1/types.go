@@ -29,7 +29,8 @@ type OpenstackSeed struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   OpenstackSeedSpec    `json:"spec"`
-	Status *OpenstackSeedStatus `json:"status,omitempty"`
+	// +optional
+	Status OpenstackSeedStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -61,12 +62,14 @@ type OpenstackSeedSpec struct {
 }
 
 // A keystone role (see https://developer.openstack.org/api-ref/identity/v3/index.html#roles)
+// +k8s:openapi-gen=true
 type RoleSpec struct {
 	Name        string `json:"name" yaml:"name"`                                   // the role name
 	Description string `json:"description,omitempty" yaml:"description,omitempty"` // the role description
 }
 
 // A keystone role inference (see https://developer.openstack.org/api-ref/identity/v3/index.html#roles)
+// +k8s:openapi-gen=true
 type RoleInferenceSpec struct {
 	PriorRole   string `json:"prior_role" yaml:"prior_role"`     // the prior role name
 	ImpliedRole string `json:"implied_role" yaml:"implied_role"` // the implied role
@@ -279,6 +282,7 @@ type ShareTypeSpec struct {
 	ExtraSpecs  map[string]string        `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // extra specs that are not typed or validated
 }
 
+// +k8s:openapi-gen=true
 type ShareTypeSpecifiedSpecs struct {
 	DHSS            *bool `json:"driver_handles_share_servers" yaml:"driver_handles_share_servers"` // driver_handles_share_servers, required
 	SnapshotSupport *bool `json:"snapshot_support,omitempty" yaml:"snapshot_support,omitempty"`     // snapshot support, optional

@@ -605,15 +605,7 @@ func (in *OpenstackSeed) DeepCopyInto(out *OpenstackSeed) {
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
 	in.Spec.DeepCopyInto(&out.Spec)
-	if in.Status != nil {
-		in, out := &in.Status, &out.Status
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(OpenstackSeedStatus)
-			(*in).DeepCopyInto(*out)
-		}
-	}
+	in.Status.DeepCopyInto(&out.Status)
 	return
 }
 

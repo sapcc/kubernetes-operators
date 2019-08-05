@@ -260,10 +260,6 @@ func (c *Controller) seedHandler(key string) error {
 		return err
 	}
 
-	if seed.Status == nil {
-		seed.Status = &seederv1.OpenstackSeedStatus{Processed: ""}
-	}
-
 	if seed.Status.Processed != "" {
 		glog.V(2).Infof("Seed %s/%s has been seeded on %v. Skipping..", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, seed.Status.Processed)
 		return nil
@@ -329,6 +325,7 @@ func (c *Controller) seedHandler(key string) error {
 	stdin.Write(yaml_seed)
 	stdin.Close()
 	if err := cmd.Wait(); err != nil {
+		// TODO: add errors that occured during seeding to CRD status
 		msg := fmt.Errorf("failed to seed '%s/%s' - version %s: %s", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, seed.ObjectMeta.ResourceVersion, err.Error())
 		raven.CaptureError(msg, nil)
 		glog.Errorf("ERROR: %s", msg.Error())
@@ -337,9 +334,9 @@ func (c *Controller) seedHandler(key string) error {
 
 	glog.Infof("Seeding of %s/%s - version %s done.", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name, seed.ObjectMeta.ResourceVersion)
 
-	// Finally, we update the status block of the OpenstackSeed resource to reflect the
-	// current state of the world
-	//TODO: uncomment once bug has been fixed
+	// Finally, we update the status of the OpenstackSeed resource to reflect the current state of the seed instance
+	// TODO: uncomment once bug has been fixed (seems this needs to wait until at least 1.11)
+	// https://github.com/kubernetes/enhancements/issues/571
 	// https://github.com/coreos/prometheus-operator/issues/1293
 	//err = c.updateOpenstackSeedStatus(result, time.Now())
 	//if err != nil {
@@ -378,10 +375,6 @@ func (c *Controller) enqueueOpenstackSeed(obj interface{}) {
 }
 
 func (c *Controller) resolveSeedDependencies(result *seederv1.OpenstackSeed, seed *seederv1.OpenstackSeed) (err error) {
-	if result.Status == nil {
-		result.Status = &seederv1.OpenstackSeedStatus{Processed: ""}
-	}
-
 	if result.Status.VisitedDependencies == nil {
 		result.Status.VisitedDependencies = make(map[string]bool)
 	}

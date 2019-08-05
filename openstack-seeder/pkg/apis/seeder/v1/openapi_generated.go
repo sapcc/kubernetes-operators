@@ -1787,6 +1787,54 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
+		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleInferenceSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "A keystone role inference (see https://developer.openstack.org/api-ref/identity/v3/index.html#roles)",
+					Properties: map[string]spec.Schema{
+						"prior_role": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"implied_role": {
+							SchemaProps: spec.SchemaProps{
+								Description: "the prior role name",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"prior_role", "implied_role"},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "A keystone role (see https://developer.openstack.org/api-ref/identity/v3/index.html#roles)",
+					Properties: map[string]spec.Schema{
+						"name": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"description": {
+							SchemaProps: spec.SchemaProps{
+								Description: "the role name",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"name"},
+				},
+			},
+			Dependencies: []string{},
+		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RouterPortSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -2032,6 +2080,29 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{
 				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ShareTypeSpecifiedSpecs"},
+		},
+		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ShareTypeSpecifiedSpecs": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"driver_handles_share_servers": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"boolean"},
+								Format: "",
+							},
+						},
+						"snapshot_support": {
+							SchemaProps: spec.SchemaProps{
+								Description: "driver_handles_share_servers, required",
+								Type:        []string{"boolean"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"driver_handles_share_servers"},
+				},
+			},
+			Dependencies: []string{},
 		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.SubnetPoolSpec": {
 			Schema: spec.Schema{
