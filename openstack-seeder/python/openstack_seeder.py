@@ -277,8 +277,9 @@ def seed_role_inference(role_inference, keystone):
             "skipping role-inference '%s', since its implied_role is unknown" % role_inference)
         return
 
-    result = keystone.inference_rules.get(prior_role_id, implied_role_id)
-    if not result:
+    try:
+        keystone.inference_rules.get(prior_role_id, implied_role_id)
+    except exceptions.NotFound:
         logging.info("create role-inference '%s'" % role_inference)
         keystone.inference_rules.create(prior_role_id, implied_role_id)
 
