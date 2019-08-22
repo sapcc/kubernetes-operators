@@ -8,7 +8,7 @@ RUN make all
 FROM alpine:3.8
 LABEL maintainer="Michael Schmidt <michael.schmidt02@@sap.com>, Arno Uhlig <arno.uhlig@sap.com>"
 
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini ca-certificates
 RUN tini --version
 COPY --from=builder /go/src/github.com/sapcc/kubernetes-operators/vice-president/bin/linux/vice-president /usr/local/bin/
 ENTRYPOINT ["tini", "--"]
