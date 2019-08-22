@@ -24,7 +24,7 @@
 
 [[constraint]]
   name = "github.com/sapcc/go-vice"
-  revision = "e02f5a682ec386acf1b39f9812c9491b9ceb4973"
+  revision = "e4ca123d1d421af0bda4827071f7f7c42dc40aa0"
 
 [prune]
   go-tests = true

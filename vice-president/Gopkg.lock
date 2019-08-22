@@ -294,11 +294,11 @@
   revision = "822d4a1f8edcbcbc71e8d1fd6527b12331a6d0ad"
 
 [[projects]]
-  digest = "1:e92485249574a52c3a6221b21fd35b844120e67a29a4e058a4761d8e01b380ab"
+  digest = "1:bde55b868703356b05c84fb3a4beef26853545eace1e12d900701477f8cd6f1d"
   name = "github.com/sapcc/go-vice"
   packages = ["."]
   pruneopts = "UT"
-  revision = "e02f5a682ec386acf1b39f9812c9491b9ceb4973"
+  revision = "e4ca123d1d421af0bda4827071f7f7c42dc40aa0"
 
 [[projects]]
   digest = "1:b7386dc2acd6ae7a2383c7e35edf894b73df06338c04c49df3887087d2a97bab"
