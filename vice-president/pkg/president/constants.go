@@ -63,7 +63,7 @@ const (
 	BaseDelay = 5 * time.Second
 
 	// TmpPath points to tmp directory.
-	TmpPath = "/tmp/"
+	TmpPath = "/tmp"
 
 	// AnnotationVicePresident needs to be present on an ingress.
 	AnnotationVicePresident = "vice-president"
@@ -76,6 +76,10 @@ const (
 
 	// AnnotationCertificateReplacement triggers one-time replacement of certificates for all hosts defined by the ingress.
 	AnnotationCertificateReplacement = "vice-president/replace-cert"
+
+	// AnnotationSecretClaimedByIngress is used to indicate that a secret is being used by another ingress.
+	// This prevents multiple ingress' from using the same secret.
+	AnnotationSecretClaimedByIngress = "vice-president/claimed-by-ingress"
 
 	// WaitTimeout is exactly that.
 	WaitTimeout = 1 * time.Minute
@@ -100,4 +104,7 @@ const (
 
 	// EventComponent describes the component emitting an event.
 	EventComponent = "vice-president"
+
+	// FinalizerVicePresident is the vice presidential finalizer for an ingress.
+	FinalizerVicePresident = "vicepresident.extensions/v1beta1"
 )

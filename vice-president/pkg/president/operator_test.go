@@ -25,8 +25,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -82,16 +82,16 @@ func (s *TestSuite) TestGenerateWriteReadPrivateKey() {
 }
 
 func (s *TestSuite) TestStateMachine() {
-	ingress := &v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
+	ingress := &extensionsv1beta1.Ingress{
+		ObjectMeta: metaV1.ObjectMeta{
 			Namespace: Namespace,
 			Name:      IngressName,
 			Annotations: map[string]string{
 				"vice-president": "true",
 			},
 		},
-		Spec: v1beta1.IngressSpec{
-			TLS: []v1beta1.IngressTLS{
+		Spec: extensionsv1beta1.IngressSpec{
+			TLS: []extensionsv1beta1.IngressTLS{
 				{
 					Hosts:      []string{HostName},
 					SecretName: SecretName,
@@ -122,8 +122,8 @@ func (s *TestSuite) TestRateLimitExceeded() {
 	hostName := "rateLimitedHost"
 	vc := &ViceCertificate{
 		host: hostName,
-		ingress: &v1beta1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
+		ingress: &extensionsv1beta1.Ingress{
+			ObjectMeta: metaV1.ObjectMeta{
 				Namespace: Namespace,
 				Name:      IngressName,
 			},

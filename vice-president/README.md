@@ -52,10 +52,10 @@ Usage of vice-president:
       --kubeconfig string                       Path to kubeconfig file with authorization and master location information.
       --metric-port int                         Port on which Prometheus metrics are exposed. (default 9091)
       --min-cert-validity-days int              Renew certificates that expire within n days. (default 30)
+      --namespace string                        Limit operator to given namespace. (default "")
       --rate-limit int                          Rate limit of certificate enrollments per host. (unlimited: -1) (default 2)
       --resync-interval duration                Interval for resyncing informers. (default 2m0s)
       --threadiness int                         Operator threadiness. (default 10)
-  -v, --v Level                                 log level for V logs
       --vice-cert string                        A PEM encoded certificate file. (default "/etc/vice-president/secrets/vice.cert")
 ```
 

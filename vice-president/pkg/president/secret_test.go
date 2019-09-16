@@ -20,13 +20,13 @@
 package president
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
+	coreV1 "k8s.io/api/core/v1"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (s *TestSuite) TestUpdateCertificateInSecret() {
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
+	secret := &coreV1.Secret{
+		ObjectMeta: metaV1.ObjectMeta{
 			Name:      SecretName,
 			Namespace: Namespace,
 		},
@@ -37,17 +37,15 @@ func (s *TestSuite) TestUpdateCertificateInSecret() {
 	s.NoError(err, "there should be no error storing the certificate and key in the secret")
 
 	// verify
-	certificate, privateKey, err := getCertificateAndKeyFromSecret(updatedSecret, SecretTLSKeyType, SecretTLSCertType)
-	s.NoError(err, "there should be no error retrieving the certificate and key from the secret")
-
+	certificate, privateKey := getCertificateAndKeyFromSecret(updatedSecret, SecretTLSKeyType, SecretTLSCertType)
 	s.Equal(s.ViceCert.certificate, certificate, "the retrieved certificate should be equal to the one initially stored in the secret")
 	s.Equal(s.ViceCert.privateKey, privateKey, "the retrieved private key should be equal to the one initially stored in the secret")
 }
 
 func (s *TestSuite) TestGetCertificateFromSecret() {
-	certificate, privateKey, err := getCertificateAndKeyFromSecret(
-		&v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
+	certificate, privateKey := getCertificateAndKeyFromSecret(
+		&coreV1.Secret{
+			ObjectMeta: metaV1.ObjectMeta{
 				Namespace: Namespace,
 				Name:      SecretName,
 			},
@@ -58,8 +56,7 @@ func (s *TestSuite) TestGetCertificateFromSecret() {
 		},
 		SecretTLSKeyType, SecretTLSCertType,
 	)
-	s.NoError(err, "there should be no error retrieving the certificate and key from the secret")
+
 	s.Equal(s.Cert, certificate, "should be equal to the certificate from the secret")
 	s.Equal(s.Key, privateKey, "should be equal to the private key from the secret")
-
 }

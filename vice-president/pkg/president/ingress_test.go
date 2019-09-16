@@ -20,23 +20,23 @@
 package president
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (s *TestSuite) TestIsLastHostInIngressSpec() {
 	LastHost := "lastHost.com"
 
-	ingress := &v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
+	ingress := &extensionsv1beta1.Ingress{
+		ObjectMeta: metaV1.ObjectMeta{
 			Namespace: Namespace,
 			Name:      IngressName,
 			Annotations: map[string]string{
 				"vice-president": "true",
 			},
 		},
-		Spec: v1beta1.IngressSpec{
-			TLS: []v1beta1.IngressTLS{
+		Spec: extensionsv1beta1.IngressSpec{
+			TLS: []extensionsv1beta1.IngressTLS{
 				{
 					Hosts:      []string{HostName},
 					SecretName: SecretName,
@@ -58,9 +58,9 @@ func (s *TestSuite) TestIsLastHostInIngressSpec() {
 }
 
 func (s *TestSuite) TestIsCertificateForHostShouldBeReplaced() {
-	testData := map[*v1beta1.Ingress]bool{
+	testData := map[*extensionsv1beta1.Ingress]bool{
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: metaV1.ObjectMeta{
 				Namespace: Namespace,
 				Name:      IngressName,
 				Annotations: map[string]string{
@@ -68,8 +68,8 @@ func (s *TestSuite) TestIsCertificateForHostShouldBeReplaced() {
 					"vice-president/replace-cert": "true",
 				},
 			},
-			Spec: v1beta1.IngressSpec{
-				TLS: []v1beta1.IngressTLS{
+			Spec: extensionsv1beta1.IngressSpec{
+				TLS: []extensionsv1beta1.IngressTLS{
 					{
 						Hosts:      []string{HostName},
 						SecretName: SecretName,
@@ -78,15 +78,15 @@ func (s *TestSuite) TestIsCertificateForHostShouldBeReplaced() {
 			},
 		}: true,
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: metaV1.ObjectMeta{
 				Namespace: Namespace,
 				Name:      IngressName,
 				Annotations: map[string]string{
 					"vice-president": "true",
 				},
 			},
-			Spec: v1beta1.IngressSpec{
-				TLS: []v1beta1.IngressTLS{
+			Spec: extensionsv1beta1.IngressSpec{
+				TLS: []extensionsv1beta1.IngressTLS{
 					{
 						Hosts:      []string{HostName},
 						SecretName: SecretName,
@@ -102,9 +102,9 @@ func (s *TestSuite) TestIsCertificateForHostShouldBeReplaced() {
 }
 
 func (s *TestSuite) TestIngressVicePresidentialAnnotation() {
-	testData := map[*v1beta1.Ingress]bool{
+	testData := map[*extensionsv1beta1.Ingress]bool{
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: metaV1.ObjectMeta{
 				Namespace: Namespace,
 				Name:      "DoNotIgnoreMe!",
 				Annotations: map[string]string{
@@ -113,7 +113,7 @@ func (s *TestSuite) TestIngressVicePresidentialAnnotation() {
 			},
 		}: true,
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: metaV1.ObjectMeta{
 				Namespace:   Namespace,
 				Name:        "IgnoreMe!",
 				Annotations: map[string]string{},
@@ -127,8 +127,8 @@ func (s *TestSuite) TestIngressVicePresidentialAnnotation() {
 }
 
 func (s *TestSuite) TestIsIngressNeedsUpdate() {
-	iOld := &v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
+	iOld := &extensionsv1beta1.Ingress{
+		ObjectMeta: metaV1.ObjectMeta{
 			Namespace: Namespace,
 			Name:      "DoNotIgnoreMe!",
 			Annotations: map[string]string{
@@ -136,8 +136,8 @@ func (s *TestSuite) TestIsIngressNeedsUpdate() {
 				"vice-president/replace-cert": "true",
 			},
 		},
-		Spec: v1beta1.IngressSpec{
-			TLS: []v1beta1.IngressTLS{
+		Spec: extensionsv1beta1.IngressSpec{
+			TLS: []extensionsv1beta1.IngressTLS{
 				{
 					Hosts:      []string{HostName},
 					SecretName: SecretName,
@@ -146,16 +146,16 @@ func (s *TestSuite) TestIsIngressNeedsUpdate() {
 		},
 	}
 
-	iCur := &v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
+	iCur := &extensionsv1beta1.Ingress{
+		ObjectMeta: metaV1.ObjectMeta{
 			Namespace: Namespace,
 			Name:      "DoNotIgnoreMe!",
 			Annotations: map[string]string{
 				"vice-president": "true",
 			},
 		},
-		Spec: v1beta1.IngressSpec{
-			TLS: []v1beta1.IngressTLS{
+		Spec: extensionsv1beta1.IngressSpec{
+			TLS: []extensionsv1beta1.IngressTLS{
 				{
 					Hosts:      []string{HostName},
 					SecretName: SecretName,
@@ -178,8 +178,8 @@ func (s *TestSuite) TestIsIngressNeedsUpdate() {
 	//reset
 	iCur.Annotations = map[string]string{"vice-president": "true"}
 
-	iCur.Spec = v1beta1.IngressSpec{
-		TLS: []v1beta1.IngressTLS{
+	iCur.Spec = extensionsv1beta1.IngressSpec{
+		TLS: []extensionsv1beta1.IngressTLS{
 			{
 				Hosts:      []string{"foobar.com"},
 				SecretName: SecretName,

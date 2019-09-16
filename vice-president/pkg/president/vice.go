@@ -73,14 +73,15 @@ func (v *viceClient) createCSR(cert *ViceCertificate) error {
 	cert.csr = csr
 	cert.privateKey = key
 
+	csrFilePath := fmt.Sprintf("%s/%s.csr", TmpPath, cert.host)
+	keyFilePath := fmt.Sprintf("%s/%s.key", TmpPath, cert.host)
+	v.logger.LogDebug("temporarily persisting CSR and key", "csrPath", csrFilePath, "keyPath", keyFilePath)
 
-	v.logger.LogDebug("temporarily persisting CSR and key", "path", TmpPath)
-	certFilePath := fmt.Sprintf("%s/%s.csr", TmpPath, cert.host)
-	_, err = saveToFile(cert.csr, certFilePath)
+	_, err = saveToFile(cert.csr, csrFilePath)
 	if err != nil {
 		return err
 	}
-	keyFilePath := fmt.Sprintf("%s/%s.key", TmpPath, cert.host)
+
 	keyByte, err := writePrivateKeyToPEM(cert.privateKey)
 	if err != nil {
 		return err

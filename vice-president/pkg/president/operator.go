@@ -20,6 +20,7 @@
 package president
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -31,19 +32,20 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/kubernetes-operators/vice-president/pkg/log"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/watch"
+	apimachineryWatch "k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/pkg/api"
-	v1 "k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	kubernetesCoreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/watch"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -121,14 +123,19 @@ func New(options Options, logger log.Logger) *Operator {
 
 	b := record.NewBroadcaster()
 	b.StartLogging(logger.LogEvent)
-	b.StartRecordingToSink(&v12.EventSinkImpl{
+	b.StartRecordingToSink(&kubernetesCoreV1.EventSinkImpl{
 		Interface: clientset.CoreV1().Events(""),
 	})
-	eventRecorder := b.NewRecorder(scheme.Scheme, v1.EventSource{
+	eventRecorder := b.NewRecorder(scheme.Scheme, corev1.EventSource{
 		Component: EventComponent,
 	})
 
-	vp := &Operator{
+	queue := workqueue.NewRateLimitingQueue(
+		workqueue.NewItemExponentialFailureRateLimiter(30*time.Second, 600*time.Second),
+	)
+
+	return &Operator{
+		queue:                    queue,
 		logger:                   logger,
 		Options:                  options,
 		clientset:                clientset,
@@ -139,26 +146,10 @@ func New(options Options, logger log.Logger) *Operator {
 		resyncInterval:           options.ResyncInterval,
 		certificateCheckInterval: options.CertificateCheckInterval,
 		rateLimitMap:             sync.Map{},
-		ingressInformer:          newIngressInformer(clientset, options.ResyncInterval),
-		secretInformer:           newSecretInformer(clientset, options.ResyncInterval),
 		eventRecorder:            eventRecorder,
-		queue: workqueue.NewRateLimitingQueue(
-			workqueue.NewItemExponentialFailureRateLimiter(30*time.Second, 600*time.Second),
-		),
+		ingressInformer:          newIngressInformer(clientset, options, queue, logger),
+		secretInformer:           newSecretInformer(clientset, options, queue, logger),
 	}
-
-	// add ingress event handlers
-	vp.ingressInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    vp.ingressAdd,
-		UpdateFunc: vp.ingressUpdate,
-	})
-
-	// add secret event handlers
-	vp.secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: vp.secretDelete,
-	})
-
-	return vp
 }
 
 // Run starts the operator
@@ -174,11 +165,14 @@ func (vp *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGr
 	go vp.secretInformer.Run(stopCh)
 
 	vp.logger.LogInfo("waiting for cache to sync...")
-	cache.WaitForCacheSync(
+	if !cache.WaitForCacheSync(
 		stopCh,
 		vp.ingressInformer.HasSynced,
 		vp.secretInformer.HasSynced,
-	)
+	) {
+		utilruntime.HandleError(errors.New("timed out while waiting for caches to sync"))
+		return
+	}
 
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(vp.runWorker, time.Second, stopCh)
@@ -205,6 +199,7 @@ func (vp *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGr
 	}()
 
 	<-stopCh
+	vp.logger.LogInfo("vice president is resigning")
 }
 
 func (vp *Operator) runWorker() {
@@ -251,7 +246,7 @@ func (vp *Operator) syncHandler(key string) error {
 		return nil
 	}
 
-	ingress := o.(*v1beta1.Ingress)
+	ingress := o.(*extensionsv1beta1.Ingress)
 	// return right here if ingress is not annotated with vice-president: true
 	if !isIngressHasAnnotation(ingress, AnnotationVicePresident) {
 		vp.logger.LogDebug("ignoring ingress as vice-presidential annotation is not set", "key", key)
@@ -350,7 +345,7 @@ func (vp *Operator) checkCertificate(vc *ViceCertificate) error {
 				return err
 			}
 			approveSuccessCounter.With(labels).Inc()
-			vp.eventRecorder.Eventf(vc.ingress, v1.EventTypeNormal, UpdateEvent, fmt.Sprintf("updated certificate for host %s, ingress %s", vc.host, vc.getIngressKey()))
+			vp.eventRecorder.Eventf(vc.ingress, corev1.EventTypeNormal, UpdateEvent, fmt.Sprintf("updated certificate for host %s, ingress %s", vc.host, vc.getIngressKey()))
 			nextState = IngressStateApproved
 
 		case IngressStateApproved:
@@ -363,18 +358,28 @@ func (vp *Operator) checkCertificate(vc *ViceCertificate) error {
 				return errors.Wrapf(err, "couldn't get nor create secret %s", vc.getSecretKey())
 			}
 
-			tlsCert, tlsKey, err := getCertificateAndKeyFromSecret(secret, tlsKeySecretKey, tlsCertSecretKey)
-			if err != nil {
-				vp.logger.LogInfo("no certificate and/or key found in secret", "key", vc.getSecretKey())
-				nextState = IngressStateEnroll
-				continue
+			if key, ok := secret.Annotations[AnnotationSecretClaimedByIngress]; ok && key != vc.getIngressKey() {
+				vp.logger.LogInfo("secret already used by another ingress. not touching it", "secret", vc.getSecretKey(), "ingress", vc.getIngressKey(), "usedByIngress", key)
+				return nil
 			}
-			vc.certificate = tlsCert
-			vc.privateKey = tlsKey
 
-			if isIngressHasAnnotation(vc.ingress, AnnotationCertificateReplacement) {
-				nextState = IngressStateReplace
-				continue
+			if claimedByIngress, isClaimed := isSecretClaimedByAnotherIngress(vc.getIngressKey(), secret); isClaimed {
+				vp.logger.LogInfo("cannot use secret as it's being used by another ingress", "secret", vc.getSecretKey(), "claimedByIngress", claimedByIngress, "ingress", vc.getIngressKey())
+				return nil
+			}
+
+			// Get the certificate and private key from the secret.
+			vc.certificate, vc.privateKey = getCertificateAndKeyFromSecret(secret, tlsKeySecretKey, tlsCertSecretKey)
+
+			// add finalizer before creating anything. return error
+			if err := vp.ensureVicePresidentFinalizerExists(vc.ingress); err != nil {
+				return errors.Wrapf(err, "will not create recordset in this cycle. failed to add finalizer %v", FinalizerVicePresident)
+			}
+
+			// there was an attempt to delete the ingress. cleanup recordset
+			if ingressHasDeletionTimestamp(vc.ingress) {
+				removeClaimFromSecret(secret)
+				return vp.ensureVicePresidentFinalizerRemoved(vc.ingress)
 			}
 
 			nextState = vp.getNextState(vc)
@@ -384,6 +389,16 @@ func (vp *Operator) checkCertificate(vc *ViceCertificate) error {
 }
 
 func (vp *Operator) getNextState(vc *ViceCertificate) string {
+	if vc.certificate == nil && vc.privateKey == nil {
+		vp.logger.LogInfo("no certificate and/or key found in secret", "key", vc.getSecretKey(), "host", vc.host)
+		return IngressStateEnroll
+	}
+
+	if isIngressHasAnnotation(vc.ingress, AnnotationCertificateReplacement) {
+		vp.logger.LogInfo("annotation found on ingress. replacing certificate", "annotation", AnnotationCertificateReplacement, "ingress", vc.getIngressKey(), "host", vc.host)
+		return IngressStateReplace
+	}
+
 	if !vc.DoesKeyAndCertificateTally() {
 		vp.logger.LogInfo("certificate and key don't match", "host", vc.host)
 		return IngressStateEnroll
@@ -414,16 +429,16 @@ func (vp *Operator) getNextState(vc *ViceCertificate) string {
 	return IngressStateApproved
 }
 
-func (vp *Operator) getOrCreateSecret(vc *ViceCertificate) (*v1.Secret, error) {
-	secret, err := vp.clientset.Secrets(vc.ingress.GetNamespace()).Get(vc.secretName, meta_v1.GetOptions{})
+func (vp *Operator) getOrCreateSecret(vc *ViceCertificate) (*corev1.Secret, error) {
+	secret, err := vp.clientset.CoreV1().Secrets(vc.ingress.GetNamespace()).Get(vc.secretName, metaV1.GetOptions{})
 	if err != nil {
 		// Create secret if not found.
-		if apierrors.IsNotFound(err) {
+		if apiErrors.IsNotFound(err) {
 			vp.logger.LogInfo("creating secret", "key", vc.getSecretKey())
 			if err := vp.addUpstreamSecret(newEmptySecret(vc.ingress.GetNamespace(), vc.secretName, vc.ingress.GetLabels())); err != nil {
 				return nil, errors.Wrapf(err, "couldn't create secret %s", vc.getSecretKey())
 			}
-			return vp.clientset.Secrets(vc.ingress.GetNamespace()).Get(vc.secretName, meta_v1.GetOptions{})
+			return vp.clientset.CoreV1().Secrets(vc.ingress.GetNamespace()).Get(vc.secretName, metaV1.GetOptions{})
 		}
 		// Return any other error.
 		return nil, errors.Wrapf(err, "couldn't get secret %s", vc.getSecretKey())
@@ -432,7 +447,7 @@ func (vp *Operator) getOrCreateSecret(vc *ViceCertificate) (*v1.Secret, error) {
 }
 
 func (vp *Operator) removeCertificateReplacementAnnotationIfLastHost(vc *ViceCertificate) error {
-	ingress, err := vp.clientset.Ingresses(vc.ingress.GetNamespace()).Get(vc.ingress.GetName(), meta_v1.GetOptions{})
+	ingress, err := vp.clientset.ExtensionsV1beta1().Ingresses(vc.ingress.GetNamespace()).Get(vc.ingress.GetName(), metaV1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -448,11 +463,7 @@ func (vp *Operator) removeCertificateReplacementAnnotationIfLastHost(vc *ViceCer
 		return nil
 	}
 
-	iObj, err := api.Scheme.Copy(ingress)
-	if err != nil {
-		return err
-	}
-	iCur := iObj.(*v1beta1.Ingress)
+	iCur := ingress.DeepCopy()
 	annotations := iCur.GetAnnotations()
 	delete(annotations, AnnotationCertificateReplacement)
 	iCur.Annotations = annotations
@@ -463,16 +474,21 @@ func (vp *Operator) removeCertificateReplacementAnnotationIfLastHost(vc *ViceCer
 
 // updateCertificateInSecret adds or updates the certificate in a secret
 func (vp *Operator) updateCertificateAndKeyInSecret(vc *ViceCertificate, tlsKeySecretKey, tlsCertSecretKey string) error {
-	secret, err := vp.clientset.Secrets(vc.ingress.GetNamespace()).Get(vc.secretName, meta_v1.GetOptions{})
+	secret, err := vp.clientset.CoreV1().Secrets(vc.ingress.GetNamespace()).Get(vc.secretName, metaV1.GetOptions{})
 	if err != nil {
 		return err
 	}
+
 	vp.logger.LogInfo("add/update certificate to secret", "key", vc.getSecretKey())
 	updatedSecret, err := addCertificateAndKeyToSecret(vc, secret, tlsKeySecretKey, tlsCertSecretKey)
 	if err != nil {
 		vp.logger.LogError("couldn't update secret", err, "key", vc.getSecretKey())
 		return err
 	}
+
+	// Set a claim on the secret for the ingress.
+	secret.Annotations[AnnotationSecretClaimedByIngress] = vc.getIngressKey()
+
 	return vp.updateUpstreamSecret(updatedSecret, secret)
 }
 
@@ -513,53 +529,29 @@ func (vp *Operator) replaceCertificate(vc *ViceCertificate) error {
 	return vp.viceClient.replace(vc)
 }
 
-func (vp *Operator) ingressAdd(obj interface{}) {
-	i := obj.(*v1beta1.Ingress)
-	key, err := cache.MetaNamespaceKeyFunc(obj)
-	if err != nil {
-		vp.logger.LogError("couldn't add ingress", err, "key", i)
-		return
-	}
-	vp.queue.AddRateLimited(key)
-}
-
-func (vp *Operator) ingressUpdate(old, cur interface{}) {
-	iOld := old.(*v1beta1.Ingress)
-	iCur := cur.(*v1beta1.Ingress)
-
-	if !isIngressNeedsUpdate(iCur, iOld) {
-		vp.logger.LogDebug("nothing changed. no need to update ingress", "key", keyFunc(iOld))
-		return
-	}
-
-	key, err := cache.MetaNamespaceKeyFunc(cur)
-	if err != nil {
-		vp.logger.LogError("couldn't add ingress %s/%s", err, "key", keyFunc(iCur))
-		return
-	}
-	vp.logger.LogDebug("ingress was updated", "key", key)
-	vp.queue.AddRateLimited(key)
-}
-
 // watch secret and wait for max. t minutes until it exists or got modified
-func (vp *Operator) waitForUpstreamSecret(secret *v1.Secret, watchConditionFunc watch.ConditionFunc) error {
-	w, err := vp.clientset.Secrets(secret.GetNamespace()).Watch(
-		meta_v1.SingleObject(
-			meta_v1.ObjectMeta{
-				Name: secret.GetName(),
-			},
-		),
-	)
-	if err != nil {
-		return err
-	}
+func (vp *Operator) waitForUpstreamSecret(secret *corev1.Secret, conditionFunc watch.ConditionFunc) error {
+	ctx, _ := context.WithTimeout(context.TODO(), WaitTimeout)
 
-	_, err = watch.Until(WaitTimeout, w, watchConditionFunc)
+	_, err := watch.UntilWithSync(
+		ctx,
+		&cache.ListWatch{
+			ListFunc: func(options metaV1.ListOptions) (object runtime.Object, e error) {
+				return vp.clientset.ExtensionsV1beta1().Ingresses(options.LabelSelector).List(metaV1.SingleObject(metaV1.ObjectMeta{Name: secret.GetName()}))
+			},
+			WatchFunc: func(options metaV1.ListOptions) (i apimachineryWatch.Interface, e error) {
+				return vp.clientset.ExtensionsV1beta1().Ingresses(secret.GetNamespace()).Watch(metaV1.SingleObject(metaV1.ObjectMeta{Name: secret.GetName()}))
+			},
+		},
+		secret,
+		nil,
+		conditionFunc,
+	)
 	return err
 }
 
-func (vp *Operator) addUpstreamSecret(secret *v1.Secret) error {
-	s, err := vp.clientset.Secrets(secret.GetNamespace()).Create(secret)
+func (vp *Operator) addUpstreamSecret(secret *corev1.Secret) error {
+	s, err := vp.clientset.CoreV1().Secrets(secret.GetNamespace()).Create(secret)
 	if err != nil {
 		return err
 	}
@@ -567,10 +559,10 @@ func (vp *Operator) addUpstreamSecret(secret *v1.Secret) error {
 	return vp.waitForUpstreamSecret(s, isSecretExists)
 }
 
-func (vp *Operator) deleteUpstreamSecret(secret *v1.Secret) error {
-	err := vp.clientset.Secrets(secret.GetNamespace()).Delete(
+func (vp *Operator) deleteUpstreamSecret(secret *corev1.Secret) error {
+	err := vp.clientset.CoreV1().Secrets(secret.GetNamespace()).Delete(
 		secret.GetName(),
-		&meta_v1.DeleteOptions{},
+		&metaV1.DeleteOptions{},
 	)
 	if err != nil {
 		return err
@@ -579,18 +571,18 @@ func (vp *Operator) deleteUpstreamSecret(secret *v1.Secret) error {
 	return vp.waitForUpstreamSecret(secret, isSecretDeleted)
 }
 
-func (vp *Operator) updateUpstreamSecret(sCur, sOld *v1.Secret) error {
+func (vp *Operator) updateUpstreamSecret(sCur, sOld *corev1.Secret) error {
 	if !isSecretNeedsUpdate(sCur, sOld) {
 		vp.logger.LogDebug("nothing changed. no need to update secret", "key", keyFunc(sOld))
 		return nil
 	}
 	vp.logger.LogDebug("updated upstream secret", keyFunc(sOld))
-	_, err := vp.clientset.Secrets(sOld.GetNamespace()).Update(sCur)
-	vp.eventRecorder.Eventf(sOld, v1.EventTypeNormal, UpdateEvent, fmt.Sprintf("updated tls certificate and key in secret %s", keyFunc(sOld)))
+	_, err := vp.clientset.CoreV1().Secrets(sOld.GetNamespace()).Update(sCur)
+	vp.eventRecorder.Eventf(sOld, corev1.EventTypeNormal, UpdateEvent, fmt.Sprintf("updated tls certificate and key in secret %s", keyFunc(sOld)))
 	return err
 }
 
-func (vp *Operator) updateUpstreamIngress(iOld, iCur *v1beta1.Ingress, conditionFunc watch.ConditionFunc) error {
+func (vp *Operator) updateUpstreamIngress(iOld, iCur *extensionsv1beta1.Ingress, conditionFunc watch.ConditionFunc) error {
 	if reflect.DeepEqual(iOld.Spec, iCur.Spec) && reflect.DeepEqual(iOld.GetAnnotations(), iCur.GetAnnotations()) {
 		vp.logger.LogDebug("nothing chanced. no need to update ingress", "key", keyFunc(iOld))
 		return nil
@@ -604,25 +596,29 @@ func (vp *Operator) updateUpstreamIngress(iOld, iCur *v1beta1.Ingress, condition
 	return vp.waitForUpstreamIngress(ing, conditionFunc)
 }
 
-func (vp *Operator) waitForUpstreamIngress(ingress *v1beta1.Ingress, conditionFunc watch.ConditionFunc) error {
-	w, err := vp.clientset.ExtensionsV1beta1().Ingresses(ingress.GetNamespace()).Watch(
-		meta_v1.SingleObject(
-			meta_v1.ObjectMeta{
-				Name: ingress.GetName(),
-			},
-		),
-	)
-	if err != nil {
-		return err
-	}
+func (vp *Operator) waitForUpstreamIngress(ingress *extensionsv1beta1.Ingress, conditionFunc watch.ConditionFunc) error {
+	ctx, _ := context.WithTimeout(context.TODO(), WaitTimeout)
 
-	_, err = watch.Until(WaitTimeout, w, conditionFunc)
+	_, err := watch.UntilWithSync(
+		ctx,
+		&cache.ListWatch{
+			ListFunc: func(options metaV1.ListOptions) (object runtime.Object, e error) {
+				return vp.clientset.ExtensionsV1beta1().Ingresses(options.LabelSelector).List(options)
+			},
+			WatchFunc: func(options metaV1.ListOptions) (i apimachineryWatch.Interface, e error) {
+				return vp.clientset.ExtensionsV1beta1().Ingresses(ingress.GetNamespace()).Watch(options)
+			},
+		},
+		ingress,
+		nil,
+		conditionFunc,
+	)
 	return err
 }
 
 func (vp *Operator) checkCertificates() {
 	for _, o := range vp.ingressInformer.GetStore().List() {
-		i := o.(*v1beta1.Ingress)
+		i := o.(*extensionsv1beta1.Ingress)
 		key, err := cache.MetaNamespaceKeyFunc(o)
 		if err != nil {
 			vp.logger.LogError("couldn't add ingress", err, "key", keyFunc(i))
@@ -633,21 +629,9 @@ func (vp *Operator) checkCertificates() {
 	}
 }
 
-func (vp *Operator) secretDelete(obj interface{}) {
-	secret := obj.(*v1.Secret)
-	if ingress := vp.secretReferencedByIngress(secret); ingress != nil {
-		vp.logger.LogDebug("secret was deleted. re-queueing ingress", "secret", keyFunc(secret), "ingress", keyFunc(ingress))
-		key, err := cache.MetaNamespaceKeyFunc(ingress)
-		if err != nil {
-			vp.logger.LogError("couldn't add ingress", err, "key", keyFunc(ingress))
-		}
-		vp.queue.AddAfter(key, BaseDelay)
-	}
-}
-
-func (vp *Operator) secretReferencedByIngress(secret *v1.Secret) *v1beta1.Ingress {
+func (vp *Operator) secretReferencedByIngress(secret *corev1.Secret) *extensionsv1beta1.Ingress {
 	for _, iObj := range vp.ingressInformer.GetStore().List() {
-		ingress := iObj.(*v1beta1.Ingress)
+		ingress := iObj.(*extensionsv1beta1.Ingress)
 		if secret.GetNamespace() == ingress.GetNamespace() {
 			for _, tls := range ingress.Spec.TLS {
 				if secret.GetName() == tls.SecretName {
@@ -682,4 +666,29 @@ func (vp *Operator) isRateLimitForHostExceeded(viceCert *ViceCertificate) bool {
 		vp.rateLimitMap.Store(viceCert.host, numRequests+1)
 	}
 	return false
+}
+
+func (vp *Operator) ensureVicePresidentFinalizerExists(ingress *extensionsv1beta1.Ingress) error {
+	// add finalizer if not present and ingress was not deleted
+	if !ingressHasVicePresidentFinalizer(ingress) && !ingressHasDeletionTimestamp(ingress) {
+		newIngress := ingress.DeepCopy()
+		newIngress.Finalizers = append(newIngress.GetFinalizers(), FinalizerVicePresident)
+		return vp.updateUpstreamIngress(ingress, newIngress, isVicePresidentFinalizerRemoved)
+	}
+	return nil
+}
+
+func (vp *Operator) ensureVicePresidentFinalizerRemoved(ingress *extensionsv1beta1.Ingress) error {
+	// do not remove finalizer if DeletionTimestamp is not set
+	if ingressHasVicePresidentFinalizer(ingress) && ingressHasDeletionTimestamp(ingress) {
+		newIngress := ingress.DeepCopy()
+		for i, fin := range newIngress.GetFinalizers() {
+			if fin == FinalizerVicePresident {
+				// delete but preserve order
+				newIngress.Finalizers = append(newIngress.Finalizers[:i], newIngress.Finalizers[i+1:]...)
+				return vp.updateUpstreamIngress(ingress, newIngress, isVicePresidentFinalizerRemoved)
+			}
+		}
+	}
+	return nil
 }

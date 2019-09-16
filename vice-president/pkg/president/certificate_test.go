@@ -24,9 +24,8 @@ import (
 	"crypto/rsa"
 	"io/ioutil"
 	"path"
+	"sort"
 	"time"
-
-	"k8s.io/kubernetes/pkg/util/slice"
 )
 
 func (s *TestSuite) TestSetSANS() {
@@ -42,8 +41,8 @@ func (s *TestSuite) TestSetSANS() {
 	vc1 := ViceCertificate{host: host}
 	vc1.setSANs(sansWithoutHost)
 
-	s.Equal(slice.SortStrings(vc.sans), slice.SortStrings(sansWithHost))
-	s.Equal(slice.SortStrings(vc1.sans), slice.SortStrings(sansWithHost))
+	s.Equal(sortedStringSlice(vc.sans), sortedStringSlice(sansWithHost))
+	s.Equal(sortedStringSlice(vc1.sans), sortedStringSlice(sansWithHost))
 
 }
 
@@ -57,8 +56,8 @@ func (s *TestSuite) TestGetSANS() {
 
 	for viceCert, expectedSANS := range testViceCertificates {
 		s.Equal(
-			slice.SortStrings(expectedSANS),
-			slice.SortStrings(viceCert.getSANs()),
+			sortedStringSlice(expectedSANS),
+			sortedStringSlice(viceCert.getSANs()),
 			"SANs should be equal",
 		)
 	}
@@ -133,4 +132,9 @@ func (s *TestSuite) TestWriteCertificateChain() {
 	s.NoError(err, "there should be no error writing a certificate to PEM format")
 
 	s.Equal(expectedChainPEM, removeSpecialCharactersFromPEM(chainPEM))
+}
+
+func sortedStringSlice(s []string) []string {
+	sort.Strings(s)
+	return s
 }

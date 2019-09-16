@@ -118,18 +118,6 @@ func readCertFromFile(filePath string) (*x509.Certificate, error) {
 	return readCertificateFromPEM(certPEM)
 }
 
-func readKeyFromFile(filePath string) (*rsa.PrivateKey, error) {
-	keyRaw, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "couldn't read file")
-	}
-	key, err := x509.ParsePKCS1PrivateKey(keyRaw)
-	if err != nil {
-		return nil, errors.Wrapf(err, "couldn't parse file")
-	}
-	return key, nil
-}
-
 func removeSpecialCharactersFromPEM(pem []byte) []byte {
 	specialChars := []string{"\"", "^@", "\x00", "0"}
 	var result []byte

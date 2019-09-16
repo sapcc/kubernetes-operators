@@ -21,6 +21,7 @@ package president
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -32,6 +33,7 @@ type Options struct {
 	ViceCrtFile                       string
 	IntermediateCertificate           string
 	RootCACertificate                 string
+	Namespace                         string
 	MinCertValidityDays               int
 	EnableValidateRemoteCertificate   bool
 	MetricPort                        int
@@ -66,6 +68,9 @@ func (o *Options) CheckOptions() error {
 	if o.RateLimit <= 0 {
 		// Unlimited power!
 		o.RateLimit = -1
+	}
+	if o.IsDebug {
+		os.Setenv("DEBUG", "true")
 	}
 	return nil
 }

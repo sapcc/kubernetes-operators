@@ -21,11 +21,11 @@ package president
 
 import (
 	"fmt"
-	"github.com/sapcc/kubernetes-operators/vice-president/pkg/log"
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sapcc/kubernetes-operators/vice-president/pkg/log"
 )
 
 const (

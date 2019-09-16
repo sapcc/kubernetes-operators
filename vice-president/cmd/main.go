@@ -50,6 +50,7 @@ func init() {
 	pflag.DurationVar(&options.ResyncInterval, "resync-interval", 2*time.Minute, "Interval for resyncing informers.")
 	pflag.IntVar(&options.RateLimit, "rate-limit", 2, "Rate limit of certificate enrollments per host. (unlimited: -1)")
 	pflag.IntVar(&options.Threadiness, "threadiness", 10, "Operator threadiness.")
+	pflag.StringVar(&options.Namespace, "namespace", "", "Limit operator to given namespace.")
 }
 
 func main() {

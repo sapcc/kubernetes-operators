@@ -12,11 +12,11 @@ PACKAGES := $(shell find $(SRCDIRS) -type d)
 GOFILES  := $(addsuffix /*.go,$(PACKAGES))
 GOFILES  := $(wildcard $(GOFILES))
 
-.PHONY: all clean vendor tests static-check
+.PHONY: all clean tests static-check
 
 all: bin/$(GOOS)/$(BINARY)
 
-bin/%/$(BINARY): vendor $(GOFILES) Makefile
+bin/%/$(BINARY): $(GOFILES) Makefile
 	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd
 
 build: tests bin/linux/$(BINARY)
@@ -34,9 +34,6 @@ push: build
 
 clean:
 	rm -rf bin/*
-
-vendor:
-	if ! [ -d "vendor" ]; then dep ensure -vendor-only -v; fi
 
 generate-dummy-cert:
 	mkdir tmp

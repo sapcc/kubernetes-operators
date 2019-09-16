@@ -35,7 +35,7 @@ import (
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ocsp"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 )
 
 // ViceCertificate contains all properties requires by the Symantec VICE API
@@ -50,12 +50,12 @@ type ViceCertificate struct {
 	tid                     string
 	caCertificate           *x509.Certificate
 	ocspServers             []string
-	ingress                 *v1beta1.Ingress
+	ingress                 *extensionsv1beta1.Ingress
 	secretName              string
 }
 
 // NewViceCertificate returns a new vice certificate.
-func NewViceCertificate(ingress *v1beta1.Ingress, secretName, host string, sans []string, intermediateCertificate *x509.Certificate, rootCertificates *x509.CertPool) *ViceCertificate {
+func NewViceCertificate(ingress *extensionsv1beta1.Ingress, secretName, host string, sans []string, intermediateCertificate *x509.Certificate, rootCertificates *x509.CertPool) *ViceCertificate {
 	vc := &ViceCertificate{
 		ingress:                 ingress,
 		secretName:              secretName,
@@ -84,7 +84,6 @@ func (vc *ViceCertificate) DoesCertificateExpireSoon(minCertValidityDays int) bo
 
 // DoesKeyAndCertificateTally checks if a given private key is for the correct certificate
 func (vc *ViceCertificate) DoesKeyAndCertificateTally() bool {
-
 	certBlock := pem.Block{
 		Type:  CertificateType,
 		Bytes: vc.certificate.Raw,
@@ -201,8 +200,8 @@ func (vc *ViceCertificate) issueOCSPRequest(ocspURI string) (*ocsp.Response, err
 	if err != nil {
 		return nil, errors.Wrap(err, "OCSP request failed")
 	}
-
 	defer httpResponse.Body.Close()
+
 	ocspResponseBytes, err := ioutil.ReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read request body")

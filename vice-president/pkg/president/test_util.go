@@ -24,17 +24,18 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"github.com/sapcc/kubernetes-operators/vice-president/pkg/log"
-	"github.com/stretchr/testify/suite"
 	"io/ioutil"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"strconv"
+
+	"github.com/sapcc/kubernetes-operators/vice-president/pkg/log"
+	"github.com/stretchr/testify/suite"
+	coreV1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -55,7 +56,7 @@ type TestSuite struct {
 	CertByte             []byte
 	Key                  *rsa.PrivateKey
 	KeyByte              []byte
-	Secret               *v1.Secret
+	Secret               *coreV1.Secret
 	ViceCert             *ViceCertificate
 	IntermediateCertByte []byte
 }
@@ -131,8 +132,8 @@ func (s *TestSuite) SetupSuite() {
 	}
 
 	s.ViceCert = NewViceCertificate(
-		&v1beta1.Ingress{
-			ObjectMeta: meta_v1.ObjectMeta{
+		&extensionsv1beta1.Ingress{
+			ObjectMeta: metaV1.ObjectMeta{
 				Namespace: "default",
 				Name:      "my-ingress",
 			},
@@ -146,13 +147,13 @@ func (s *TestSuite) SetupSuite() {
 	s.ViceCert.privateKey = s.Key
 	s.ViceCert.certificate = s.Cert
 
-	s.Secret = &v1.Secret{
-		Type: v1.SecretTypeOpaque,
+	s.Secret = &coreV1.Secret{
+		Type: coreV1.SecretTypeOpaque,
 		Data: map[string][]byte{
 			SecretTLSCertType: append(s.IntermediateCertByte, s.CertByte...),
 			SecretTLSKeyType:  s.KeyByte,
 		},
-		ObjectMeta: meta_v1.ObjectMeta{
+		ObjectMeta: metaV1.ObjectMeta{
 			Namespace: "default",
 			Name:      "my-secret",
 		},
@@ -234,7 +235,7 @@ func (s *TestSuite) respondWith(endpoint string, responseCode int, headers map[s
 }
 
 // ResetIngressInformerStoreAndAddIngress clears the ingress informer store and adds the given ingress
-func (s *TestSuite) ResetIngressInformerStoreAndAddIngress(ingress *v1beta1.Ingress) error {
+func (s *TestSuite) ResetIngressInformerStoreAndAddIngress(ingress *extensionsv1beta1.Ingress) error {
 	for _, v := range s.VP.ingressInformer.GetStore().List() {
 		if err := s.VP.ingressInformer.GetStore().Delete(v); err != nil {
 			return err
