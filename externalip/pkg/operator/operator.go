@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	informers_core_v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -54,7 +54,14 @@ type Operator struct {
 }
 
 func New(options Options) *Operator {
-	config := newClientConfig(options)
+	var config *rest.Config
+	var err error
+	if options.KubeConfig == "" {
+		config, err = rest.InClusterConfig()
+		glog.Fatalf("Couldn't create in-cluster config: %s", err)
+	} else {
+		config = newClientConfig(options)
+	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
