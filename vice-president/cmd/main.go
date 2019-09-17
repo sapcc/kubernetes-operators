@@ -54,12 +54,10 @@ func init() {
 }
 
 func main() {
-	// Set logging output to standard console out
-
-	logger := log.NewLogger(options.IsDebug)
-
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
+
+	logger := log.NewLogger(options.IsDebug)
 
 	sigs := make(chan os.Signal, 1)
 	stop := make(chan struct{})
@@ -68,7 +66,7 @@ func main() {
 	wg := &sync.WaitGroup{} // Goroutines can add themselves to this to be waited on
 
 	go president.New(options, logger).Run(options.Threadiness, stop, wg)
-	go president.ExposeMetrics(options, logger)
+	go president.ExposeMetrics(options, stop, wg, logger)
 
 	<-sigs // Wait for signals (this hangs until a signal arrives)
 	logger.LogInfo("Shutting down...")

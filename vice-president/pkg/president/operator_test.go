@@ -42,13 +42,13 @@ func TestMySuite(t *testing.T) {
 }
 
 func (s *TestSuite) TestEnrollCertificate() {
-	err := s.VP.enrollCertificate(s.ViceCert)
+	err := s.VP.enrollCertificateRateLimited(s.ViceCert)
 	s.NoError(err, "there should be no error enrolling a new certificate")
 	s.Equal("87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.tid)
 }
 
 func (s *TestSuite) TestRenewCertificate() {
-	err := s.VP.renewCertificate(s.ViceCert)
+	err := s.VP.renewCertificateRateLimited(s.ViceCert)
 	s.NoError(err, "there should be no error renewing a certificate")
 	s.Equal("87d1adc3f1f262409092ec31fb09f4c7", s.ViceCert.tid)
 }
@@ -56,7 +56,7 @@ func (s *TestSuite) TestRenewCertificate() {
 func (s *TestSuite) TestApproveCertificate() {
 	vc := s.ViceCert
 	vc.tid = "87d1adc3f1f262409092ec31fb09f4c7"
-	err := s.VP.approveCertificate(vc)
+	err := s.VP.viceClient.approve(vc)
 	s.NoError(err, "there should be no error approving a certificate")
 }
 
@@ -64,7 +64,7 @@ func (s *TestSuite) TestPickupCertificate() {
 	vc := s.ViceCert
 	vc.tid = "87d1adc3f1f262409092ec31fb09f4c7"
 
-	err := s.VP.pickupCertificate(s.ViceCert)
+	err := s.VP.pickupCertificateRateLimited(s.ViceCert)
 	s.NoError(err, "there should be no error picking up a certificate")
 }
 
@@ -112,7 +112,7 @@ func (s *TestSuite) TestStateMachine() {
 
 	if err := s.VP.syncHandler(key); err != nil {
 		// TODO: At least the state machine is triggered once.
-		s.EqualError(err, "couldn't get nor create secret default/my-secret: couldn't create secret default/my-secret: the server could not find the requested resource (post secrets)")
+		s.EqualError(err, "couldn't get nor create secret default/my-secret: the server could not find the requested resource (post secrets)")
 	}
 }
 
@@ -129,19 +129,19 @@ func (s *TestSuite) TestRateLimitExceeded() {
 			},
 		},
 	}
-	s.Assert().NoError(s.VP.enrollCertificate(vc))
+	s.Assert().NoError(s.VP.enrollCertificateRateLimited(vc))
 	nReq, ok := s.VP.rateLimitMap.Load(hostName)
 	s.Assert().True(ok)
 	s.Assert().Equal(1, nReq.(int))
 
-	s.Assert().NoError(s.VP.enrollCertificate(vc))
+	s.Assert().NoError(s.VP.enrollCertificateRateLimited(vc))
 	nReq, ok = s.VP.rateLimitMap.Load(hostName)
 	s.Assert().True(ok)
 	s.Assert().Equal(2, nReq.(int))
 
 	// 3rd enrollment is expected to be skipped since the limit of 2 requests for the host was reached.
 	// this is logged and the number of requests is not incremented
-	s.Assert().NoError(s.VP.enrollCertificate(vc))
+	s.Assert().NoError(s.VP.enrollCertificateRateLimited(vc))
 	nReq, ok = s.VP.rateLimitMap.Load(hostName)
 	s.Assert().True(ok)
 	s.Assert().Equal(2, nReq.(int))

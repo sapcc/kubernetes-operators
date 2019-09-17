@@ -218,3 +218,9 @@ func saveToFile(contentBytes []byte, filePath string) ([]byte, error) {
 
 	return contentBytes, nil
 }
+
+// normalizeHostname converts a hostname in the format `foo.bar.evil.corp` to the normalized form `tls-foo-bar-evil-corp that can be used a a secret name.
+func normalizeHostname(hostname string) string {
+	hostname = strings.ToLower(hostname)
+	return "tls-"+strings.ReplaceAll(hostname, ".", "-")
+}

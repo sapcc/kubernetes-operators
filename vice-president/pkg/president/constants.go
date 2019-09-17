@@ -81,11 +81,11 @@ const (
 	// This prevents multiple ingress' from using the same secret.
 	AnnotationSecretClaimedByIngress = "vice-president/claimed-by-ingress"
 
-	// WaitTimeout is exactly that.
+	// WaitTimeout defines how long the controller waits before timing out.
 	WaitTimeout = 1 * time.Minute
 
-	// RateLimitPeriod is the period after which all rate limits are resetted.
-	RateLimitPeriod = 20 * time.Minute
+	// RateLimitPeriod is the period after which all rate limits are reset.
+	RateLimitPeriod = 1 * time.Hour
 
 	// IngressFakeCN is the CN of the ingress controllers fake certificate.
 	IngressFakeCN = "Kubernetes Ingress Controller Fake Certificate"

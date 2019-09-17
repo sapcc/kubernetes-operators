@@ -85,32 +85,8 @@ func ingressGetSecretKeysFromAnnotation(ingress *extensionsv1beta1.Ingress) (tls
 	return tlsKeySecretKey, tlsCertSecretKey
 }
 
-func isIngressAnnotationRemoved(event watch.Event) (bool, error) {
-	switch event.Type {
-	case watch.Deleted:
-		return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "ingress"}, "")
-	}
-	switch ing := event.Object.(type) {
-	case *extensionsv1beta1.Ingress:
-		return !isIngressHasAnnotation(ing, AnnotationCertificateReplacement), nil
-	}
-	return false, nil
-}
-
-func isVicePresidentFinalizerRemoved(event watch.Event) (bool, error) {
-	switch event.Type {
-	case watch.Deleted:
-		return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "ingress"}, "")
-	}
-	switch ing := event.Object.(type) {
-	case *extensionsv1beta1.Ingress:
-		return !ingressHasVicePresidentFinalizer(ing), nil
-	}
-	return false, nil
-}
-
 func ingressHasDeletionTimestamp(ingress *extensionsv1beta1.Ingress) bool {
-	return ingress.GetDeletionTimestamp() == nil
+	return ingress.GetDeletionTimestamp() != nil
 }
 
 func ingressHasVicePresidentFinalizer(ingress *extensionsv1beta1.Ingress) bool {
@@ -120,4 +96,16 @@ func ingressHasVicePresidentFinalizer(ingress *extensionsv1beta1.Ingress) bool {
 		}
 	}
 	return false
+}
+
+func isIngressAddedOrModified(event watch.Event) (bool, error) {
+	switch event.Type {
+	case watch.Deleted:
+		return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "ingress"}, "")
+	case watch.Added, watch.Modified:
+		return true, nil
+	default:
+		return false, nil
+	}
+	return false, nil
 }

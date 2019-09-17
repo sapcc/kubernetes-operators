@@ -27,6 +27,8 @@ import (
 
 // Options to configure your vice president.
 type Options struct {
+	ResyncInterval                    time.Duration
+	CertificateCheckInterval          time.Duration
 	KubeConfig                        string
 	VicePresidentConfig               string
 	ViceKeyFile                       string
@@ -34,15 +36,13 @@ type Options struct {
 	IntermediateCertificate           string
 	RootCACertificate                 string
 	Namespace                         string
-	MinCertValidityDays               int
 	EnableValidateRemoteCertificate   bool
-	MetricPort                        int
 	IsEnableAdditionalSymantecMetrics bool
 	IsDebug                           bool
-	ResyncInterval                    time.Duration
-	CertificateCheckInterval          time.Duration
 	RateLimit                         int
 	Threadiness                       int
+	MinCertValidityDays               int
+	MetricPort                        int
 }
 
 // CheckOptions verifies the Options and sets default values if necessary.

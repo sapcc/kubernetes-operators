@@ -20,11 +20,9 @@
 package president
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -34,18 +32,14 @@ import (
 	"github.com/sapcc/kubernetes-operators/vice-president/pkg/log"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
-	apiErrors "k8s.io/apimachinery/pkg/api/errors"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	apimachineryWatch "k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
+	corev1Informers "k8s.io/client-go/informers/core/v1"
+	v1beta1Informers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes/scheme"
 	kubernetesCoreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/tools/watch"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -61,22 +55,22 @@ type Operator struct {
 	vicePresidentConfig      VicePresidentConfig
 	rootCertPool             *x509.CertPool
 	intermediateCertificate  *x509.Certificate
-	resyncInterval           time.Duration // ResyncInterval defines the period after which the local cache of ingresses is refreshed
-	certificateCheckInterval time.Duration // CertificateCheckInterval defines the period after which certificates are checked
-	clientset                *kubernetes.Clientset
+	resyncInterval           time.Duration // ResyncInterval defines the period after which the local cache of ingresses is refreshed.
+	certificateCheckInterval time.Duration // CertificateCheckInterval defines the period after which certificates are checked.
+	clientset                *k8sFramework
 	viceClient               *viceClient
 	ingressInformer          cache.SharedIndexInformer
 	secretInformer           cache.SharedIndexInformer
 	queue                    workqueue.RateLimitingInterface
-	rateLimitMap             sync.Map // stores mapping of { host <string> : numAPIRequests <int>}
 	logger                   log.Logger
 	eventRecorder            record.EventRecorder
+	rateLimitMap             sync.Map // stores mapping of { host <string> : numAPIRequests <int>}
 }
 
 // New creates a new operator using the given options
 func New(options Options, logger log.Logger) *Operator {
 	viceLogger := log.NewLoggerWith(logger, "component", "viceClient")
-	logger = log.NewLoggerWith(logger, "component", "operator")
+	operatorLogger := log.NewLoggerWith(logger, "component", "operator")
 	logger.LogDebug("creating new vice president", "version", VERSION)
 
 	if err := options.CheckOptions(); err != nil {
@@ -93,7 +87,7 @@ func New(options Options, logger log.Logger) *Operator {
 		logger.LogFatal("couldn't get kubernetes client config", "err", err)
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := newK8sFramework(config, logger)
 	if err != nil {
 		logger.LogFatal("Couldn't create Kubernetes client", "err", err)
 	}
@@ -134,9 +128,65 @@ func New(options Options, logger log.Logger) *Operator {
 		workqueue.NewItemExponentialFailureRateLimiter(30*time.Second, 600*time.Second),
 	)
 
+	ingressInformer := v1beta1Informers.NewIngressInformer(
+		clientset.Clientset,
+		options.Namespace,
+		options.ResyncInterval,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+	)
+
+	ingressInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			i := obj.(*extensionsv1beta1.Ingress)
+			key, err := cache.MetaNamespaceKeyFunc(obj)
+			if err != nil {
+				clientset.logger.LogError("couldn't add ingress", err, "key", i)
+				return
+			}
+			queue.AddRateLimited(key)
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			iOld := oldObj.(*extensionsv1beta1.Ingress)
+			iNew := newObj.(*extensionsv1beta1.Ingress)
+
+			if !isIngressNeedsUpdate(iNew, iOld) {
+				clientset.logger.LogDebug("nothing changed. no need to update ingress", "key", keyFunc(iOld))
+				return
+			}
+
+			key, err := cache.MetaNamespaceKeyFunc(iNew)
+			if err != nil {
+				clientset.logger.LogError("couldn't add ingress %s/%s", err, "key", keyFunc(iNew))
+				return
+			}
+			clientset.logger.LogDebug("ingress was updated", "key", key)
+			queue.AddRateLimited(key)
+		},
+	})
+
+	secretInformer := corev1Informers.NewSecretInformer(
+		clientset.Clientset,
+		options.Namespace,
+		options.ResyncInterval,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+	)
+
+	secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			secret := obj.(*corev1.Secret)
+			// If secret is deleted but used by an ingress, requeue the ingress.
+			if ingressKey, ok := secret.GetAnnotations()[AnnotationSecretClaimedByIngress]; ok {
+				clientset.logger.LogDebug("secret was deleted. re-queueing ingress", "secret", keyFunc(secret), "ingress", keyFunc(ingressKey))
+				queue.AddAfter(ingressKey, BaseDelay)
+			}
+		},
+	})
+
 	return &Operator{
 		queue:                    queue,
-		logger:                   logger,
+		ingressInformer:          ingressInformer,
+		secretInformer:           secretInformer,
+		logger:                   operatorLogger,
 		Options:                  options,
 		clientset:                clientset,
 		vicePresidentConfig:      vicePresidentConfig,
@@ -145,21 +195,19 @@ func New(options Options, logger log.Logger) *Operator {
 		intermediateCertificate:  intermediateCert,
 		resyncInterval:           options.ResyncInterval,
 		certificateCheckInterval: options.CertificateCheckInterval,
-		rateLimitMap:             sync.Map{},
 		eventRecorder:            eventRecorder,
-		ingressInformer:          newIngressInformer(clientset, options, queue, logger),
-		secretInformer:           newSecretInformer(clientset, options, queue, logger),
+		rateLimitMap:             sync.Map{},
 	}
 }
 
-// Run starts the operator
+// Run starts the operator.
 func (vp *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGroup) {
 	defer utilruntime.HandleCrash()
 	defer vp.queue.ShutDown()
 	defer wg.Done()
 	wg.Add(1)
 
-	vp.logger.LogInfo("Ladies and Gentlemen, the Vice President! Renewing your Symantec certificates.", "version", VERSION)
+	vp.logger.LogInfo("Ladies and Gentlemen, the Vice President! Renewing your Digicert certificates.", "version", VERSION)
 
 	go vp.ingressInformer.Run(stopCh)
 	go vp.secretInformer.Run(stopCh)
@@ -252,15 +300,22 @@ func (vp *Operator) syncHandler(key string) error {
 		vp.logger.LogDebug("ignoring ingress as vice-presidential annotation is not set", "key", key)
 		return nil
 	}
-	// check each host
+	// Check each host.
 	for _, tls := range ingress.Spec.TLS {
-		vp.logger.LogDebug("checking ingress", "key", key, "hosts", strings.Join(tls.Hosts, ", "), "secret", secretKey(ingress.GetNamespace(), tls.SecretName))
 		if len(tls.Hosts) == 0 {
 			return fmt.Errorf("no hosts found in ingress.spec.tls. key %s", key)
 		}
 
-		// tls.Host[0] will be the CN, tls.Hosts[1:] the SANs of the certificate.
-		vc := NewViceCertificate(ingress, tls.SecretName, tls.Hosts[0], tls.Hosts[1:], vp.intermediateCertificate, vp.rootCertPool)
+		// Use the given name or the normalized hostname for the secret name.
+		secretName := tls.SecretName
+		if secretName == "" {
+			return fmt.Errorf("no secret name given in ingress %s for host %s", key, tls.Hosts[0])
+		}
+
+		vp.logger.LogDebug("checking ingress", "key", key, "hosts", strings.Join(tls.Hosts, ", "), "secret", secretKey(ingress.GetNamespace(), secretName))
+
+		// The tls.Hosts[0] will be the CN, tls.Hosts[1:] the SANs of the certificate.
+		vc := NewViceCertificate(ingress, secretName, tls.Hosts[0], tls.Hosts[1:], vp.intermediateCertificate, vp.rootCertPool)
 		return vp.checkCertificate(vc)
 	}
 	return err
@@ -288,7 +343,7 @@ func (vp *Operator) checkCertificate(vc *ViceCertificate) error {
 		state = nextState
 		switch state {
 		case IngressStateEnroll:
-			if err := vp.enrollCertificate(vc); err != nil {
+			if err := vp.viceClient.enroll(vc); err != nil {
 				vp.logger.LogError("couldn't enroll certificate", err, "key", vc.getIngressKey(), "host", vc.host)
 				enrollFailedCounter.With(labels).Inc()
 				return err
@@ -297,7 +352,7 @@ func (vp *Operator) checkCertificate(vc *ViceCertificate) error {
 			nextState = IngressStateApprove
 
 		case IngressStateRenew:
-			if err := vp.renewCertificate(vc); err != nil {
+			if err := vp.renewCertificateRateLimited(vc); err != nil {
 				vp.logger.LogError("couldn't renew certificate", err, "key", vc.getIngressKey(), "host", vc.host, "tid", vc.tid)
 				renewFailedCounter.With(labels).Inc()
 				return err
@@ -306,7 +361,7 @@ func (vp *Operator) checkCertificate(vc *ViceCertificate) error {
 			nextState = IngressStateApprove
 
 		case IngressStatePickup:
-			if err := vp.pickupCertificate(vc); err != nil {
+			if err := vp.pickupCertificateRateLimited(vc); err != nil {
 				vp.logger.LogError("couldn't pickup certificate", err, "key", vc.getIngressKey(), "host", vc.host, "tid", vc.tid)
 				pickupFailedCounter.With(labels).Inc()
 				return err
@@ -318,14 +373,16 @@ func (vp *Operator) checkCertificate(vc *ViceCertificate) error {
 			nextState = IngressStateApprove
 
 		case IngressStateReplace:
-			if err := vp.replaceCertificate(vc); err != nil {
+			if err := vp.replaceCertificateRateLimited(vc); err != nil {
 				vp.logger.LogError("couldn't replace certificate", err, "key", vc.getIngressKey(), "host", vc.host, "tid", vc.tid)
 				replaceFailedCounter.With(labels).Inc()
 				return err
 			}
-			if err := vp.removeCertificateReplacementAnnotationIfLastHost(vc); err != nil {
-				vp.logger.LogError("couldn't remove annotation", err, "key", vc.getIngressKey(), "annotation", AnnotationCertificateReplacement)
-				return err
+			// Remove the vice-president/replace-cert annotation from the ingress if all certificates have been replaced.
+			if isLastHostInIngressSpec(vc.ingress, vc.host) {
+				if err := vp.clientset.removeIngressAnnotation(vc.ingress, AnnotationCertificateReplacement); err != nil {
+					return err
+				}
 			}
 			replaceSuccessCounter.With(labels).Inc()
 			nextState = IngressStateApprove
@@ -334,7 +391,7 @@ func (vp *Operator) checkCertificate(vc *ViceCertificate) error {
 			if vc.certificate != nil && vc.tid == "" {
 				vp.logger.LogInfo("certificate was automatically approved", "key", vc.getIngressKey(), "host", vc.host)
 			} else {
-				if err := vp.approveCertificate(vc); err != nil {
+				if err := vp.viceClient.approve(vc); err != nil {
 					vp.logger.LogError("couldn't approve certificate", err, "ingress", vc.getIngressKey(), "host", vc.host, "tid", vc.tid)
 					approveFailedCounter.With(labels).Inc()
 					return err
@@ -353,33 +410,33 @@ func (vp *Operator) checkCertificate(vc *ViceCertificate) error {
 			return nil
 
 		default:
-			secret, err := vp.getOrCreateSecret(vc)
+			secret, err := vp.clientset.getOrCreateSecret(vc.ingress.GetNamespace(), vc.secretName, vc.ingress.GetLabels(), map[string]string{AnnotationSecretClaimedByIngress: vc.getIngressKey()})
 			if err != nil {
 				return errors.Wrapf(err, "couldn't get nor create secret %s", vc.getSecretKey())
 			}
 
-			if key, ok := secret.Annotations[AnnotationSecretClaimedByIngress]; ok && key != vc.getIngressKey() {
-				vp.logger.LogInfo("secret already used by another ingress. not touching it", "secret", vc.getSecretKey(), "ingress", vc.getIngressKey(), "usedByIngress", key)
-				return nil
-			}
-
-			if claimedByIngress, isClaimed := isSecretClaimedByAnotherIngress(vc.getIngressKey(), secret); isClaimed {
-				vp.logger.LogInfo("cannot use secret as it's being used by another ingress", "secret", vc.getSecretKey(), "claimedByIngress", claimedByIngress, "ingress", vc.getIngressKey())
+			// Check if the given Secret is already being claimed (aka used) by another Ingress. If so, return here and leave it to the ingress that came first.
+			// Multiple references to a secret can be intentional to re-use the certificate or due to misconfiguration if the host differs.
+			// In the latter case we prevent the operator from enrolling new certificates over and and over again.
+			if claimedByIngress, isClaimedByAnotherIngress := isSecretClaimedByAnotherIngress(secret, vc.getIngressKey()); isClaimedByAnotherIngress {
+				vp.logger.LogInfo("cannot use secret. already in use by another ingress", "secret", vc.getSecretKey(), "claimedByIngress", claimedByIngress, "ingress", vc.getIngressKey())
 				return nil
 			}
 
 			// Get the certificate and private key from the secret.
 			vc.certificate, vc.privateKey = getCertificateAndKeyFromSecret(secret, tlsKeySecretKey, tlsCertSecretKey)
 
-			// add finalizer before creating anything. return error
-			if err := vp.ensureVicePresidentFinalizerExists(vc.ingress); err != nil {
-				return errors.Wrapf(err, "will not create recordset in this cycle. failed to add finalizer %v", FinalizerVicePresident)
+			// Add finalizer before creating anything. Return error if this fails.
+			if err := vp.clientset.ensureVicePresidentFinalizerExists(vc.ingress); err != nil {
+				return errors.Wrapf(err, "will not create certificate in this cycle. failed to add finalizer %v", FinalizerVicePresident)
 			}
 
-			// there was an attempt to delete the ingress. cleanup recordset
+			// There was an attempt to delete the ingress. Remove the claim on the secret and the finalizer.
 			if ingressHasDeletionTimestamp(vc.ingress) {
-				removeClaimFromSecret(secret)
-				return vp.ensureVicePresidentFinalizerRemoved(vc.ingress)
+				if err := vp.clientset.removeSecretAnnotation(secret, AnnotationSecretClaimedByIngress); err != nil {
+					return err
+				}
+				return vp.clientset.ensureVicePresidentFinalizerRemoved(vc.ingress)
 			}
 
 			nextState = vp.getNextState(vc)
@@ -418,10 +475,12 @@ func (vp *Operator) getNextState(vc *ViceCertificate) string {
 	}
 
 	if vc.DoesCertificateExpireSoon(vp.MinCertValidityDays) {
+		vp.logger.LogInfo("certificate will expire soon", "host", vc.host, "expiresInLessThan", vp.MinCertValidityDays)
 		return IngressStateRenew
 	}
 
 	if vc.IsRevoked() {
+		vp.logger.LogInfo("certificate is revoked", "host", vc.host)
 		return IngressStateReplace
 	}
 
@@ -429,191 +488,24 @@ func (vp *Operator) getNextState(vc *ViceCertificate) string {
 	return IngressStateApproved
 }
 
-func (vp *Operator) getOrCreateSecret(vc *ViceCertificate) (*corev1.Secret, error) {
-	secret, err := vp.clientset.CoreV1().Secrets(vc.ingress.GetNamespace()).Get(vc.secretName, metaV1.GetOptions{})
-	if err != nil {
-		// Create secret if not found.
-		if apiErrors.IsNotFound(err) {
-			vp.logger.LogInfo("creating secret", "key", vc.getSecretKey())
-			if err := vp.addUpstreamSecret(newEmptySecret(vc.ingress.GetNamespace(), vc.secretName, vc.ingress.GetLabels())); err != nil {
-				return nil, errors.Wrapf(err, "couldn't create secret %s", vc.getSecretKey())
-			}
-			return vp.clientset.CoreV1().Secrets(vc.ingress.GetNamespace()).Get(vc.secretName, metaV1.GetOptions{})
-		}
-		// Return any other error.
-		return nil, errors.Wrapf(err, "couldn't get secret %s", vc.getSecretKey())
-	}
-	return secret, nil
-}
-
-func (vp *Operator) removeCertificateReplacementAnnotationIfLastHost(vc *ViceCertificate) error {
-	ingress, err := vp.clientset.ExtensionsV1beta1().Ingresses(vc.ingress.GetNamespace()).Get(vc.ingress.GetName(), metaV1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	// return if 'hostName' is not the last host in ingress.Spec.TLS
-	if !isLastHostInIngressSpec(ingress, vc.host) {
-		vp.logger.LogDebug(
-			"not removing annotation as it's not the last host",
-			"key", vc.getIngressKey(),
-			"host", AnnotationCertificateReplacement,
-			"host", vc.host,
-		)
-		return nil
-	}
-
-	iCur := ingress.DeepCopy()
-	annotations := iCur.GetAnnotations()
-	delete(annotations, AnnotationCertificateReplacement)
-	iCur.Annotations = annotations
-
-	vp.logger.LogDebug("removing annotation", "key", vc.getIngressKey(), "annotation", AnnotationCertificateReplacement)
-	return vp.updateUpstreamIngress(ingress, iCur, isIngressAnnotationRemoved)
-}
-
 // updateCertificateInSecret adds or updates the certificate in a secret
 func (vp *Operator) updateCertificateAndKeyInSecret(vc *ViceCertificate, tlsKeySecretKey, tlsCertSecretKey string) error {
-	secret, err := vp.clientset.CoreV1().Secrets(vc.ingress.GetNamespace()).Get(vc.secretName, metaV1.GetOptions{})
+	secret, err := vp.clientset.getOrCreateSecret(vc.ingress.GetNamespace(), vc.secretName, vc.ingress.GetLabels(), map[string]string{AnnotationSecretClaimedByIngress: vc.getIngressKey()})
 	if err != nil {
 		return err
 	}
 
 	vp.logger.LogInfo("add/update certificate to secret", "key", vc.getSecretKey())
+
 	updatedSecret, err := addCertificateAndKeyToSecret(vc, secret, tlsKeySecretKey, tlsCertSecretKey)
 	if err != nil {
 		vp.logger.LogError("couldn't update secret", err, "key", vc.getSecretKey())
 		return err
 	}
 
-	// Set a claim on the secret for the ingress.
+	// Set a claim on the secret for the ingress to prevent other ingress from using it as well.
 	secret.Annotations[AnnotationSecretClaimedByIngress] = vc.getIngressKey()
-
-	return vp.updateUpstreamSecret(updatedSecret, secret)
-}
-
-// enrollCertificate triggers the enrollment of a certificate if rate limit is not exceeded
-func (vp *Operator) enrollCertificate(vc *ViceCertificate) error {
-	if vp.isRateLimitForHostExceeded(vc) {
-		return nil
-	}
-	return vp.viceClient.enroll(vc)
-}
-
-// renewCertificate triggers the renewal of a certificate if rate limit is not exceeded
-func (vp *Operator) renewCertificate(vc *ViceCertificate) error {
-	if vp.isRateLimitForHostExceeded(vc) {
-		return nil
-	}
-	return vp.viceClient.renew(vc)
-}
-
-// approveCertificate triggers the approval of a certificate. no rate limit. always approve
-func (vp *Operator) approveCertificate(vc *ViceCertificate) error {
-	return vp.viceClient.approve(vc)
-}
-
-// pickupCertificate picks up a given certificate if rate limit is not exceeded
-func (vp *Operator) pickupCertificate(vc *ViceCertificate) error {
-	if vp.isRateLimitForHostExceeded(vc) {
-		return nil
-	}
-	return vp.viceClient.pickup(vc)
-}
-
-// replaceCertificate triggers the replacement of the certificate if rate limit is not exceeded
-func (vp *Operator) replaceCertificate(vc *ViceCertificate) error {
-	if vp.isRateLimitForHostExceeded(vc) {
-		return nil
-	}
-	return vp.viceClient.replace(vc)
-}
-
-// watch secret and wait for max. t minutes until it exists or got modified
-func (vp *Operator) waitForUpstreamSecret(secret *corev1.Secret, conditionFunc watch.ConditionFunc) error {
-	ctx, _ := context.WithTimeout(context.TODO(), WaitTimeout)
-
-	_, err := watch.UntilWithSync(
-		ctx,
-		&cache.ListWatch{
-			ListFunc: func(options metaV1.ListOptions) (object runtime.Object, e error) {
-				return vp.clientset.ExtensionsV1beta1().Ingresses(options.LabelSelector).List(metaV1.SingleObject(metaV1.ObjectMeta{Name: secret.GetName()}))
-			},
-			WatchFunc: func(options metaV1.ListOptions) (i apimachineryWatch.Interface, e error) {
-				return vp.clientset.ExtensionsV1beta1().Ingresses(secret.GetNamespace()).Watch(metaV1.SingleObject(metaV1.ObjectMeta{Name: secret.GetName()}))
-			},
-		},
-		secret,
-		nil,
-		conditionFunc,
-	)
-	return err
-}
-
-func (vp *Operator) addUpstreamSecret(secret *corev1.Secret) error {
-	s, err := vp.clientset.CoreV1().Secrets(secret.GetNamespace()).Create(secret)
-	if err != nil {
-		return err
-	}
-	vp.logger.LogDebug("added upstream secret", "key", keyFunc(secret))
-	return vp.waitForUpstreamSecret(s, isSecretExists)
-}
-
-func (vp *Operator) deleteUpstreamSecret(secret *corev1.Secret) error {
-	err := vp.clientset.CoreV1().Secrets(secret.GetNamespace()).Delete(
-		secret.GetName(),
-		&metaV1.DeleteOptions{},
-	)
-	if err != nil {
-		return err
-	}
-	vp.logger.LogDebug("deleted upstream secret", "key", keyFunc(secret))
-	return vp.waitForUpstreamSecret(secret, isSecretDeleted)
-}
-
-func (vp *Operator) updateUpstreamSecret(sCur, sOld *corev1.Secret) error {
-	if !isSecretNeedsUpdate(sCur, sOld) {
-		vp.logger.LogDebug("nothing changed. no need to update secret", "key", keyFunc(sOld))
-		return nil
-	}
-	vp.logger.LogDebug("updated upstream secret", keyFunc(sOld))
-	_, err := vp.clientset.CoreV1().Secrets(sOld.GetNamespace()).Update(sCur)
-	vp.eventRecorder.Eventf(sOld, corev1.EventTypeNormal, UpdateEvent, fmt.Sprintf("updated tls certificate and key in secret %s", keyFunc(sOld)))
-	return err
-}
-
-func (vp *Operator) updateUpstreamIngress(iOld, iCur *extensionsv1beta1.Ingress, conditionFunc watch.ConditionFunc) error {
-	if reflect.DeepEqual(iOld.Spec, iCur.Spec) && reflect.DeepEqual(iOld.GetAnnotations(), iCur.GetAnnotations()) {
-		vp.logger.LogDebug("nothing chanced. no need to update ingress", "key", keyFunc(iOld))
-		return nil
-	}
-	ing, err := vp.clientset.ExtensionsV1beta1().Ingresses(iOld.GetNamespace()).Update(iCur)
-	if err != nil {
-		return err
-	}
-
-	vp.logger.LogInfo("updated upstream ingress", "key", keyFunc(iOld))
-	return vp.waitForUpstreamIngress(ing, conditionFunc)
-}
-
-func (vp *Operator) waitForUpstreamIngress(ingress *extensionsv1beta1.Ingress, conditionFunc watch.ConditionFunc) error {
-	ctx, _ := context.WithTimeout(context.TODO(), WaitTimeout)
-
-	_, err := watch.UntilWithSync(
-		ctx,
-		&cache.ListWatch{
-			ListFunc: func(options metaV1.ListOptions) (object runtime.Object, e error) {
-				return vp.clientset.ExtensionsV1beta1().Ingresses(options.LabelSelector).List(options)
-			},
-			WatchFunc: func(options metaV1.ListOptions) (i apimachineryWatch.Interface, e error) {
-				return vp.clientset.ExtensionsV1beta1().Ingresses(ingress.GetNamespace()).Watch(options)
-			},
-		},
-		ingress,
-		nil,
-		conditionFunc,
-	)
-	return err
+	return vp.clientset.updateSecret(secret, updatedSecret)
 }
 
 func (vp *Operator) checkCertificates() {
@@ -668,27 +560,34 @@ func (vp *Operator) isRateLimitForHostExceeded(viceCert *ViceCertificate) bool {
 	return false
 }
 
-func (vp *Operator) ensureVicePresidentFinalizerExists(ingress *extensionsv1beta1.Ingress) error {
-	// add finalizer if not present and ingress was not deleted
-	if !ingressHasVicePresidentFinalizer(ingress) && !ingressHasDeletionTimestamp(ingress) {
-		newIngress := ingress.DeepCopy()
-		newIngress.Finalizers = append(newIngress.GetFinalizers(), FinalizerVicePresident)
-		return vp.updateUpstreamIngress(ingress, newIngress, isVicePresidentFinalizerRemoved)
+// enrollCertificateRateLimited triggers the enrollment of a certificate if rate limit is not exceeded
+func (vp *Operator) enrollCertificateRateLimited(vc *ViceCertificate) error {
+	if vp.isRateLimitForHostExceeded(vc) {
+		return nil
 	}
-	return nil
+	return vp.viceClient.enroll(vc)
 }
 
-func (vp *Operator) ensureVicePresidentFinalizerRemoved(ingress *extensionsv1beta1.Ingress) error {
-	// do not remove finalizer if DeletionTimestamp is not set
-	if ingressHasVicePresidentFinalizer(ingress) && ingressHasDeletionTimestamp(ingress) {
-		newIngress := ingress.DeepCopy()
-		for i, fin := range newIngress.GetFinalizers() {
-			if fin == FinalizerVicePresident {
-				// delete but preserve order
-				newIngress.Finalizers = append(newIngress.Finalizers[:i], newIngress.Finalizers[i+1:]...)
-				return vp.updateUpstreamIngress(ingress, newIngress, isVicePresidentFinalizerRemoved)
-			}
-		}
+// renewCertificateRateLimited triggers the renewal of a certificate if rate limit is not exceeded
+func (vp *Operator) renewCertificateRateLimited(vc *ViceCertificate) error {
+	if vp.isRateLimitForHostExceeded(vc) {
+		return nil
 	}
-	return nil
+	return vp.viceClient.renew(vc)
+}
+
+// pickupCertificateRateLimited picks up a given certificate if rate limit is not exceeded
+func (vp *Operator) pickupCertificateRateLimited(vc *ViceCertificate) error {
+	if vp.isRateLimitForHostExceeded(vc) {
+		return nil
+	}
+	return vp.viceClient.pickup(vc)
+}
+
+// replaceCertificateRateLimited triggers the replacement of the certificate if rate limit is not exceeded
+func (vp *Operator) replaceCertificateRateLimited(vc *ViceCertificate) error {
+	if vp.isRateLimitForHostExceeded(vc) {
+		return nil
+	}
+	return vp.viceClient.replace(vc)
 }

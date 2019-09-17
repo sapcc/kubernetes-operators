@@ -32,17 +32,21 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func newEmptySecret(nameSpace, name string, labels map[string]string) *coreV1.Secret {
+func newEmptySecret(nameSpace, name string, labels, annotations map[string]string) *coreV1.Secret {
 	if labels == nil {
 		labels = map[string]string{}
 	}
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
 	return &coreV1.Secret{
-		ObjectMeta: metaV1.ObjectMeta{
-			Name:      name,
-			Namespace: nameSpace,
-			Labels:    labels,
-		},
 		Type: coreV1.SecretTypeOpaque,
+		ObjectMeta: metaV1.ObjectMeta{
+			Name:        name,
+			Namespace:   nameSpace,
+			Labels:      labels,
+			Annotations: annotations,
+		},
 	}
 }
 
@@ -58,7 +62,7 @@ func getCertificateAndKeyFromSecret(secret *coreV1.Secret, tlsKeySecretKey, tlsC
 	}
 
 	if k, ok := secret.Data[tlsKeySecretKey]; ok && len(k) > 0 {
-		key, err := readPrivateKeyFromPEM(k);
+		key, err := readPrivateKeyFromPEM(k)
 		if err != nil {
 			return nil, nil
 		}
@@ -112,11 +116,11 @@ func isSecretNeedsUpdate(sCur, sOld *coreV1.Secret) bool {
 	return false
 }
 
-func isSecretExists(event watch.Event) (bool, error) {
+func isSecretAddedOrModified(event watch.Event) (bool, error) {
 	switch event.Type {
 	case watch.Deleted:
 		return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "secret"}, "")
-	case watch.Added:
+	case watch.Added, watch.Modified:
 		return true, nil
 	default:
 		return false, nil
@@ -138,14 +142,20 @@ func secretKey(ingressNamespace, secretName string) string {
 	return fmt.Sprintf("%s/%s", ingressNamespace, secretName)
 }
 
-func removeClaimFromSecret(secret *coreV1.Secret) {
-	delete(secret.Annotations, AnnotationSecretClaimedByIngress)
-}
-
 // isSecretClaimedByAnotherIngress checks whether the given Secret is already claimed at all and if so by a different ingress than the one given.
-func isSecretClaimedByAnotherIngress(ingressKey string, secret *coreV1.Secret) (string, bool) {
+func isSecretClaimedByAnotherIngress(secret *coreV1.Secret, ingressKey string) (string, bool) {
 	if key, ok := secret.GetAnnotations()[AnnotationSecretClaimedByIngress]; ok {
 		return key, key != ingressKey
 	}
-	return ingressKey, false
+	// Not claimed.
+	return "", false
+}
+
+func isSecretHasAnnotation(secret *coreV1.Secret, annotation string) bool {
+	for _, ann := range secret.GetAnnotations() {
+		if ann == annotation {
+			return true
+		}
+	}
+	return false
 }
