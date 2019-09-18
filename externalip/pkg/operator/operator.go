@@ -58,7 +58,9 @@ func New(options Options) *Operator {
 	var err error
 	if options.KubeConfig == "" {
 		config, err = rest.InClusterConfig()
-		glog.Fatalf("Couldn't create in-cluster config: %s", err)
+		if err != nil {
+			glog.Fatalf("Couldn't create in-cluster config: %s", err)
+		}
 	} else {
 		config = newClientConfig(options)
 	}
