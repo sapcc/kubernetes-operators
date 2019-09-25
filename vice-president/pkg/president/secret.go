@@ -47,6 +47,7 @@ func newEmptySecret(nameSpace, name string, labels, annotations map[string]strin
 			Labels:      labels,
 			Annotations: annotations,
 		},
+		Data: map[string][]byte{},
 	}
 }
 

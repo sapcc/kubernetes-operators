@@ -503,8 +503,12 @@ func (vp *Operator) updateCertificateAndKeyInSecret(vc *ViceCertificate, tlsKeyS
 		return err
 	}
 
+	if updatedSecret.Annotations == nil {
+		updatedSecret.Annotations = map[string]string{}
+	}
+
 	// Set a claim on the secret for the ingress to prevent other ingress from using it as well.
-	secret.Annotations[AnnotationSecretClaimedByIngress] = vc.getIngressKey()
+	updatedSecret.Annotations[AnnotationSecretClaimedByIngress] = vc.getIngressKey()
 	return vp.clientset.updateSecret(secret, updatedSecret)
 }
 
