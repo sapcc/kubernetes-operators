@@ -39,3 +39,11 @@ clean:
 
 vendor:
 	dep ensure
+
+.PHONY: crd-gen
+crd-gen:
+    chmod +x vendor/k8s.io/code-generator/generate-groups.sh && \
+	vendor/k8s.io/code-generator/generate-groups.sh all \
+	  github.com/sapcc/kubernetes-operators/disco/pkg/client \
+	  github.com/sapcc/kubernetes-operators/disco/pkg/apis \
+	  disco.stable.sap.cc:v1
