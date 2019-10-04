@@ -37,6 +37,7 @@ type Options struct {
 	Record            string
 	ZoneName          string
 	IsDebug           bool
+	IsInstallCRD bool
 }
 
 func (o *Options) applyDefaultsIfNotSet() {

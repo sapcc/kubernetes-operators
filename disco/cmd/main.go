@@ -48,6 +48,7 @@ func init() {
 	pflag.StringVar(&options.Record, "record", "", "Default record data used for the CNAME")
 	pflag.StringVar(&options.ZoneName, "zone-name", "", "Name of the openstack zone in which the recordset will be created")
 	pflag.BoolVar(&options.IsDebug, "debug", false, "Enable debug logging")
+	pflag.BoolVar(&options.IsInstallCRD, "install-crd", true, "Install the custom resource definitions (CRDs) if not present.")
 }
 
 func main() {

@@ -31,7 +31,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/metrics"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -42,6 +42,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+
+	discoV1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1"
+	discoClientV1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned/typed/disco.stable.sap.cc/v1"
 )
 
 var (
@@ -64,6 +67,8 @@ type Operator struct {
 	logger          log.Logger
 	eventRecorder   record.EventRecorder
 	zoneCache       *expiringCache.Cache
+
+	discoClientset *discoClientV1.DiscoV1Client
 }
 
 // New creates a new operator using the given options
@@ -96,6 +101,12 @@ func New(options Options, logger log.Logger) *Operator {
 		return nil
 	}
 
+	discoClient, err := discoClientV1.NewForConfig(kubeConfig)
+	if err != nil {
+		operatorLogger.LogFatal("error creating clientset for custom resources", "err", err)
+		return nil
+	}
+
 	dnsV2Client, err := NewDNSV2ClientFromAuthOpts(discoConfig.AuthOpts, logger)
 	if err != nil {
 		operatorLogger.LogFatal("error creating designate v2 client", "err", err)
@@ -114,6 +125,7 @@ func New(options Options, logger log.Logger) *Operator {
 	operator := &Operator{
 		Options:         options,
 		clientset:       clientset,
+		discoClientset:  discoClient,
 		dnsV2Client:     dnsV2Client,
 		Config:          discoConfig,
 		ResyncPeriod:    resyncPeriod,
@@ -467,4 +479,11 @@ func (disco *Operator) getZoneByName(zoneName string) (zones.Zone, error) {
 
 	disco.zoneCache.Set(zoneName, zone, expiringCache.DefaultExpiration)
 	return zone, nil
+}
+
+func (disco *Operator) updateStatus(d *discoV1.DiscoRecord, status string) error {
+	new := d.DeepCopy()
+	new.Status.RecordSetStatus = status
+	_, err := disco.discoClientset.DiscoRecords(d.GetNamespace()).UpdateStatus(new)
+	return err
 }
