@@ -25,6 +25,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/sapcc/kubernetes-operators/disco/pkg/disco"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
@@ -42,12 +43,13 @@ func init() {
 	pflag.StringVar(&options.IngressAnnotation, "ingress-annotation", disco.DefaultIngressAnnotation, "Handle ingress with this annotation")
 	pflag.IntVar(&options.Threadiness, "threadiness", disco.DefaultThreadiness, "The operator threadiness")
 	pflag.IntVar(&options.MetricPort, "metric-port", disco.DefaultMetricPort, "Metrics are exposed on this port")
-	pflag.IntVar(&options.RecheckPeriod, "recheck-period", disco.DefaultRecheckPeriod, "RecheckPeriod[min] defines the base period after which configmaps are checked again")
-	pflag.IntVar(&options.ResyncPeriod, "resync-period", disco.DefaultResyncPeriod, "ResyncPeriod[min] defines the base period after which the cache is resynced")
+	pflag.DurationVar(&options.RecheckPeriod, "recheck-period", 5 * time.Minute, "RecheckPeriod[min] defines the base period after which configmaps are checked again")
+	pflag.DurationVar(&options.ResyncPeriod, "resync-period", 2 * time.Minute, "ResyncPeriod[min] defines the base period after which the cache is resynced")
 	pflag.IntVar(&options.RecordsetTTL, "recordset-ttl", disco.DefaultRecordsetTTL, "The Recordset TTL in seconds")
 	pflag.StringVar(&options.Record, "record", "", "Default record data used for the CNAME")
 	pflag.StringVar(&options.ZoneName, "zone-name", "", "Name of the openstack zone in which the recordset will be created")
 	pflag.BoolVar(&options.IsDebug, "debug", false, "Enable debug logging")
+	pflag.StringVar(&options.EventComponent, "event-component", "disco", "Component to use for kubernetes events.")
 	pflag.BoolVar(&options.IsInstallCRD, "install-crd", true, "Install the custom resource definitions (CRDs) if not present.")
 }
 
@@ -63,7 +65,13 @@ func main() {
 
 	logger := log.NewLogger(options.IsDebug)
 
-	go disco.New(options, logger).Run(options.Threadiness, stop, wg)
+	discoOperator, err := disco.New(options, logger)
+	if err != nil {
+		logger.LogFatal("fatal error while starting the music", "err", err)
+		return
+	}
+
+	go discoOperator.Run(options.Threadiness, stop, wg)
 	go metrics.ExposeMetrics("0.0.0.0", options.MetricPort, stop, wg, logger)
 
 	<-sigs // Wait for signals (this hangs until a signal arrives)

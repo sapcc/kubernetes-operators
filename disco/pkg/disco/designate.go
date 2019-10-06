@@ -184,7 +184,7 @@ func (c *DNSV2Client) createDesignateRecordset(zoneID, rsName string, records []
 
 	var (
 		res gophercloud.Result
-		rs recordsets.RecordSet
+		rs  recordsets.RecordSet
 	)
 
 	_, res.Err = c.client.Post(url, &rec, &res.Body, &opts)

@@ -20,23 +20,26 @@
 package disco
 
 import (
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 )
 
 // Options to configure your disco operator
 type Options struct {
-	KubeConfig        string
-	ConfigPath        string
+	KubeConfig,
+	ConfigPath,
+	Record,
+	ZoneName,
+	EventComponent,
 	IngressAnnotation string
-	Threadiness       int
-	MetricPort        int
-	ResyncPeriod      int
-	RecheckPeriod     int
-	RecordsetTTL      int
-	Record            string
-	ZoneName          string
-	IsDebug           bool
+	Threadiness,
+	MetricPort,
+	RecordsetTTL int
+	ResyncPeriod,
+	RecheckPeriod time.Duration
+	IsDebug,
 	IsInstallCRD bool
 }
 

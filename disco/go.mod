@@ -11,6 +11,8 @@ require (
 	github.com/golang/groupcache v0.0.0-20190129154638-5b532d6fd5ef // indirect
 	github.com/google/btree v1.0.0 // indirect
 	github.com/gophercloud/gophercloud v0.1.0
+	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
+	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v0.9.4

@@ -21,40 +21,12 @@ package disco
 
 import (
 	"fmt"
-	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
 	"strings"
 
+	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
-
 	"k8s.io/api/extensions/v1beta1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
-
-func newClientConfig(options Options) (*rest.Config, error) {
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	overrides := &clientcmd.ConfigOverrides{}
-	if options.KubeConfig != "" {
-		rules.ExplicitPath = options.KubeConfig
-	}
-	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
-}
-
-func ingressHasDiscoFinalizer(ingress *v1beta1.Ingress) bool {
-	for _, fin := range ingress.GetFinalizers() {
-		if fin == DiscoFinalizer {
-			return true
-		}
-	}
-	return false
-}
-
-func ingressHasDeletionTimestamp(ingress *v1beta1.Ingress) bool {
-	if ingress.GetDeletionTimestamp() != nil {
-		return true
-	}
-	return false
-}
 
 // addSuffixIfRequired ensures the recordset name ends with '.'
 func addSuffixIfRequired(s string) string {

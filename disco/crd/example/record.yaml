@@ -1,0 +1,24 @@
+apiVersion:  disco.stable.sap.cc
+kind: Record
+
+metadata:
+  name: mycname
+
+spec:
+  type: CNAME
+  record: ingress.evil.corp
+  hosts:
+    - foo.evil.corp
+
+---
+apiVersion:  disco.stable.sap.cc
+kind: Record
+
+metadata:
+  name: myArecord
+
+spec:
+  type: A
+  record: 1.2.3.4
+  hosts:
+    - foo.evil.corp
