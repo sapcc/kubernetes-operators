@@ -35,7 +35,8 @@ type Options struct {
 	ZoneName,
 	EventComponent,
 	IngressAnnotation,
-	Finalizer string
+	Finalizer,
+	MetricHost string
 	Threadiness,
 	MetricPort,
 	RecordsetTTL int
