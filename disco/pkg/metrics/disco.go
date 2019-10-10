@@ -25,10 +25,9 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 )
 
 const (
@@ -37,9 +36,6 @@ const (
 
 	// MetricRecordset used to prefix metrics.
 	MetricRecordset = "recordsets"
-
-	// MetricOperator used to prefix metrics.
-	MetricOperator = "operator"
 )
 
 var (
