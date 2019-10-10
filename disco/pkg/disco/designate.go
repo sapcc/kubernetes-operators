@@ -27,6 +27,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
 	"github.com/gophercloud/gophercloud/pagination"
 	"github.com/pkg/errors"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 )
 
@@ -73,7 +74,7 @@ type DNSV2Client struct {
 }
 
 // NewDNSV2ClientFromAuthOpts returns a new dns v2 client using provided auth options or an error
-func NewDNSV2ClientFromAuthOpts(authOpts AuthOpts, logger log.Logger) (*DNSV2Client, error) {
+func NewDNSV2ClientFromAuthOpts(authOpts config.AuthOpts, logger log.Logger) (*DNSV2Client, error) {
 	client, err := NewOpenStackDesignateClient(authOpts)
 	if err != nil {
 		return nil, err

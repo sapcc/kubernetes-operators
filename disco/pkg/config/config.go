@@ -17,7 +17,7 @@
 *
 *******************************************************************************/
 
-package disco
+package config
 
 import (
 	"io/ioutil"
@@ -28,6 +28,16 @@ import (
 	"gopkg.in/yaml.v1"
 )
 
+type AuthOpts struct {
+	AuthURL           string `yaml:"auth_url"`
+	RegionName        string `yaml:"region_name"`
+	Username          string `yaml:"username"`
+	UserDomainName    string `yaml:"user_domain_name"`
+	Password          string `yaml:"password"`
+	ProjectName       string `yaml:"project_name"`
+	ProjectDomainName string `yaml:"project_domain_name"`
+}
+
 // Config ...
 type Config struct {
 	AuthOpts `yaml:",inline"`
@@ -35,7 +45,7 @@ type Config struct {
 
 // ReadConfig reads a given configuration file and returns the ViceConfig object and if applicable an error.
 func ReadConfig(filePath string) (*Config, error) {
-	cfg := Config{}
+	var cfg Config
 	cfgBytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not read configuration file")

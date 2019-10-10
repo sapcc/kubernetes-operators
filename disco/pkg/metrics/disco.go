@@ -21,10 +21,11 @@ package metrics
 
 import (
 	"fmt"
-	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 	"net"
 	"net/http"
 	"sync"
+
+	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

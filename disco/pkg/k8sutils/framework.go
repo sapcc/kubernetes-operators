@@ -24,7 +24,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sapcc/kubernetes-operators/disco/pkg/disco"
+	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
 	genCRDClientset "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned"
 	discoClientV1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned/typed/disco.stable.sap.cc/v1"
 	genCRDInformers "github.com/sapcc/kubernetes-operators/disco/pkg/generated/informers/externalversions"
@@ -34,11 +35,13 @@ import (
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	apimetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	apimachineryWatch "k8s.io/apimachinery/pkg/watch"
+	v1beta12 "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -55,16 +58,20 @@ const WaitTimeout = 2 * time.Minute
 // K8sFramework ..
 type K8sFramework struct {
 	*kubernetes.Clientset
-	logger        log.Logger
-	kubeConfig    *rest.Config
-	eventRecorder record.EventRecorder
-
 	CRDclientset      *apiextensionsclient.Clientset
 	DiscoCRDClientset *discoClientV1.DiscoV1Client
+
+	logger                  log.Logger
+	kubeConfig              *rest.Config
+	eventRecorder           record.EventRecorder
+	finalizer               string
+	discoCRDInformerFactory genCRDInformers.SharedInformerFactory
+	ingressInformer         cache.SharedIndexInformer
+	discoCRDInformer        cache.SharedIndexInformer
 }
 
 // NewK8sFramework ...
-func NewK8sFramework(options disco.Options, logger log.Logger) (*K8sFramework, error) {
+func NewK8sFramework(options config.Options, logger log.Logger) (*K8sFramework, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{}
 	if options.KubeConfig != "" {
@@ -91,32 +98,87 @@ func NewK8sFramework(options disco.Options, logger log.Logger) (*K8sFramework, e
 		return nil, err
 	}
 
+	crdClient, err := genCRDClientset.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
 	b := record.NewBroadcaster()
 	b.StartLogging(logger.LogEvent)
 	b.StartRecordingToSink(&v12.EventSinkImpl{
-		Interface: clientset.CoreV1().Events(apimetav1.NamespaceNone),
+		Interface: clientset.CoreV1().Events(apimetav1.NamespaceAll),
 	})
 	eventRecorder := b.NewRecorder(scheme.Scheme, coreV1.EventSource{
 		Component: options.EventComponent,
 	})
 
+	ingressInformer := v1beta12.NewIngressInformer(
+		clientset,
+		apimetav1.NamespaceAll,
+		options.ResyncPeriod,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+	)
+
+	informerFactory := genCRDInformers.NewSharedInformerFactory(crdClient, options.ResyncPeriod)
+	discoCRDInformer := informerFactory.Disco().V1().DiscoRecords().Informer()
+
 	return &K8sFramework{
-		Clientset:         clientset,
-		kubeConfig:        config,
-		eventRecorder:     eventRecorder,
-		CRDclientset:      crdclientset,
-		DiscoCRDClientset: discoCRDClient,
-		logger:            log.NewLoggerWith(logger, "component", "k8sFramework"),
+		Clientset:               clientset,
+		kubeConfig:              config,
+		eventRecorder:           eventRecorder,
+		ingressInformer:         ingressInformer,
+		discoCRDInformer:        discoCRDInformer,
+		CRDclientset:            crdclientset,
+		DiscoCRDClientset:       discoCRDClient,
+		discoCRDInformerFactory: informerFactory,
+		logger:                  log.NewLoggerWith(logger, "component", "k8sFramework"),
 	}, nil
 }
 
-func (k8s *K8sFramework) NewDiscoCRDInformerWithResyncPeriod(resyncPeriod time.Duration) (cache.SharedIndexInformer, error) {
-	c, err := genCRDClientset.NewForConfig(k8s.kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	infFactory := genCRDInformers.NewSharedInformerFactory(c, resyncPeriod)
-	return infFactory.Disco().V1().DiscoRecords().Informer(), nil
+func (k8s *K8sFramework) Run(stopCh <-chan struct{}) {
+	go k8s.discoCRDInformerFactory.Start(stopCh)
+	go k8s.discoCRDInformer.Run(stopCh)
+	go k8s.ingressInformer.Run(stopCh)
+}
+
+func (k8s *K8sFramework) WaitForCacheSync(stopCh <-chan struct{}) bool {
+	return cache.WaitForCacheSync(
+		stopCh,
+		k8s.discoCRDInformer.HasSynced,
+		k8s.ingressInformer.HasSynced,
+	)
+}
+
+func (k8s *K8sFramework) AddIngressInformerEventHandler(addFunc, deleteFunc func(obj interface{}), updateFunc func(oldObj, newObj interface{})) {
+	k8s.ingressInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    addFunc,
+		UpdateFunc: updateFunc,
+		DeleteFunc: deleteFunc,
+	})
+}
+
+func (k8s *K8sFramework) GetIngressFromIndexerByKey(key string) (interface{}, bool, error) {
+	return k8s.ingressInformer.GetIndexer().GetByKey(key)
+}
+
+func (k8s *K8sFramework) GetIngressInformerStore() cache.Store {
+	return k8s.ingressInformer.GetStore()
+}
+
+func (k8s *K8sFramework) GetDiscoRecordFromIndexerByKey(key string) (interface{}, bool, error) {
+	return k8s.discoCRDInformer.GetIndexer().GetByKey(key)
+}
+
+func (k8s *K8sFramework) GetDiscoRecordInformerStore() cache.Store {
+	return k8s.discoCRDInformer.GetStore()
+}
+
+func (k8s *K8sFramework) AddDiscoCRDInformerEventHandler(addFunc, deleteFunc func(obj interface{}), updateFunc func(oldObj, newObj interface{})) {
+	k8s.discoCRDInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    addFunc,
+		UpdateFunc: updateFunc,
+		DeleteFunc: deleteFunc,
+	})
 }
 
 // Eventf emits an event via the event recorder.
@@ -124,6 +186,7 @@ func (k8s *K8sFramework) Eventf(object runtime.Object, eventType, reason, messag
 	k8s.eventRecorder.Eventf(object, eventType, reason, messageFmt)
 }
 
+// CreateDiscoRecordCRDAndWaitUntilReady creates the CRDs used by this operator and waits until they are ready or the operation times out.
 func (k8s *K8sFramework) CreateDiscoRecordCRDAndWaitUntilReady() error {
 	crd := NewDiscoRecordCRD()
 	crdClient := k8s.CRDclientset.ApiextensionsV1beta1().CustomResourceDefinitions()
@@ -149,7 +212,7 @@ func (k8s *K8sFramework) GetIngress(namespace, name string) (*extensionsv1beta1.
 
 // UpdateIngressAndWait updates an existing Ingress and waits until the operation times out or is completed.
 func (k8s *K8sFramework) UpdateIngressAndWait(oldIngress, newIngress *extensionsv1beta1.Ingress, conditionFuncs ...watch.ConditionFunc) error {
-	oldIngress, err := k8s.ExtensionsV1beta1().Ingresses(oldIngress.GetNamespace()).Get(oldIngress.GetName(), metaV1.GetOptions{})
+	oldIngress, err := k8s.GetIngress(oldIngress.GetNamespace(), oldIngress.GetName())
 	if err != nil {
 		return err
 	}
@@ -164,7 +227,7 @@ func (k8s *K8sFramework) UpdateIngressAndWait(oldIngress, newIngress *extensions
 		return err
 	}
 
-	k8s.logger.LogDebug("updating ingress", "ingress", fmt.Sprintf("%s/%s", oldIngress.GetNamespace(), oldIngress.GetName()))
+	k8s.logger.LogDebug("updating ingress", "key", fmt.Sprintf("%s/%s", oldIngress.GetNamespace(), oldIngress.GetName()))
 
 	if conditionFuncs == nil {
 		conditionFuncs = []watch.ConditionFunc{isIngressAddedOrModified}
@@ -173,24 +236,77 @@ func (k8s *K8sFramework) UpdateIngressAndWait(oldIngress, newIngress *extensions
 	return k8s.waitForUpstreamIngress(updatedIngress, conditionFuncs...)
 }
 
-func (k8s *K8sFramework) EnsureDiscoFinalizerExists(ingress *extensionsv1beta1.Ingress) error {
+func (k8s *K8sFramework) GetDiscoRecord(namespace, name string) (*v1.DiscoRecord, error) {
+	return k8s.DiscoCRDClientset.DiscoRecords(namespace).Get(name, metaV1.GetOptions{})
+}
+
+func (k8s *K8sFramework) UpdateDiscoRecordAndWait(oldDiscoRecord, newDiscoRecord *v1.DiscoRecord, conditionFuncs ...watch.ConditionFunc) error {
+	oldDiscoRecord, err := k8s.GetDiscoRecord(oldDiscoRecord.GetNamespace(), oldDiscoRecord.GetName())
+	if err != nil {
+		return err
+	}
+
+	if !isDiscoRecordNeedsUpdate(oldDiscoRecord, newDiscoRecord) {
+		return nil
+	}
+
+	updatedDiscoRecord, err := k8s.DiscoCRDClientset.DiscoRecords(oldDiscoRecord.GetNamespace()).Update(newDiscoRecord)
+	if err != nil {
+		return err
+	}
+
+	k8s.logger.LogDebug("updating discorecord", "key", fmt.Sprintf("%s/%s", oldDiscoRecord.GetNamespace(), oldDiscoRecord.GetName()))
+
+	if conditionFuncs == nil {
+		conditionFuncs = []watch.ConditionFunc{isDiscoRecordAddedOrModified}
+	}
+
+	return k8s.waitForUpstreamDiscoRecord(updatedDiscoRecord, conditionFuncs...)
+}
+
+// UpdateObjectAndWait updates an existing Ingress or DiscoRecord and waits until the operation times out or is completed.
+func (k8s *K8sFramework) UpdateObjectAndWait(oldObj, newObj runtime.Object, conditionFuncs ...watch.ConditionFunc) error {
+	oldKind := oldObj.GetObjectKind().GroupVersionKind().Kind
+	newKind := newObj.GetObjectKind().GroupVersionKind().Kind
+	if oldKind != newKind {
+		return fmt.Errorf("mismatching kind: %q vs %q", oldKind, newKind)
+	}
+
+	switch oldObj.(type) {
+	case *extensionsv1beta1.Ingress:
+		return k8s.UpdateIngressAndWait(oldObj.(*extensionsv1beta1.Ingress), newObj.(*extensionsv1beta1.Ingress), conditionFuncs...)
+	case *v1.DiscoRecord:
+		return k8s.UpdateDiscoRecordAndWait(oldObj.(*v1.DiscoRecord), newObj.(*v1.DiscoRecord), conditionFuncs...)
+	}
+
+	return fmt.Errorf("unknown kind: %q", oldKind)
+}
+
+// EnsureDiscoFinalizerExists ensures the finalizer exists on the given object.
+func (k8s *K8sFramework) EnsureDiscoFinalizerExists(obj runtime.Object) error {
 	// Add finalizer if not present and ingress was not deleted.
-	if !ingressHasDiscoFinalizer(ingress) && !ingressHasDeletionTimestamp(ingress) {
-		newIngress := ingress.DeepCopy()
-		newIngress.Finalizers = append(newIngress.GetFinalizers(), disco.DiscoFinalizer)
+	if !hasDiscoFinalizer(obj, k8s.finalizer) && !HasDeletionTimestamp(obj) {
+		newObj := obj.DeepCopyObject()
 
-		k8s.logger.LogDebug("adding finalizer to ingress", "ingress", fmt.Sprintf("%s/%s", ingress.GetNamespace(), ingress.GetName()), "finalizer", disco.DiscoFinalizer)
+		objMeta, err := meta.Accessor(newObj)
+		if err != nil {
+			return err
+		}
 
-		return k8s.UpdateIngressAndWait(
-			ingress, newIngress,
+		finalizers := append(objMeta.GetFinalizers(), k8s.finalizer)
+		objMeta.SetFinalizers(finalizers)
+		k8s.logger.LogDebug("adding finalizer", "key", fmt.Sprintf("%s/%s/%s", obj.GetObjectKind(), objMeta.GetNamespace(), objMeta.GetName()), "finalizer", k8s.finalizer)
+
+		return k8s.UpdateObjectAndWait(
+			obj, newObj,
 			func(event apimachineryWatch.Event) (bool, error) {
 				switch event.Type {
 				case apimachineryWatch.Deleted:
-					return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "ingress"}, "")
+					return false, apiErrors.NewNotFound(schema.GroupResource{Resource: obj.GetObjectKind().GroupVersionKind().Kind}, objMeta.GetName())
 				}
-				switch ing := event.Object.(type) {
-				case *extensionsv1beta1.Ingress:
-					return ingressHasDiscoFinalizer(ing), nil
+				switch o := event.Object.(type) {
+				case *extensionsv1beta1.Ingress, *v1.DiscoRecord:
+					return hasDiscoFinalizer(o, k8s.finalizer), nil
 				}
 				return false, nil
 			},
@@ -199,33 +315,39 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerExists(ingress *extensionsv1beta1.I
 	return nil
 }
 
-func (k8s *K8sFramework) EnsureDiscoFinalizerRemoved(ingress *extensionsv1beta1.Ingress) error {
-	// Do not remove finalizer if DeletionTimestamp is not set.
-	if ingressHasDiscoFinalizer(ingress) && ingressHasDeletionTimestamp(ingress) {
-		newIngress := ingress.DeepCopy()
-		for i, fin := range newIngress.GetFinalizers() {
-			if fin == disco.DiscoFinalizer {
-				// Delete but preserve order.
-				newIngress.Finalizers = append(newIngress.Finalizers[:i], newIngress.Finalizers[i+1:]...)
+// EnsureDiscoFinalizerRemoved ensure the finalizer is removed from an existing Object.
+func (k8s *K8sFramework) EnsureDiscoFinalizerRemoved(obj runtime.Object) error {
+	if hasDiscoFinalizer(obj, k8s.finalizer) && HasDeletionTimestamp(obj) {
+		newObj := obj.DeepCopyObject()
 
-				k8s.logger.LogDebug("removing finalizer from ingress", "ingress", fmt.Sprintf("%s/%s", ingress.GetNamespace(), ingress.GetName()), "finalizer", disco.DiscoFinalizer)
+		objMeta, err := meta.Accessor(newObj)
+		if err != nil {
+			return err
+		}
 
-				return k8s.UpdateIngressAndWait(
-					ingress, newIngress,
-					func(event apimachineryWatch.Event) (bool, error) {
-						switch event.Type {
-						case apimachineryWatch.Deleted:
-							return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "ingress"}, "")
-						}
-						switch ing := event.Object.(type) {
-						case *extensionsv1beta1.Ingress:
-							return !ingressHasDiscoFinalizer(ing), nil
-						}
-						return false, nil
-					},
-				)
+		var finalizers []string
+		for _, fin := range objMeta.GetFinalizers() {
+			if fin != k8s.finalizer {
+				finalizers = append(finalizers, fin)
 			}
 		}
+		objMeta.SetFinalizers(finalizers)
+		k8s.logger.LogDebug("removing finalizer", "key", fmt.Sprintf("%s/%s/%s", obj.GetObjectKind(), objMeta.GetNamespace(), objMeta.GetName()), "finalizer", k8s.finalizer)
+
+		return k8s.UpdateObjectAndWait(
+			obj, newObj,
+			func(event apimachineryWatch.Event) (bool, error) {
+				switch event.Type {
+				case apimachineryWatch.Deleted:
+					return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "ingress"}, "")
+				}
+				switch ing := event.Object.(type) {
+				case *extensionsv1beta1.Ingress, *v1.DiscoRecord:
+					return !hasDiscoFinalizer(ing, k8s.finalizer), nil
+				}
+				return false, nil
+			},
+		)
 	}
 	return nil
 }
@@ -244,6 +366,25 @@ func (k8s *K8sFramework) waitForUpstreamIngress(ingress *extensionsv1beta1.Ingre
 			},
 		},
 		ingress,
+		nil,
+		conditionFuncs...,
+	)
+	return err
+}
+
+func (k8s *K8sFramework) waitForUpstreamDiscoRecord(discoRecord *v1.DiscoRecord, conditionFuncs ...watch.ConditionFunc) error {
+	ctx, _ := context.WithTimeout(context.TODO(), WaitTimeout)
+	_, err := watch.UntilWithSync(
+		ctx,
+		&cache.ListWatch{
+			ListFunc: func(options metaV1.ListOptions) (object runtime.Object, e error) {
+				return k8s.DiscoCRDClientset.DiscoRecords(discoRecord.GetNamespace()).List(metaV1.SingleObject(metaV1.ObjectMeta{Name: discoRecord.GetName()}))
+			},
+			WatchFunc: func(options metaV1.ListOptions) (i apimachineryWatch.Interface, e error) {
+				return k8s.DiscoCRDClientset.DiscoRecords(discoRecord.GetNamespace()).Watch(metaV1.SingleObject(metaV1.ObjectMeta{Name: discoRecord.GetName()}))
+			},
+		},
+		discoRecord,
 		nil,
 		conditionFuncs...,
 	)

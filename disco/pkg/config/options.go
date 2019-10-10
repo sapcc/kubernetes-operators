@@ -17,9 +17,10 @@
 *
 *******************************************************************************/
 
-package disco
+package config
 
 import (
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -33,7 +34,8 @@ type Options struct {
 	Record,
 	ZoneName,
 	EventComponent,
-	IngressAnnotation string
+	IngressAnnotation,
+	Finalizer string
 	Threadiness,
 	MetricPort,
 	RecordsetTTL int
@@ -44,15 +46,6 @@ type Options struct {
 }
 
 func (o *Options) applyDefaultsIfNotSet() {
-	if o.MetricPort == 0 {
-		o.MetricPort = DefaultMetricPort
-	}
-	if o.IngressAnnotation == "" {
-		o.IngressAnnotation = DefaultIngressAnnotation
-	}
-	if o.Threadiness <= 0 {
-		o.Threadiness = 1
-	}
 	o.IngressAnnotation = trimQuotesAndSpace(o.IngressAnnotation)
 	o.ZoneName = trimQuotesAndSpace(o.ZoneName)
 	o.Record = trimQuotesAndSpace(o.Record)
@@ -66,6 +59,17 @@ func (o *Options) CheckOptions(logger log.Logger) error {
 	if o.KubeConfig == "" {
 		logger.LogDebug("Path to kubeconfig not provided. Using Default")
 	}
+	if o.Finalizer == "" {
+		return errors.New("finalizer can't be empty")
+	}
 	o.applyDefaultsIfNotSet()
 	return nil
+}
+
+func trimQuotesAndSpace(s string) string {
+	if s == "" {
+		return s
+	}
+	st := strings.Trim(s, `"`)
+	return strings.TrimSpace(st)
 }

@@ -21,7 +21,6 @@ package disco
 
 import (
 	"fmt"
-	"github.com/sapcc/kubernetes-operators/disco/pkg/k8sutils"
 	"reflect"
 	"sync"
 	"time"
@@ -31,14 +30,14 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	discoV1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/k8sutils"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/metrics"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	v1beta12 "k8s.io/client-go/informers/extensions/v1beta1"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -47,29 +46,27 @@ var (
 	VERSION = "0.0.0.dev"
 )
 
-// Operator is the CNAME operator (disco)
+// Operator is the CNAME operator (disco).
 type Operator struct {
-	Options
-	*Config
+	config.Options
+	*config.Config
 
-	dnsV2Client      *DNSV2Client
-	k8sFramework     *k8sutils.K8sFramework
-	ResyncPeriod     time.Duration
-	RecheckInterval  time.Duration
-	queue            workqueue.RateLimitingInterface
-	logger           log.Logger
-	zoneCache        *expiringCache.Cache
-	ingressInformer  cache.SharedIndexInformer
-	discoCRDInformer cache.SharedIndexInformer
+	logger          log.Logger
+	dnsV2Client     *DNSV2Client
+	k8sFramework    *k8sutils.K8sFramework
+	ResyncPeriod    time.Duration
+	RecheckInterval time.Duration
+	queue           workqueue.RateLimitingInterface
+	zoneCache       *expiringCache.Cache
 }
 
 // New creates a new operator using the given options
-func New(options Options, logger log.Logger) (*Operator, error) {
+func New(options config.Options, logger log.Logger) (*Operator, error) {
 	if err := options.CheckOptions(logger); err != nil {
 		return nil, err
 	}
 
-	discoConfig, err := ReadConfig(options.ConfigPath)
+	discoConfig, err := config.ReadConfig(options.ConfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -96,18 +93,10 @@ func New(options Options, logger log.Logger) (*Operator, error) {
 		zoneCache:       expiringCache.New(options.RecheckPeriod, 2*options.RecheckPeriod),
 	}
 
-	// Init ingress informer.
-	ingressInformer := v1beta12.NewIngressInformer(
-		k8sFramwork.Clientset,
-		"",
-		options.ResyncPeriod,
-		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-	)
-
-	ingressInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    operator.enqueueItem,
-		DeleteFunc: operator.enqueueItem,
-		UpdateFunc: func(oldObj, newObj interface{}) {
+	operator.k8sFramework.AddIngressInformerEventHandler(
+		operator.enqueueItem,
+		operator.enqueueItem,
+		func(oldObj, newObj interface{}) {
 			old := oldObj.(*v1beta1.Ingress)
 			new := newObj.(*v1beta1.Ingress)
 			// Enqueue if either Spec, annotations changed or DeletionTimestamp was set.
@@ -115,20 +104,12 @@ func New(options Options, logger log.Logger) (*Operator, error) {
 				operator.enqueueItem(newObj)
 			}
 		},
-	})
+	)
 
-	operator.ingressInformer = ingressInformer
-
-	// Init clientset and informers for CRDs.
-	discoCRDInformer, err := k8sFramwork.NewDiscoCRDInformerWithResyncPeriod(options.ResyncPeriod)
-	if err != nil {
-		return nil, err
-	}
-
-	discoCRDInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    operator.enqueueItem,
-		DeleteFunc: operator.enqueueItem,
-		UpdateFunc: func(oldObj, newObj interface{}) {
+	operator.k8sFramework.AddDiscoCRDInformerEventHandler(
+		operator.enqueueItem,
+		operator.enqueueItem,
+		func(oldObj, newObj interface{}) {
 			old := oldObj.(*discoV1.DiscoRecord)
 			new := newObj.(*discoV1.DiscoRecord)
 			// Enqueue if either Spec changed or DeletionTimestamp was set.
@@ -136,9 +117,8 @@ func New(options Options, logger log.Logger) (*Operator, error) {
 				operator.enqueueItem(newObj)
 			}
 		},
-	})
+	)
 
-	operator.discoCRDInformer = discoCRDInformer
 	return operator, nil
 }
 
@@ -149,7 +129,7 @@ func (disco *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.Wai
 	defer wg.Done()
 	wg.Add(1)
 
-	disco.logger.LogInfo("Ladies and Gentlemen, the DISCO is about to begin! Creating your OpenStack Designate CNAMEs now.", "version", VERSION)
+	disco.logger.LogInfo("Ladies and Gentlemen, the DISCO is about to begin! Creating your OpenStack Designate records now.", "version", VERSION)
 
 	if disco.IsInstallCRD {
 		disco.logger.LogInfo("installing and updating Disco CRDs if not already present")
@@ -158,15 +138,10 @@ func (disco *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.Wai
 		}
 	}
 
-	go disco.ingressInformer.Run(stopCh)
-	go disco.discoCRDInformer.Run(stopCh)
+	disco.k8sFramework.Run(stopCh)
 
 	disco.logger.LogInfo("waiting for cache to sync...")
-	if !cache.WaitForCacheSync(
-		stopCh,
-		disco.ingressInformer.HasSynced,
-		disco.discoCRDInformer.HasSynced,
-	) {
+	if !disco.k8sFramework.WaitForCacheSync(stopCh) {
 		utilruntime.HandleError(errors.New("timed out while waiting for informer caches to sync"))
 		return
 	}
@@ -238,31 +213,103 @@ func (disco *Operator) processNextWorkItem() bool {
 }
 
 func (disco *Operator) syncHandler(key string) error {
-	o, exists, err := disco.ingressInformer.GetIndexer().GetByKey(key)
+	objKind, key, err := splitKeyFuncWithObjKind(key)
 	if err != nil {
-		return errors.Wrapf(err, "%v failed with : %v", key)
+		return err
 	}
 
-	if !exists {
-		disco.logger.LogDebug("resource doesn't exist", "key", key)
-		return nil
-	}
+	var hosts []string
+	rec := newDefaultRecordHelper(disco.Record, disco.ZoneName)
 
-	ingress := o.(*v1beta1.Ingress)
+	switch objKind {
+	// Handle resources with kind ingress.
+	case "ingress":
+		o, exists, err := disco.k8sFramework.GetIngressFromIndexerByKey(key)
+		if err != nil {
+			return errors.Wrapf(err, "%v failed with", key)
+		}
 
-	if disco.isTakeCareOfIngress(ingress) {
-		for _, rule := range ingress.Spec.Rules {
-			if rule.Host != "" {
-				disco.logger.LogInfo("checking ingress", "key", key, "host", rule.Host)
-				if err := disco.checkRecords(ingress, rule.Host); err != nil {
-					return err
-				}
+		if !exists {
+			disco.logger.LogDebug("resource doesn't exist", "key", key)
+			return nil
+		}
+
+		ingress := o.(*v1beta1.Ingress)
+		rec.object = ingress
+
+		if !disco.isTakeCareOfIngress(ingress) {
+			disco.logger.LogDebug("ignoring ingress as annotation is not set", "key", key)
+			return nil
+		}
+
+		if val, ok := ingress.GetAnnotations()[DiscoAnnotationRecord]; ok {
+			rec.record = val
+		}
+
+		if rt, ok := ingress.GetAnnotations()[DiscoAnnotationRecordType]; ok {
+			rec.recordType = stringToRecordsetType(rt)
+		}
+
+		if z, ok := ingress.GetAnnotations()[DiscoAnnotationRecordZoneName]; ok {
+			rec.zoneName = z
+		}
+
+		if desc, ok := ingress.GetAnnotations()[DiscoAnnotationRecordDescription]; ok {
+			rec.description = desc
+		}
+
+		for _, r := range ingress.Spec.Rules {
+			if r.Host != "" {
+				hosts = append(hosts, r.Host)
 			}
 		}
-	} else {
-		disco.logger.LogDebug("ignoring ingress as annotation is not set", "key", key)
+
+	// Handle resource with kind record.
+	case discoV1.DiscoRecordKind:
+		o, exists, err := disco.k8sFramework.GetDiscoRecordFromIndexerByKey(key)
+		if err != nil {
+			return errors.Wrapf(err, "%v failed with", key)
+		}
+
+		if !exists {
+			disco.logger.LogDebug("resource doesn't exist", "key", key)
+			return nil
+		}
+
+		discoRecord := o.(*discoV1.DiscoRecord)
+		rec.object = discoRecord
+
+		if val := discoRecord.Spec.Record; val != "" {
+			rec.record = val
+		}
+
+		if val := discoRecord.Spec.Type; val != "" {
+			rec.recordType = stringToRecordsetType(val)
+		}
+
+		if val := discoRecord.Spec.ZoneName; val != "" {
+			rec.zoneName = val
+		}
+
+		if val := discoRecord.Spec.Description; val != "" {
+			rec.description = val
+		}
+
+		for _, host := range discoRecord.Spec.Hosts {
+			hosts = append(hosts, host)
+		}
+
+	default:
+		return fmt.Errorf("unknown resource %q", objKind)
 	}
-	return err
+
+	for _, host := range hosts {
+		if err := disco.checkRecord(rec, host); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (disco *Operator) isTakeCareOfIngress(ingress *v1beta1.Ingress) bool {
@@ -272,23 +319,24 @@ func (disco *Operator) isTakeCareOfIngress(ingress *v1beta1.Ingress) bool {
 	return false
 }
 
-func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error {
-	labels := prometheus.Labels{
-		"ingress": fmt.Sprintf("%s/%s", ingress.GetNamespace(), ingress.GetName()),
-		"host":    host,
-	}
-
+func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error {
 	var err error
 	defer func() {
 		if err != nil {
 			// Just emit the event here. The error is logged in he processNextWorkItem.
-			disco.k8sFramework.Eventf(ingress, v1.EventTypeNormal, UpdateEvent, fmt.Sprintf("create recordset on ingress %s failed", ingressKey(ingress)))
+			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, UpdateEvent, fmt.Sprintf("create recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey()))
 		}
 	}()
 
+	labels := prometheus.Labels{
+		"kind": discoRecord.getKind(),
+		"key":  discoRecord.getKey(),
+		"host": host,
+	}
+
 	// Allow recordset in different DNS zone.
 	zoneName := disco.ZoneName
-	if zoneNameOverride, ok := ingress.GetAnnotations()[DiscoAnnotationRecordZoneName]; ok && zoneNameOverride != "" {
+	if zoneNameOverride := discoRecord.zoneName; zoneNameOverride != "" {
 		zoneName = zoneNameOverride
 	}
 
@@ -304,32 +352,27 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 
 	var recordsetID string
 	for _, rs := range recordsetList {
-		if addSuffixIfRequired(host) == addSuffixIfRequired(rs.Name) {
+		if ensureFQDN(host) == ensureFQDN(rs.Name) {
 			recordsetID = rs.ID
 		}
 	}
 
-	// add finalizer before creating anything. return error
-	if err := disco.k8sFramework.EnsureDiscoFinalizerExists(ingress); err != nil {
-		return errors.Wrapf(err, "will not create recordset in this cycle. failed to add finalizer %v", DiscoFinalizer)
-	}
-
 	// there was an attempt to delete the ingress. cleanup recordset
-	if k8sutils.IngressHasDeletionTimestamp(ingress) {
+	if k8sutils.HasDeletionTimestamp(discoRecord.object) {
 		if recordsetID == "" {
 			disco.logger.LogInfo("would delete recordset but was unable to find its uid", "host", host, "zoneName", zone.Name)
-			disco.k8sFramework.Eventf(ingress, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", ingressKey(ingress)))
-			return disco.k8sFramework.EnsureDiscoFinalizerRemoved(ingress)
+			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", discoRecord.getKey()))
+			return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 		}
 		if err := disco.dnsV2Client.deleteDesignateRecordset(host, recordsetID, zone.ID); err != nil {
 			metrics.RecordsetDeletionFailedCounter.With(labels).Inc()
 			disco.logger.LogError("failed to delete recordset", err)
-			disco.k8sFramework.Eventf(ingress, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", ingressKey(ingress)))
-			return disco.k8sFramework.EnsureDiscoFinalizerRemoved(ingress)
+			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", discoRecord.getKey()))
+			return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 		}
-		disco.k8sFramework.Eventf(ingress, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("deleted recordset on ingress %s successful", ingressKey(ingress)))
+		disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("deleted recordset on ingress %s successful", discoRecord.getKey()))
 		metrics.RecordsetDeletionSuccessCounter.With(labels).Inc()
-		return disco.k8sFramework.EnsureDiscoFinalizerRemoved(ingress)
+		return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 	}
 
 	if recordsetID != "" {
@@ -338,28 +381,23 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 	}
 
 	record := disco.Record
-	if rec, ok := ingress.GetAnnotations()[DiscoAnnotationRecord]; ok {
+	if rec := discoRecord.record; rec != "" {
 		record = rec
 	}
 
 	recordType := RecordsetType.CNAME
-	if rt, ok := ingress.GetAnnotations()[DiscoAnnotationRecordType]; ok {
+	if rt := discoRecord.recordType; rt != "" {
 		recordType = stringToRecordsetType(rt)
 	}
 
 	description := DiscoRecordsetDescription
-	if desc, ok := ingress.GetAnnotations()[DiscoAnnotationRecordDescription]; ok {
+	if desc := discoRecord.description; desc != "" {
 		description = desc
-	}
-
-	// Only make it a FQDN if not an IP address.
-	if recordType != RecordsetType.A {
-		record = addSuffixIfRequired(record)
 	}
 
 	if err := disco.dnsV2Client.createDesignateRecordset(
 		zone.ID,
-		addSuffixIfRequired(host),
+		ensureFQDN(host),
 		[]string{record},
 		disco.RecordsetTTL,
 		recordType,
@@ -368,9 +406,11 @@ func (disco *Operator) checkRecords(ingress *v1beta1.Ingress, host string) error
 		metrics.RecordsetCreationFailedCounter.With(labels).Inc()
 		return err
 	}
+
 	metrics.RecordsetCreationSuccessCounter.With(labels).Inc()
-	disco.logger.LogInfo("create recordset successful", "ingress", ingressKey(ingress), "host", host, "record", record, "zone", addSuffixIfRequired(zone.Name), "recordType", recordType)
-	disco.k8sFramework.Eventf(ingress, v1.EventTypeNormal, CreateEvent, fmt.Sprintf("create recordset on ingress %s successful", ingressKey(ingress)))
+	disco.logger.LogInfo("create recordset successful", "key", discoRecord.getKey(), "host", host, "record", record, "zone", ensureFQDN(zone.Name), "recordType", recordType)
+	disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, CreateEvent, fmt.Sprintf("create recordset on ingress %s successful", discoRecord.getKey()))
+
 	return nil
 }
 
@@ -391,19 +431,19 @@ func (disco *Operator) getZoneByName(zoneName string) (zones.Zone, error) {
 }
 
 func (disco *Operator) requeueAllIngresses() {
-	for _, o := range disco.ingressInformer.GetStore().List() {
+	for _, o := range disco.k8sFramework.GetIngressInformerStore().List() {
 		disco.enqueueItem(o)
 	}
 }
 
 func (disco *Operator) requeueAllDiscoRecords() {
-	for _, o := range disco.discoCRDInformer.GetStore().List() {
+	for _, o := range disco.k8sFramework.GetDiscoRecordInformerStore().List() {
 		disco.enqueueItem(o)
 	}
 }
 
 func (disco *Operator) enqueueItem(obj interface{}) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
+	key, err := keyFunc(obj)
 	if err != nil {
 		utilruntime.HandleError(err)
 		return

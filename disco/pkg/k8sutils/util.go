@@ -22,15 +22,21 @@ package k8sutils
 import (
 	"reflect"
 
-	"github.com/sapcc/kubernetes-operators/disco/pkg/disco"
+	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	apimachineryWatch "k8s.io/apimachinery/pkg/watch"
 )
 
-func IngressHasDeletionTimestamp(ingress *extensionsv1beta1.Ingress) bool {
-	return ingress.GetDeletionTimestamp() != nil
+func HasDeletionTimestamp(obj runtime.Object) bool {
+	objMeta, err := meta.Accessor(obj)
+	if err != nil {
+		return false
+	}
+	return objMeta.GetDeletionTimestamp() != nil
 }
 
 func isIngressNeedsUpdate(old, new *extensionsv1beta1.Ingress) bool {
@@ -41,10 +47,29 @@ func isIngressNeedsUpdate(old, new *extensionsv1beta1.Ingress) bool {
 	return false
 }
 
+func isDiscoRecordNeedsUpdate(old, new *v1.DiscoRecord) bool {
+	if !reflect.DeepEqual(old.Spec, new.Spec) || !reflect.DeepEqual(old.GetAnnotations(), new.GetAnnotations()) || !reflect.DeepEqual(old.GetDeletionTimestamp(), new.GetDeletionTimestamp()) {
+		return true
+	}
+	return false
+}
+
 func isIngressAddedOrModified(event apimachineryWatch.Event) (bool, error) {
 	switch event.Type {
 	case apimachineryWatch.Deleted:
 		return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "ingress"}, "")
+	case apimachineryWatch.Added, apimachineryWatch.Modified:
+		return true, nil
+	default:
+		return false, nil
+	}
+	return false, nil
+}
+
+func isDiscoRecordAddedOrModified(event apimachineryWatch.Event) (bool, error) {
+	switch event.Type {
+	case apimachineryWatch.Deleted:
+		return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "discoRecord"}, "")
 	case apimachineryWatch.Added, apimachineryWatch.Modified:
 		return true, nil
 	default:
@@ -65,9 +90,14 @@ func isCRDAddedOrModified(event apimachineryWatch.Event) (bool, error) {
 	return false, nil
 }
 
-func ingressHasDiscoFinalizer(ingress *extensionsv1beta1.Ingress) bool {
-	for _, fin := range ingress.GetFinalizers() {
-		if fin == disco.DiscoFinalizer {
+func hasDiscoFinalizer(obj runtime.Object, finalizer string) bool {
+	objMeta, err := meta.Accessor(obj)
+	if err != nil {
+		return false
+	}
+
+	for _, fin := range objMeta.GetFinalizers() {
+		if fin == finalizer {
 			return true
 		}
 	}

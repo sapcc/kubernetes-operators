@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/disco"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/metrics"
@@ -34,23 +35,24 @@ import (
 )
 
 var (
-	options disco.Options
+	options config.Options
 )
 
 func init() {
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information")
 	pflag.StringVar(&options.ConfigPath, "config", "/etc/disco/disco.conf", "Path to operator config file")
-	pflag.StringVar(&options.IngressAnnotation, "ingress-annotation", disco.DefaultIngressAnnotation, "Handle ingress with this annotation")
-	pflag.IntVar(&options.Threadiness, "threadiness", disco.DefaultThreadiness, "The operator threadiness")
-	pflag.IntVar(&options.MetricPort, "metric-port", disco.DefaultMetricPort, "Metrics are exposed on this port")
-	pflag.DurationVar(&options.RecheckPeriod, "recheck-period", 5 * time.Minute, "RecheckPeriod[min] defines the base period after which configmaps are checked again")
-	pflag.DurationVar(&options.ResyncPeriod, "resync-period", 2 * time.Minute, "ResyncPeriod[min] defines the base period after which the cache is resynced")
-	pflag.IntVar(&options.RecordsetTTL, "recordset-ttl", disco.DefaultRecordsetTTL, "The Recordset TTL in seconds")
+	pflag.StringVar(&options.IngressAnnotation, "ingress-annotation", "disco", "Handle ingress with this annotation")
+	pflag.IntVar(&options.Threadiness, "threadiness", 1, "The operator threadiness")
+	pflag.IntVar(&options.MetricPort, "metric-port", 9091, "Metrics are exposed on this port")
+	pflag.DurationVar(&options.RecheckPeriod, "recheck-period", 5*time.Minute, "RecheckPeriod[min] defines the base period after which configmaps are checked again")
+	pflag.DurationVar(&options.ResyncPeriod, "resync-period", 2*time.Minute, "ResyncPeriod[min] defines the base period after which the cache is resynced")
+	pflag.IntVar(&options.RecordsetTTL, "recordset-ttl", 1800, "The Recordset TTL in seconds")
 	pflag.StringVar(&options.Record, "record", "", "Default record data used for the CNAME")
 	pflag.StringVar(&options.ZoneName, "zone-name", "", "Name of the openstack zone in which the recordset will be created")
 	pflag.BoolVar(&options.IsDebug, "debug", false, "Enable debug logging")
 	pflag.StringVar(&options.EventComponent, "event-component", "disco", "Component to use for kubernetes events.")
 	pflag.BoolVar(&options.IsInstallCRD, "install-crd", true, "Install the custom resource definitions (CRDs) if not present.")
+	flag.StringVar(&options.Finalizer, "finalizer", "disco.extensions/v1beta1", "The finalizer to use.")
 }
 
 func main() {

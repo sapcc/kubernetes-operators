@@ -84,5 +84,5 @@ func (l *Logger) LogFatal(msg string, keyvals ...interface{}) {
 
 // LogEvent logs events.
 func (l *Logger) LogEvent(format string, obj ...interface{}) {
-	level.Debug(l.logger).Log(append([]interface{}{"event", format},obj...)...)
+	level.Debug(l.logger).Log(append([]interface{}{"event", format}, obj...)...)
 }
