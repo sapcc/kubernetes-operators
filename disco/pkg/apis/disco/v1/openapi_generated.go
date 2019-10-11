@@ -32,14 +32,13 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1.DiscoRecord":       schema_pkg_apis_discostablesapcc_v1_DiscoRecord(ref),
-		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1.DiscoRecordList":   schema_pkg_apis_discostablesapcc_v1_DiscoRecordList(ref),
-		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1.DiscoRecordSpec":   schema_pkg_apis_discostablesapcc_v1_DiscoRecordSpec(ref),
-		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1.DiscoRecordStatus": schema_pkg_apis_discostablesapcc_v1_DiscoRecordStatus(ref),
+		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecord":     schema_pkg_apis_disco_v1_DiscoRecord(ref),
+		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecordList": schema_pkg_apis_disco_v1_DiscoRecordList(ref),
+		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecordSpec": schema_pkg_apis_disco_v1_DiscoRecordSpec(ref),
 	}
 }
 
-func schema_pkg_apis_discostablesapcc_v1_DiscoRecord(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_disco_v1_DiscoRecord(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -68,25 +67,19 @@ func schema_pkg_apis_discostablesapcc_v1_DiscoRecord(ref common.ReferenceCallbac
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Specification of the DiscoRecord.",
-							Ref:         ref("github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1.DiscoRecordSpec"),
-						},
-					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Status of the DiscoRecord.",
-							Ref:         ref("github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1.DiscoRecordStatus"),
+							Ref:         ref("github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecordSpec"),
 						},
 					},
 				},
-				Required: []string{"spec", "status"},
+				Required: []string{"spec"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1.DiscoRecordSpec", "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1.DiscoRecordStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecordSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_discostablesapcc_v1_DiscoRecordList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_disco_v1_DiscoRecordList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -119,7 +112,7 @@ func schema_pkg_apis_discostablesapcc_v1_DiscoRecordList(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1.DiscoRecord"),
+										Ref: ref("github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecord"),
 									},
 								},
 							},
@@ -130,11 +123,11 @@ func schema_pkg_apis_discostablesapcc_v1_DiscoRecordList(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1.DiscoRecord", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecord", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
-func schema_pkg_apis_discostablesapcc_v1_DiscoRecordSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_disco_v1_DiscoRecordSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -185,27 +178,6 @@ func schema_pkg_apis_discostablesapcc_v1_DiscoRecordSpec(ref common.ReferenceCal
 					},
 				},
 				Required: []string{"type", "hosts", "record"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_discostablesapcc_v1_DiscoRecordStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DiscoRecordStatus is the status for a DiscoRecord resource",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"recordsetStatus": {
-						SchemaProps: spec.SchemaProps{
-							Description: "The status of the record.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"recordsetStatus"},
 			},
 		},
 	}

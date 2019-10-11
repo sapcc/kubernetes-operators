@@ -23,8 +23,8 @@ package fake
 
 import (
 	clientset "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned"
-	discov1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned/typed/disco.stable.sap.cc/v1"
-	fakediscov1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned/typed/disco.stable.sap.cc/v1/fake"
+	discov1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned/typed/disco/v1"
+	fakediscov1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned/typed/disco/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

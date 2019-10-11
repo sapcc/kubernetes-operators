@@ -24,7 +24,7 @@ package versioned
 import (
 	"fmt"
 
-	discov1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned/typed/disco.stable.sap.cc/v1"
+	discov1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned/typed/disco/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

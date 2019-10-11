@@ -27,6 +27,6 @@ CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-
 #                  instead of the $GOPATH directly. For normal projects this can be dropped.
 bash "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
   github.com/sapcc/kubernetes-operators/disco/pkg/generated github.com/sapcc/kubernetes-operators/disco/pkg/apis \
-  disco.stable.sap.cc:v1 \
+  disco:v1 \
   --output-base $GOPATH/src/ \
   --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt

@@ -29,7 +29,7 @@ import (
 // NewDiscoRecordCRD returns a new DiscoRecord custom resource definition.
 func NewDiscoRecordCRD() *extensionsobj.CustomResourceDefinition {
 	return crdutils.NewCustomResourceDefinition(crdutils.Config{
-		SpecDefinitionName:    "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1.DiscoRecord",
+		SpecDefinitionName:    "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecord",
 		EnableValidation:      true,
 		ResourceScope:         string(extensionsobj.NamespaceScoped),
 		Group:                 discoCRD.GroupName,

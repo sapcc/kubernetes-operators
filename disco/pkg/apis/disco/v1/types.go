@@ -23,13 +23,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-
 const (
 	// Version of the CRDs.
 	Version = "v1"
 
 	// DiscoRecordKind ...
-	DiscoRecordKind       = "Record"
+	DiscoRecordKind = "Record"
 	// DiscoRecordKindPlural ...
 	DiscoRecordKindPlural = "records"
 )
@@ -43,9 +42,7 @@ type DiscoRecord struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Specification of the DiscoRecord.
-	Spec   DiscoRecordSpec   `json:"spec"`
-	// Status of the DiscoRecord.
-	Status DiscoRecordStatus `json:"status"`
+	Spec DiscoRecordSpec `json:"spec"`
 }
 
 // DiscoRecordSpec is the spec for a DiscoRecord resource
@@ -53,25 +50,16 @@ type DiscoRecord struct {
 type DiscoRecordSpec struct {
 	// Type of the DNS record.
 	// Currently supported are A, CNAME, SOA, NS records.
-	Type        string   `json:"type"`
+	Type string `json:"type"`
 	// List of hostnames.
-	Hosts       []string `json:"hosts"`
+	Hosts []string `json:"hosts"`
 	// The record to use.
-	Record      string   `json:"record"`
+	Record string `json:"record"`
 	// Optional zone for the record.
-	ZoneName    string   `json:"zoneName,omitempty"`
+	ZoneName string `json:"zoneName,omitempty"`
 	// Optional description for the record.
-	Description string   `json:"description,omitempty"`
+	Description string `json:"description,omitempty"`
 }
-
-// DiscoRecordStatus is the status for a DiscoRecord resource
-// +k8s:openapi-gen=true
-type DiscoRecordStatus struct {
-	// The status of the record.
-	RecordSetStatus string `json:"recordsetStatus"`
-}
-
-
 
 // DiscoRecordList is a list of DiscoRecord resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
