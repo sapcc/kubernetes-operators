@@ -208,11 +208,13 @@ func (k8s *K8sFramework) CreateDiscoRecordCRDAndWaitUntilReady() error {
 		return errors.Wrapf(err, "error getting crd")
 	}
 	if apiErrors.IsNotFound(err) {
+		k8s.logger.LogInfo("creating CRD", "group", crd.GetObjectKind().GroupVersionKind().Group, "kind", crd.GetObjectKind().GroupVersionKind().Kind)
 		if _, err := crdClient.Create(crd); err != nil {
 			return errors.Wrap(err, "error creating crd")
 		}
 	}
 	if err == nil {
+		k8s.logger.LogInfo("updating CRD", "group", crd.GetObjectKind().GroupVersionKind().Group, "kind", crd.GetObjectKind().GroupVersionKind().Kind)
 		crd.ResourceVersion = oldCRD.GetResourceVersion()
 		if _, err := crdClient.Update(crd); err != nil {
 			return errors.Wrap(err, "error updating crd")
