@@ -27,7 +27,7 @@ import (
 	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
 	genCRDClientset "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned"
-	discoClientV1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned/typed/disco.stable.sap.cc/v1"
+	discoClientV1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned/typed/disco/v1"
 	genCRDInformers "github.com/sapcc/kubernetes-operators/disco/pkg/generated/informers/externalversions"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 	coreV1 "k8s.io/api/core/v1"
@@ -120,7 +120,7 @@ func NewK8sFramework(options config.Options, logger log.Logger) (*K8sFramework, 
 	)
 
 	informerFactory := genCRDInformers.NewSharedInformerFactory(crdClient, options.ResyncPeriod)
-	discoCRDInformer := informerFactory.Disco().V1().DiscoRecords().Informer()
+	discoCRDInformer := informerFactory.Disco().V1().Records().Informer()
 
 	return &K8sFramework{
 		Clientset:               clientset,
@@ -170,7 +170,7 @@ func (k8s *K8sFramework) GetIngressInformerStore() cache.Store {
 	return k8s.ingressInformer.GetStore()
 }
 
-// GetDiscoRecordFromIndexerByKey returns the DiscoRecord from the informer indexer by key.
+// GetDiscoRecordFromIndexerByKey returns the Record from the informer indexer by key.
 func (k8s *K8sFramework) GetDiscoRecordFromIndexerByKey(key string) (interface{}, bool, error) {
 	return k8s.discoCRDInformer.GetIndexer().GetByKey(key)
 }
@@ -244,13 +244,13 @@ func (k8s *K8sFramework) UpdateIngressAndWait(oldIngress, newIngress *extensions
 	return k8s.waitForUpstreamIngress(updatedIngress, conditionFuncs...)
 }
 
-// GetDiscoRecord returns the DiscoRecord or an error.
-func (k8s *K8sFramework) GetDiscoRecord(namespace, name string) (*v1.DiscoRecord, error) {
-	return k8s.DiscoCRDClientset.DiscoRecords(namespace).Get(name, metaV1.GetOptions{})
+// GetDiscoRecord returns the Record or an error.
+func (k8s *K8sFramework) GetDiscoRecord(namespace, name string) (*v1.Record, error) {
+	return k8s.DiscoCRDClientset.Records(namespace).Get(name, metaV1.GetOptions{})
 }
 
-// UpdateDiscoRecordAndWait updates the given DiscoRecord and waits until successfully completed or errored.
-func (k8s *K8sFramework) UpdateDiscoRecordAndWait(oldDiscoRecord, newDiscoRecord *v1.DiscoRecord, conditionFuncs ...watch.ConditionFunc) error {
+// UpdateDiscoRecordAndWait updates the given Record and waits until successfully completed or errored.
+func (k8s *K8sFramework) UpdateDiscoRecordAndWait(oldDiscoRecord, newDiscoRecord *v1.Record, conditionFuncs ...watch.ConditionFunc) error {
 	oldDiscoRecord, err := k8s.GetDiscoRecord(oldDiscoRecord.GetNamespace(), oldDiscoRecord.GetName())
 	if err != nil {
 		return err
@@ -260,7 +260,7 @@ func (k8s *K8sFramework) UpdateDiscoRecordAndWait(oldDiscoRecord, newDiscoRecord
 		return nil
 	}
 
-	updatedDiscoRecord, err := k8s.DiscoCRDClientset.DiscoRecords(oldDiscoRecord.GetNamespace()).Update(newDiscoRecord)
+	updatedDiscoRecord, err := k8s.DiscoCRDClientset.Records(oldDiscoRecord.GetNamespace()).Update(newDiscoRecord)
 	if err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ func (k8s *K8sFramework) UpdateDiscoRecordAndWait(oldDiscoRecord, newDiscoRecord
 	return k8s.waitForUpstreamDiscoRecord(updatedDiscoRecord, conditionFuncs...)
 }
 
-// UpdateObjectAndWait updates an existing Ingress or DiscoRecord and waits until the operation times out or is completed.
+// UpdateObjectAndWait updates an existing Ingress or Record and waits until the operation times out or is completed.
 func (k8s *K8sFramework) UpdateObjectAndWait(oldObj, newObj runtime.Object, conditionFuncs ...watch.ConditionFunc) error {
 	oldKind := oldObj.GetObjectKind().GroupVersionKind().Kind
 	newKind := newObj.GetObjectKind().GroupVersionKind().Kind
@@ -285,8 +285,8 @@ func (k8s *K8sFramework) UpdateObjectAndWait(oldObj, newObj runtime.Object, cond
 	switch oldObj.(type) {
 	case *extensionsv1beta1.Ingress:
 		return k8s.UpdateIngressAndWait(oldObj.(*extensionsv1beta1.Ingress), newObj.(*extensionsv1beta1.Ingress), conditionFuncs...)
-	case *v1.DiscoRecord:
-		return k8s.UpdateDiscoRecordAndWait(oldObj.(*v1.DiscoRecord), newObj.(*v1.DiscoRecord), conditionFuncs...)
+	case *v1.Record:
+		return k8s.UpdateDiscoRecordAndWait(oldObj.(*v1.Record), newObj.(*v1.Record), conditionFuncs...)
 	}
 
 	return fmt.Errorf("unknown kind: %q", oldKind)
@@ -315,7 +315,7 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerExists(obj runtime.Object) error {
 					return false, apiErrors.NewNotFound(schema.GroupResource{Resource: obj.GetObjectKind().GroupVersionKind().Kind}, objMeta.GetName())
 				}
 				switch o := event.Object.(type) {
-				case *extensionsv1beta1.Ingress, *v1.DiscoRecord:
+				case *extensionsv1beta1.Ingress, *v1.Record:
 					return hasDiscoFinalizer(o, k8s.finalizer), nil
 				}
 				return false, nil
@@ -352,7 +352,7 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerRemoved(obj runtime.Object) error {
 					return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "ingress"}, "")
 				}
 				switch ing := event.Object.(type) {
-				case *extensionsv1beta1.Ingress, *v1.DiscoRecord:
+				case *extensionsv1beta1.Ingress, *v1.Record:
 					return !hasDiscoFinalizer(ing, k8s.finalizer), nil
 				}
 				return false, nil
@@ -382,16 +382,16 @@ func (k8s *K8sFramework) waitForUpstreamIngress(ingress *extensionsv1beta1.Ingre
 	return err
 }
 
-func (k8s *K8sFramework) waitForUpstreamDiscoRecord(discoRecord *v1.DiscoRecord, conditionFuncs ...watch.ConditionFunc) error {
+func (k8s *K8sFramework) waitForUpstreamDiscoRecord(discoRecord *v1.Record, conditionFuncs ...watch.ConditionFunc) error {
 	ctx, _ := context.WithTimeout(context.TODO(), WaitTimeout)
 	_, err := watch.UntilWithSync(
 		ctx,
 		&cache.ListWatch{
 			ListFunc: func(options metaV1.ListOptions) (object runtime.Object, e error) {
-				return k8s.DiscoCRDClientset.DiscoRecords(discoRecord.GetNamespace()).List(metaV1.SingleObject(metaV1.ObjectMeta{Name: discoRecord.GetName()}))
+				return k8s.DiscoCRDClientset.Records(discoRecord.GetNamespace()).List(metaV1.SingleObject(metaV1.ObjectMeta{Name: discoRecord.GetName()}))
 			},
 			WatchFunc: func(options metaV1.ListOptions) (i apimachineryWatch.Interface, e error) {
-				return k8s.DiscoCRDClientset.DiscoRecords(discoRecord.GetNamespace()).Watch(metaV1.SingleObject(metaV1.ObjectMeta{Name: discoRecord.GetName()}))
+				return k8s.DiscoCRDClientset.Records(discoRecord.GetNamespace()).Watch(metaV1.SingleObject(metaV1.ObjectMeta{Name: discoRecord.GetName()}))
 			},
 		},
 		discoRecord,

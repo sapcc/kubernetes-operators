@@ -24,69 +24,69 @@ package v1
 import (
 	time "time"
 
-	discostablesapccv1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
+	discov1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
 	versioned "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/sapcc/kubernetes-operators/disco/pkg/generated/informers/externalversions/internalinterfaces"
-	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/listers/disco.stable.sap.cc/v1"
+	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/listers/disco/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// DiscoRecordInformer provides access to a shared informer and lister for
-// DiscoRecords.
-type DiscoRecordInformer interface {
+// RecordInformer provides access to a shared informer and lister for
+// Records.
+type RecordInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.DiscoRecordLister
+	Lister() v1.RecordLister
 }
 
-type discoRecordInformer struct {
+type recordInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewDiscoRecordInformer constructs a new informer for DiscoRecord type.
+// NewRecordInformer constructs a new informer for Record type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewDiscoRecordInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredDiscoRecordInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewRecordInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredRecordInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredDiscoRecordInformer constructs a new informer for DiscoRecord type.
+// NewFilteredRecordInformer constructs a new informer for Record type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredDiscoRecordInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredRecordInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.DiscoV1().DiscoRecords(namespace).List(options)
+				return client.DiscoV1().Records(namespace).List(options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.DiscoV1().DiscoRecords(namespace).Watch(options)
+				return client.DiscoV1().Records(namespace).Watch(options)
 			},
 		},
-		&discostablesapccv1.DiscoRecord{},
+		&discov1.Record{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *discoRecordInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredDiscoRecordInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *recordInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredRecordInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *discoRecordInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&discostablesapccv1.DiscoRecord{}, f.defaultInformer)
+func (f *recordInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&discov1.Record{}, f.defaultInformer)
 }
 
-func (f *discoRecordInformer) Lister() v1.DiscoRecordLister {
-	return v1.NewDiscoRecordLister(f.Informer().GetIndexer())
+func (f *recordInformer) Lister() v1.RecordLister {
+	return v1.NewRecordLister(f.Informer().GetIndexer())
 }

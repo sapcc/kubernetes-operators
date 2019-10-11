@@ -27,27 +27,27 @@ const (
 	// Version of the CRDs.
 	Version = "v1"
 
-	// DiscoRecordKind ...
-	DiscoRecordKind = "Record"
-	// DiscoRecordKindPlural ...
-	DiscoRecordKindPlural = "records"
+	// RecordKind ...
+	RecordKind = "Record"
+	// RecordKindPlural ...
+	RecordKindPlural = "records"
 )
 
-// DiscoRecord is a specification for a DiscoRecord resource
+// Record is a specification for a Record resource
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:openapi-gen=true
-type DiscoRecord struct {
+type Record struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Specification of the DiscoRecord.
-	Spec DiscoRecordSpec `json:"spec"`
+	// Specification of the Record.
+	Spec RecordSpec `json:"spec"`
 }
 
-// DiscoRecordSpec is the spec for a DiscoRecord resource
+// RecordSpec is the spec for a Record resource
 // +k8s:openapi-gen=true
-type DiscoRecordSpec struct {
+type RecordSpec struct {
 	// Type of the DNS record.
 	// Currently supported are A, CNAME, SOA, NS records.
 	Type string `json:"type"`
@@ -61,13 +61,13 @@ type DiscoRecordSpec struct {
 	Description string `json:"description,omitempty"`
 }
 
-// DiscoRecordList is a list of DiscoRecord resources
+// RecordList is a list of Record resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:openapi-gen=true
-type DiscoRecordList struct {
+type RecordList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	// List of DiscoRecords.
-	Items []DiscoRecord `json:"items"`
+	// List of Records.
+	Items []Record `json:"items"`
 }

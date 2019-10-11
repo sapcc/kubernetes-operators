@@ -32,17 +32,17 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecord":     schema_pkg_apis_disco_v1_DiscoRecord(ref),
-		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecordList": schema_pkg_apis_disco_v1_DiscoRecordList(ref),
-		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecordSpec": schema_pkg_apis_disco_v1_DiscoRecordSpec(ref),
+		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.Record":     schema_pkg_apis_disco_v1_Record(ref),
+		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.RecordList": schema_pkg_apis_disco_v1_RecordList(ref),
+		"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.RecordSpec": schema_pkg_apis_disco_v1_RecordSpec(ref),
 	}
 }
 
-func schema_pkg_apis_disco_v1_DiscoRecord(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_disco_v1_Record(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DiscoRecord is a specification for a DiscoRecord resource",
+				Description: "Record is a specification for a Record resource",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -66,8 +66,8 @@ func schema_pkg_apis_disco_v1_DiscoRecord(ref common.ReferenceCallback) common.O
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Specification of the DiscoRecord.",
-							Ref:         ref("github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecordSpec"),
+							Description: "Specification of the Record.",
+							Ref:         ref("github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.RecordSpec"),
 						},
 					},
 				},
@@ -75,15 +75,15 @@ func schema_pkg_apis_disco_v1_DiscoRecord(ref common.ReferenceCallback) common.O
 			},
 		},
 		Dependencies: []string{
-			"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecordSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.RecordSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_disco_v1_DiscoRecordList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_disco_v1_RecordList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DiscoRecordList is a list of DiscoRecord resources",
+				Description: "RecordList is a list of Record resources",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -107,12 +107,12 @@ func schema_pkg_apis_disco_v1_DiscoRecordList(ref common.ReferenceCallback) comm
 					},
 					"items": {
 						SchemaProps: spec.SchemaProps{
-							Description: "List of DiscoRecords.",
+							Description: "List of Records.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecord"),
+										Ref: ref("github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.Record"),
 									},
 								},
 							},
@@ -123,15 +123,15 @@ func schema_pkg_apis_disco_v1_DiscoRecordList(ref common.ReferenceCallback) comm
 			},
 		},
 		Dependencies: []string{
-			"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecord", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.Record", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
-func schema_pkg_apis_disco_v1_DiscoRecordSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_disco_v1_RecordSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DiscoRecordSpec is the spec for a DiscoRecord resource",
+				Description: "RecordSpec is the spec for a Record resource",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {

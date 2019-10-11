@@ -29,7 +29,7 @@ import (
 
 type DiscoV1Interface interface {
 	RESTClient() rest.Interface
-	DiscoRecordsGetter
+	RecordsGetter
 }
 
 // DiscoV1Client is used to interact with features provided by the disco.stable.sap.cc group.
@@ -37,8 +37,8 @@ type DiscoV1Client struct {
 	restClient rest.Interface
 }
 
-func (c *DiscoV1Client) DiscoRecords(namespace string) DiscoRecordInterface {
-	return newDiscoRecords(c, namespace)
+func (c *DiscoV1Client) Records(namespace string) RecordInterface {
+	return newRecords(c, namespace)
 }
 
 // NewForConfig creates a new DiscoV1Client for the given config.

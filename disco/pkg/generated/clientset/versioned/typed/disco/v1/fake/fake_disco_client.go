@@ -31,8 +31,8 @@ type FakeDiscoV1 struct {
 	*testing.Fake
 }
 
-func (c *FakeDiscoV1) DiscoRecords(namespace string) v1.DiscoRecordInterface {
-	return &FakeDiscoRecords{c, namespace}
+func (c *FakeDiscoV1) Records(namespace string) v1.RecordInterface {
+	return &FakeRecords{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

@@ -48,7 +48,7 @@ func isIngressNeedsUpdate(old, new *extensionsv1beta1.Ingress) bool {
 	return false
 }
 
-func isDiscoRecordNeedsUpdate(old, new *v1.DiscoRecord) bool {
+func isDiscoRecordNeedsUpdate(old, new *v1.Record) bool {
 	if !reflect.DeepEqual(old.Spec, new.Spec) || !reflect.DeepEqual(old.GetAnnotations(), new.GetAnnotations()) || !reflect.DeepEqual(old.GetDeletionTimestamp(), new.GetDeletionTimestamp()) {
 		return true
 	}

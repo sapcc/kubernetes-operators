@@ -26,16 +26,16 @@ import (
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 )
 
-// NewDiscoRecordCRD returns a new DiscoRecord custom resource definition.
+// NewDiscoRecordCRD returns a new Record custom resource definition.
 func NewDiscoRecordCRD() *extensionsobj.CustomResourceDefinition {
 	return crdutils.NewCustomResourceDefinition(crdutils.Config{
-		SpecDefinitionName:    "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.DiscoRecord",
+		SpecDefinitionName:    "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.Record",
 		EnableValidation:      true,
 		ResourceScope:         string(extensionsobj.NamespaceScoped),
 		Group:                 discoCRD.GroupName,
-		Kind:                  discoV1.DiscoRecordKind,
+		Kind:                  discoV1.RecordKind,
 		Version:               discoV1.Version,
-		Plural:                discoV1.DiscoRecordKindPlural,
+		Plural:                discoV1.RecordKindPlural,
 		GetOpenAPIDefinitions: discoV1.GetOpenAPIDefinitions,
 	})
 }

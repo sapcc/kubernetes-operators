@@ -21,10 +21,10 @@
 
 package v1
 
-// DiscoRecordListerExpansion allows custom methods to be added to
-// DiscoRecordLister.
-type DiscoRecordListerExpansion interface{}
+// RecordListerExpansion allows custom methods to be added to
+// RecordLister.
+type RecordListerExpansion interface{}
 
-// DiscoRecordNamespaceListerExpansion allows custom methods to be added to
-// DiscoRecordNamespaceLister.
-type DiscoRecordNamespaceListerExpansion interface{}
+// RecordNamespaceListerExpansion allows custom methods to be added to
+// RecordNamespaceLister.
+type RecordNamespaceListerExpansion interface{}

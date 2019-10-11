@@ -27,8 +27,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// DiscoRecords returns a DiscoRecordInformer.
-	DiscoRecords() DiscoRecordInformer
+	// Records returns a RecordInformer.
+	Records() RecordInformer
 }
 
 type version struct {
@@ -42,7 +42,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// DiscoRecords returns a DiscoRecordInformer.
-func (v *version) DiscoRecords() DiscoRecordInformer {
-	return &discoRecordInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// Records returns a RecordInformer.
+func (v *version) Records() RecordInformer {
+	return &recordInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

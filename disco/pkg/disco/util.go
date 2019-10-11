@@ -78,13 +78,13 @@ func keyFunc(obj interface{}) (string, error) {
 
 	var kind string
 	k := typeMeta.GetKind()
-	if k == "Ingress" || k == v1.DiscoRecordKind {
+	if k == "Ingress" || k == v1.RecordKind {
 		kind = strings.ToLower(k)
 	} else {
 		switch obj.(type) {
 		case *v1beta1.Ingress:
 			kind = "ingress"
-		case *v1.DiscoRecord:
+		case *v1.Record:
 			kind = "record"
 		default:
 			kind = ""

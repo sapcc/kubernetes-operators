@@ -32,45 +32,45 @@ import (
 	rest "k8s.io/client-go/rest"
 )
 
-// DiscoRecordsGetter has a method to return a DiscoRecordInterface.
+// RecordsGetter has a method to return a RecordInterface.
 // A group's client should implement this interface.
-type DiscoRecordsGetter interface {
-	DiscoRecords(namespace string) DiscoRecordInterface
+type RecordsGetter interface {
+	Records(namespace string) RecordInterface
 }
 
-// DiscoRecordInterface has methods to work with DiscoRecord resources.
-type DiscoRecordInterface interface {
-	Create(*v1.DiscoRecord) (*v1.DiscoRecord, error)
-	Update(*v1.DiscoRecord) (*v1.DiscoRecord, error)
+// RecordInterface has methods to work with Record resources.
+type RecordInterface interface {
+	Create(*v1.Record) (*v1.Record, error)
+	Update(*v1.Record) (*v1.Record, error)
 	Delete(name string, options *metav1.DeleteOptions) error
 	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.DiscoRecord, error)
-	List(opts metav1.ListOptions) (*v1.DiscoRecordList, error)
+	Get(name string, options metav1.GetOptions) (*v1.Record, error)
+	List(opts metav1.ListOptions) (*v1.RecordList, error)
 	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.DiscoRecord, err error)
-	DiscoRecordExpansion
+	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.Record, err error)
+	RecordExpansion
 }
 
-// discoRecords implements DiscoRecordInterface
-type discoRecords struct {
+// records implements RecordInterface
+type records struct {
 	client rest.Interface
 	ns     string
 }
 
-// newDiscoRecords returns a DiscoRecords
-func newDiscoRecords(c *DiscoV1Client, namespace string) *discoRecords {
-	return &discoRecords{
+// newRecords returns a Records
+func newRecords(c *DiscoV1Client, namespace string) *records {
+	return &records{
 		client: c.RESTClient(),
 		ns:     namespace,
 	}
 }
 
-// Get takes name of the discoRecord, and returns the corresponding discoRecord object, and an error if there is any.
-func (c *discoRecords) Get(name string, options metav1.GetOptions) (result *v1.DiscoRecord, err error) {
-	result = &v1.DiscoRecord{}
+// Get takes name of the record, and returns the corresponding record object, and an error if there is any.
+func (c *records) Get(name string, options metav1.GetOptions) (result *v1.Record, err error) {
+	result = &v1.Record{}
 	err = c.client.Get().
 		Namespace(c.ns).
-		Resource("discorecords").
+		Resource("records").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
 		Do().
@@ -78,16 +78,16 @@ func (c *discoRecords) Get(name string, options metav1.GetOptions) (result *v1.D
 	return
 }
 
-// List takes label and field selectors, and returns the list of DiscoRecords that match those selectors.
-func (c *discoRecords) List(opts metav1.ListOptions) (result *v1.DiscoRecordList, err error) {
+// List takes label and field selectors, and returns the list of Records that match those selectors.
+func (c *records) List(opts metav1.ListOptions) (result *v1.RecordList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
 	}
-	result = &v1.DiscoRecordList{}
+	result = &v1.RecordList{}
 	err = c.client.Get().
 		Namespace(c.ns).
-		Resource("discorecords").
+		Resource("records").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
 		Do().
@@ -95,8 +95,8 @@ func (c *discoRecords) List(opts metav1.ListOptions) (result *v1.DiscoRecordList
 	return
 }
 
-// Watch returns a watch.Interface that watches the requested discoRecords.
-func (c *discoRecords) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+// Watch returns a watch.Interface that watches the requested records.
+func (c *records) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -104,42 +104,42 @@ func (c *discoRecords) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
 	return c.client.Get().
 		Namespace(c.ns).
-		Resource("discorecords").
+		Resource("records").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
 		Watch()
 }
 
-// Create takes the representation of a discoRecord and creates it.  Returns the server's representation of the discoRecord, and an error, if there is any.
-func (c *discoRecords) Create(discoRecord *v1.DiscoRecord) (result *v1.DiscoRecord, err error) {
-	result = &v1.DiscoRecord{}
+// Create takes the representation of a record and creates it.  Returns the server's representation of the record, and an error, if there is any.
+func (c *records) Create(record *v1.Record) (result *v1.Record, err error) {
+	result = &v1.Record{}
 	err = c.client.Post().
 		Namespace(c.ns).
-		Resource("discorecords").
-		Body(discoRecord).
+		Resource("records").
+		Body(record).
 		Do().
 		Into(result)
 	return
 }
 
-// Update takes the representation of a discoRecord and updates it. Returns the server's representation of the discoRecord, and an error, if there is any.
-func (c *discoRecords) Update(discoRecord *v1.DiscoRecord) (result *v1.DiscoRecord, err error) {
-	result = &v1.DiscoRecord{}
+// Update takes the representation of a record and updates it. Returns the server's representation of the record, and an error, if there is any.
+func (c *records) Update(record *v1.Record) (result *v1.Record, err error) {
+	result = &v1.Record{}
 	err = c.client.Put().
 		Namespace(c.ns).
-		Resource("discorecords").
-		Name(discoRecord.Name).
-		Body(discoRecord).
+		Resource("records").
+		Name(record.Name).
+		Body(record).
 		Do().
 		Into(result)
 	return
 }
 
-// Delete takes name of the discoRecord and deletes it. Returns an error if one occurs.
-func (c *discoRecords) Delete(name string, options *metav1.DeleteOptions) error {
+// Delete takes name of the record and deletes it. Returns an error if one occurs.
+func (c *records) Delete(name string, options *metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
-		Resource("discorecords").
+		Resource("records").
 		Name(name).
 		Body(options).
 		Do().
@@ -147,14 +147,14 @@ func (c *discoRecords) Delete(name string, options *metav1.DeleteOptions) error 
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *discoRecords) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *records) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
 	var timeout time.Duration
 	if listOptions.TimeoutSeconds != nil {
 		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
-		Resource("discorecords").
+		Resource("records").
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Timeout(timeout).
 		Body(options).
@@ -162,12 +162,12 @@ func (c *discoRecords) DeleteCollection(options *metav1.DeleteOptions, listOptio
 		Error()
 }
 
-// Patch applies the patch and returns the patched discoRecord.
-func (c *discoRecords) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.DiscoRecord, err error) {
-	result = &v1.DiscoRecord{}
+// Patch applies the patch and returns the patched record.
+func (c *records) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.Record, err error) {
+	result = &v1.Record{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
-		Resource("discorecords").
+		Resource("records").
 		SubResource(subresources...).
 		Name(name).
 		Body(data).

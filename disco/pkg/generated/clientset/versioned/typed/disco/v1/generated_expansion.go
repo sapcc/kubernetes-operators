@@ -21,4 +21,4 @@
 
 package v1
 
-type DiscoRecordExpansion interface{}
+type RecordExpansion interface{}

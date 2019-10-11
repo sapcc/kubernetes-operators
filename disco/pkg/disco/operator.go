@@ -110,8 +110,8 @@ func New(options config.Options, logger log.Logger) (*Operator, error) {
 		operator.enqueueItem,
 		operator.enqueueItem,
 		func(oldObj, newObj interface{}) {
-			old := oldObj.(*discoV1.DiscoRecord)
-			new := newObj.(*discoV1.DiscoRecord)
+			old := oldObj.(*discoV1.Record)
+			new := newObj.(*discoV1.Record)
 			// Enqueue if either Spec changed or DeletionTimestamp was set.
 			if !reflect.DeepEqual(old.Spec, new.Spec) || !reflect.DeepEqual(old.GetDeletionTimestamp(), new.GetDeletionTimestamp()) {
 				operator.enqueueItem(newObj)
@@ -265,7 +265,7 @@ func (disco *Operator) syncHandler(key string) error {
 		}
 
 	// Handle resource with kind record.
-	case discoV1.DiscoRecordKind:
+	case discoV1.RecordKind:
 		o, exists, err := disco.k8sFramework.GetDiscoRecordFromIndexerByKey(key)
 		if err != nil {
 			return errors.Wrapf(err, "%v failed with", key)
@@ -276,7 +276,7 @@ func (disco *Operator) syncHandler(key string) error {
 			return nil
 		}
 
-		discoRecord := o.(*discoV1.DiscoRecord)
+		discoRecord := o.(*discoV1.Record)
 		rec.object = discoRecord
 
 		if val := discoRecord.Spec.Record; val != "" {

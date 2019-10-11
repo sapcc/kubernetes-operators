@@ -26,16 +26,16 @@ func TestKeyFunc(t *testing.T) {
 				Name:      "ingressNoTypeMeta",
 			},
 		},
-		"record/default/myrecord": &v1.DiscoRecord{
+		"record/default/myrecord": &v1.Record{
 			TypeMeta: metav1.TypeMeta{
-				Kind: v1.DiscoRecordKind,
+				Kind: v1.RecordKind,
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "default",
 				Name:      "myrecord",
 			},
 		},
-		"record/default/recordNoTypeMeta": &v1.DiscoRecord{
+		"record/default/recordNoTypeMeta": &v1.Record{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "default",
 				Name:      "recordNoTypeMeta",
