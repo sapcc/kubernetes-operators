@@ -22,9 +22,9 @@ package k8sutils
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"time"
 
+	"github.com/pkg/errors"
 	discov1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
 	genCRDClientset "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned"
@@ -212,9 +212,11 @@ func (k8s *K8sFramework) CreateDiscoRecordCRDAndWaitUntilReady() error {
 			return errors.Wrap(err, "error creating crd")
 		}
 	}
-	crd.ResourceVersion = oldCRD.GetResourceVersion()
-	if _, err := crdClient.Update(crd); err != nil {
-		return errors.Wrap(err, "error updating crd")
+	if err == nil {
+		crd.ResourceVersion = oldCRD.GetResourceVersion()
+		if _, err := crdClient.Update(crd); err != nil {
+			return errors.Wrap(err, "error updating crd")
+		}
 	}
 
 	return k8s.waitForUpstreamCRD(crd)
