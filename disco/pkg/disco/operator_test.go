@@ -22,9 +22,10 @@ package disco
 import (
 	"testing"
 
+	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type TestSuite struct {
@@ -34,12 +35,12 @@ type TestSuite struct {
 }
 
 func (s *TestSuite) SetupSuite() {
-	opts := Options{
+	opts := config.Options{
 		ConfigPath:        "fixtures/example.discoconfig",
 		KubeConfig:        "fixtures/example.kubeconfig",
 		Record:            "ingress.foobar.tld.",
 		ZoneName:          "foobar.tld.",
-		IngressAnnotation: DefaultIngressAnnotation,
+		IngressAnnotation: "disco",
 	}
 	s.Disco = &Operator{
 		Options: opts,

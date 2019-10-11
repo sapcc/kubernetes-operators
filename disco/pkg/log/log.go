@@ -40,7 +40,7 @@ func NewLogger(isDebug bool) Logger {
 	var l log.Logger
 	l = log.NewLogfmtLogger(os.Stdout)
 	l = level.NewFilter(l, logLevel)
-	l = log.With(l, "ts", log.DefaultTimestampUTC, "caller", log.Caller(4))
+	l = log.With(l, "ts", log.DefaultTimestampUTC, "caller", log.Caller(5))
 
 	return Logger{
 		logger: l,
@@ -84,5 +84,5 @@ func (l *Logger) LogFatal(msg string, keyvals ...interface{}) {
 
 // LogEvent logs events.
 func (l *Logger) LogEvent(format string, obj ...interface{}) {
-	level.Debug(l.logger).Log(append([]interface{}{"event", format},obj...)...)
+	level.Debug(l.logger).Log(append([]interface{}{"event", format}, obj...)...)
 }

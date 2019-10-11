@@ -9,17 +9,18 @@ GOFLAGS := -ldflags "$(LDFLAGS)"
 
 SRCDIRS  := cmd pkg
 PACKAGES := $(shell find $(SRCDIRS) -type d)
+GO_PKG	 := github.com/sapcc/kubernetes-operators/disco
 GOFILES  := $(addsuffix /*.go,$(PACKAGES))
 GOFILES  := $(wildcard $(GOFILES))
 
-GLIDE := $(shell command -v glide 2> /dev/null)
+OPENAPI_GEN_BINARY:=$(GOPATH)/bin/openapi-gen
 
 .PHONY: all clean vendor tests static-check
 
 all: bin/$(GOOS)/$(BINARY)
 
 bin/%/$(BINARY): $(GOFILES) Makefile
-	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd
+	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd/$(BINARY)
 
 build: bin/linux/$(BINARY)
 	docker build -t $(IMAGE):$(VERSION) .
@@ -38,12 +39,15 @@ clean:
 	rm -rf bin/*
 
 vendor:
-	dep ensure
+	go mod tidy && go mod vendor
 
 .PHONY: crd-gen
-crd-gen:
-    chmod +x vendor/k8s.io/code-generator/generate-groups.sh && \
-	vendor/k8s.io/code-generator/generate-groups.sh all \
-	  github.com/sapcc/kubernetes-operators/disco/pkg/client \
-	  github.com/sapcc/kubernetes-operators/disco/pkg/apis \
-	  disco.stable.sap.cc:v1
+crd-gen: openapi-gen
+	./hack/codegen.sh && go run -mod=vendor cmd/crd-gen/main.go > crd/record.disco.stable.sap.cc.crd.yaml
+
+openapi-gen:
+	$(OPENAPI_GEN_BINARY) \
+	--go-header-file hack/boilerplate.go.txt \
+	-i $(GO_PKG)/pkg/apis/disco/v1 \
+	-p $(GO_PKG)/pkg/apis/disco/v1
+

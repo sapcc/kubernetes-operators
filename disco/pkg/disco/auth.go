@@ -24,20 +24,10 @@ import (
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/tokens"
 	"github.com/pkg/errors"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
 )
 
-// AuthOpts ...
-type AuthOpts struct {
-	AuthURL           string `yaml:"auth_url"`
-	RegionName        string `yaml:"region_name"`
-	Username          string `yaml:"username"`
-	UserDomainName    string `yaml:"user_domain_name"`
-	Password          string `yaml:"password"`
-	ProjectName       string `yaml:"project_name"`
-	ProjectDomainName string `yaml:"project_domain_name"`
-}
-
-func newAuthenticatedProviderClient(ao AuthOpts) (provider *gophercloud.ProviderClient, err error) {
+func newAuthenticatedProviderClient(ao config.AuthOpts) (provider *gophercloud.ProviderClient, err error) {
 	defer func() {
 		if err != nil {
 			ao.Password = "<password hidden>"
@@ -58,7 +48,7 @@ func newAuthenticatedProviderClient(ao AuthOpts) (provider *gophercloud.Provider
 
 	provider, err = openstack.NewClient(ao.AuthURL)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not initialize openstack client: %v")
+		return nil, errors.Wrapf(err, "could not initialize openstack client")
 	}
 	provider.UseTokenLock()
 
@@ -73,7 +63,8 @@ func newAuthenticatedProviderClient(ao AuthOpts) (provider *gophercloud.Provider
 	return provider, err
 }
 
-func NewOpenStackDesignateClient(ao AuthOpts) (*gophercloud.ServiceClient, error) {
+// NewOpenStackDesignateClient returns an authenticated Designate v2 ServiceClient.
+func NewOpenStackDesignateClient(ao config.AuthOpts) (*gophercloud.ServiceClient, error) {
 	provider, err := newAuthenticatedProviderClient(ao)
 	if err != nil {
 		return nil, err

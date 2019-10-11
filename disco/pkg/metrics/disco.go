@@ -21,54 +21,66 @@ package metrics
 
 import (
 	"fmt"
-	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 	"net"
 	"net/http"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
+)
+
+const (
+	// MetricNamespace used to prefix metrics.
+	MetricNamespace = "disco"
+
+	// MetricRecordset used to prefix metrics.
+	MetricRecordset = "recordsets"
 )
 
 var (
+	// RecordsetCreationSuccessCounter counts successful recordset creations.
 	RecordsetCreationSuccessCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricNamespace,
 			Subsystem: MetricRecordset,
-			Name:      "successful_creations",
+			Name:      "successful_creations_total",
 			Help:      "Counter for successful recordset creations",
 		},
-		[]string{"ingress", "host"},
+		[]string{"kind", "key", "host"},
 	)
 
+	// RecordsetCreationFailedCounter counts failed recordset creations.
 	RecordsetCreationFailedCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricNamespace,
 			Subsystem: MetricRecordset,
-			Name:      "failed_creations",
+			Name:      "failed_creations_total",
 			Help:      "Counter for failed recordset creations.",
 		},
-		[]string{"ingress", "host"},
+		[]string{"kind", "key", "host"},
 	)
 
+	// RecordsetDeletionSuccessCounter counts successful recordset deletions.
 	RecordsetDeletionSuccessCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricNamespace,
 			Subsystem: MetricRecordset,
-			Name:      "succesful_deletions",
+			Name:      "successful_deletions_total",
 			Help:      "Counter for successful recordset deletions",
 		},
-		[]string{"ingress", "host"},
+		[]string{"kind", "key", "host"},
 	)
 
+	// RecordsetDeletionFailedCounter counts failed recordset deletions.
 	RecordsetDeletionFailedCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricNamespace,
 			Subsystem: MetricRecordset,
-			Name:      "failed_deletions",
+			Name:      "failed_deletions_total",
 			Help:      "Counter for failed recordset deletions",
 		},
-		[]string{"ingress", "host"},
+		[]string{"kind", "key", "host"},
 	)
 )
 

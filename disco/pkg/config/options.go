@@ -17,38 +17,36 @@
 *
 *******************************************************************************/
 
-package disco
+package config
 
 import (
+	"strings"
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 )
 
 // Options to configure your disco operator
 type Options struct {
-	KubeConfig        string
-	ConfigPath        string
-	IngressAnnotation string
-	Threadiness       int
-	MetricPort        int
-	ResyncPeriod      int
-	RecheckPeriod     int
-	RecordsetTTL      int
-	Record            string
-	ZoneName          string
-	IsDebug           bool
+	KubeConfig,
+	ConfigPath,
+	Record,
+	ZoneName,
+	EventComponent,
+	IngressAnnotation,
+	Finalizer,
+	MetricHost string
+	Threadiness,
+	MetricPort,
+	RecordsetTTL int
+	ResyncPeriod,
+	RecheckPeriod time.Duration
+	IsDebug,
+	IsInstallCRD bool
 }
 
 func (o *Options) applyDefaultsIfNotSet() {
-	if o.MetricPort == 0 {
-		o.MetricPort = DefaultMetricPort
-	}
-	if o.IngressAnnotation == "" {
-		o.IngressAnnotation = DefaultIngressAnnotation
-	}
-	if o.Threadiness <= 0 {
-		o.Threadiness = 1
-	}
 	o.IngressAnnotation = trimQuotesAndSpace(o.IngressAnnotation)
 	o.ZoneName = trimQuotesAndSpace(o.ZoneName)
 	o.Record = trimQuotesAndSpace(o.Record)
@@ -62,6 +60,17 @@ func (o *Options) CheckOptions(logger log.Logger) error {
 	if o.KubeConfig == "" {
 		logger.LogDebug("Path to kubeconfig not provided. Using Default")
 	}
+	if o.Finalizer == "" {
+		return errors.New("finalizer can't be empty")
+	}
 	o.applyDefaultsIfNotSet()
 	return nil
+}
+
+func trimQuotesAndSpace(s string) string {
+	if s == "" {
+		return s
+	}
+	st := strings.Trim(s, `"`)
+	return strings.TrimSpace(st)
 }

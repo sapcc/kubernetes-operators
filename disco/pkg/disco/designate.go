@@ -27,6 +27,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
 	"github.com/gophercloud/gophercloud/pagination"
 	"github.com/pkg/errors"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 )
 
@@ -73,7 +74,7 @@ type DNSV2Client struct {
 }
 
 // NewDNSV2ClientFromAuthOpts returns a new dns v2 client using provided auth options or an error
-func NewDNSV2ClientFromAuthOpts(authOpts AuthOpts, logger log.Logger) (*DNSV2Client, error) {
+func NewDNSV2ClientFromAuthOpts(authOpts config.AuthOpts, logger log.Logger) (*DNSV2Client, error) {
 	client, err := NewOpenStackDesignateClient(authOpts)
 	if err != nil {
 		return nil, err
@@ -117,7 +118,7 @@ func (c *DNSV2Client) listDesignateZones(listOpts zones.ListOpts) ([]zones.Zone,
 
 func (c *DNSV2Client) getDesignateZoneByName(zoneName string) (zones.Zone, error) {
 	// Add trailing `.` if not already present.
-	zoneName = addSuffixIfRequired(zoneName)
+	zoneName = ensureFQDN(zoneName)
 
 	zoneList, err := c.listDesignateZones(
 		zones.ListOpts{
@@ -141,7 +142,7 @@ func (c *DNSV2Client) getDesignateZoneByName(zoneName string) (zones.Zone, error
 func (c *DNSV2Client) listDesignateRecordsetsForZone(zone zones.Zone, recordsetName string) (recordsetList []recordsets.RecordSet, err error) {
 	opts := recordsets.ListOpts{}
 	if recordsetName != "" {
-		opts.Name = addSuffixIfRequired(recordsetName)
+		opts.Name = ensureFQDN(recordsetName)
 	}
 
 	pager := recordsets.ListByZone(c.client, zone.ID, opts)
@@ -172,7 +173,7 @@ func (c *DNSV2Client) createDesignateRecordset(zoneID, rsName string, records []
 	}
 
 	rec, err := recordsets.CreateOpts{
-		Name:        addSuffixIfRequired(rsName),
+		Name:        ensureFQDN(rsName),
 		Records:     records,
 		TTL:         rsTTL,
 		Type:        rsType,
@@ -184,7 +185,7 @@ func (c *DNSV2Client) createDesignateRecordset(zoneID, rsName string, records []
 
 	var (
 		res gophercloud.Result
-		rs recordsets.RecordSet
+		rs  recordsets.RecordSet
 	)
 
 	_, res.Err = c.client.Post(url, &rec, &res.Body, &opts)
