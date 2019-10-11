@@ -309,13 +309,31 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerExists(obj runtime.Object) error {
 	if !hasDiscoFinalizer(obj, k8s.finalizer) && !HasDeletionTimestamp(obj) {
 		newObj := obj.DeepCopyObject()
 
-		objMeta, err := meta.Accessor(newObj)
+		objMeta, err := meta.Accessor(obj)
 		if err != nil {
 			return err
 		}
 
-		finalizers := append(objMeta.GetFinalizers(), k8s.finalizer)
-		objMeta.SetFinalizers(finalizers)
+		finalizers := objMeta.GetFinalizers()
+		if finalizers == nil {
+			finalizers = []string{}
+		}
+
+		switch t := obj.(type) {
+		case *extensionsv1beta1.Ingress:
+			ing := newObj.(*extensionsv1beta1.Ingress)
+			ing.Finalizers = append(finalizers, k8s.finalizer)
+			newObj = ing
+
+		case *discov1.Record:
+			rec := newObj.(*discov1.Record)
+			rec.Finalizers = append(finalizers, k8s.finalizer)
+			newObj = rec
+
+		default:
+			return fmt.Errorf("unknown type: %q", t)
+		}
+
 		k8s.logger.LogDebug("adding finalizer", "key", fmt.Sprintf("%s/%s/%s", obj.GetObjectKind(), objMeta.GetNamespace(), objMeta.GetName()), "finalizer", k8s.finalizer)
 
 		return k8s.UpdateObjectAndWait(
@@ -346,13 +364,29 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerRemoved(obj runtime.Object) error {
 			return err
 		}
 
-		var finalizers []string
-		for _, fin := range objMeta.GetFinalizers() {
-			if fin != k8s.finalizer {
-				finalizers = append(finalizers, fin)
+		finalizers := objMeta.GetFinalizers()
+		for i, fin := range finalizers {
+			if fin == k8s.finalizer {
+				// Delete but preserve order of finalizers.
+				finalizers = append(finalizers[:i], finalizers[i+1:]...)
 			}
 		}
-		objMeta.SetFinalizers(finalizers)
+
+		switch t := newObj.(type) {
+		case *extensionsv1beta1.Ingress:
+			ing := newObj.(*extensionsv1beta1.Ingress)
+			ing.Finalizers = finalizers
+			newObj = ing
+
+		case *discov1.Record:
+			rec := newObj.(*discov1.Record)
+			rec.Finalizers = finalizers
+			newObj = rec
+
+		default:
+			return fmt.Errorf("unknown type: %q", t)
+		}
+
 		k8s.logger.LogDebug("removing finalizer", "key", fmt.Sprintf("%s/%s/%s", obj.GetObjectKind(), objMeta.GetNamespace(), objMeta.GetName()), "finalizer", k8s.finalizer)
 
 		return k8s.UpdateObjectAndWait(
@@ -360,7 +394,7 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerRemoved(obj runtime.Object) error {
 			func(event apimachineryWatch.Event) (bool, error) {
 				switch event.Type {
 				case apimachineryWatch.Deleted:
-					return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "ingress"}, "")
+					return false, apiErrors.NewNotFound(schema.GroupResource{Resource: obj.GetObjectKind().GroupVersionKind().Kind}, objMeta.GetName())
 				}
 				switch ing := event.Object.(type) {
 				case *extensionsv1beta1.Ingress, *discov1.Record:

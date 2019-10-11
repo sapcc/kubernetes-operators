@@ -40,7 +40,7 @@ func NewLogger(isDebug bool) Logger {
 	var l log.Logger
 	l = log.NewLogfmtLogger(os.Stdout)
 	l = level.NewFilter(l, logLevel)
-	l = log.With(l, "ts", log.DefaultTimestampUTC, "caller", log.Caller(5))
+	l = log.With(l, "ts", log.DefaultTimestampUTC, "caller", log.Caller(4))
 
 	return Logger{
 		logger: l,
