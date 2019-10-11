@@ -7,7 +7,7 @@ BINARY  := disco
 LDFLAGS := -X github.com/sapcc/kubernetes-operators/disco/pkg/disco.VERSION=$(VERSION)
 GOFLAGS := -ldflags "$(LDFLAGS)"
 
-SRCDIRS  := cmd/disco pkg
+SRCDIRS  := cmd pkg
 PACKAGES := $(shell find $(SRCDIRS) -type d)
 GO_PKG	 := github.com/sapcc/kubernetes-operators/disco
 GOFILES  := $(addsuffix /*.go,$(PACKAGES))
@@ -20,7 +20,7 @@ OPENAPI_GEN_BINARY:=$(GOPATH)/bin/openapi-gen
 all: bin/$(GOOS)/$(BINARY)
 
 bin/%/$(BINARY): $(GOFILES) Makefile
-	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd/disco
+	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd/$(BINARY)
 
 build: bin/linux/$(BINARY)
 	docker build -t $(IMAGE):$(VERSION) .
