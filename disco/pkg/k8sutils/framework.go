@@ -22,9 +22,10 @@ package k8sutils
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"time"
 
-	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
+	discov1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
 	genCRDClientset "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned"
 	discoClientV1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned/typed/disco/v1"
@@ -100,6 +101,10 @@ func NewK8sFramework(options config.Options, logger log.Logger) (*K8sFramework, 
 
 	crdClient, err := genCRDClientset.NewForConfig(config)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := discov1.AddToScheme(scheme.Scheme); err != nil {
 		return nil, err
 	}
 
@@ -199,15 +204,17 @@ func (k8s *K8sFramework) CreateDiscoRecordCRDAndWaitUntilReady() error {
 	crd := NewDiscoRecordCRD()
 	crdClient := k8s.CRDclientset.ApiextensionsV1beta1().CustomResourceDefinitions()
 	oldCRD, err := crdClient.Get(crd.Name, metaV1.GetOptions{})
-	if err != nil && apiErrors.IsNotFound(err) {
+	if err != nil && !apiErrors.IsNotFound(err) {
+		return errors.Wrapf(err, "error getting crd")
+	}
+	if apiErrors.IsNotFound(err) {
 		if _, err := crdClient.Create(crd); err != nil {
-			return err
+			return errors.Wrap(err, "error creating crd")
 		}
 	}
-	if crd.ResourceVersion != oldCRD.ResourceVersion {
-		if _, err := crdClient.Update(crd); err != nil {
-			return err
-		}
+	crd.ResourceVersion = oldCRD.GetResourceVersion()
+	if _, err := crdClient.Update(crd); err != nil {
+		return errors.Wrap(err, "error updating crd")
 	}
 
 	return k8s.waitForUpstreamCRD(crd)
@@ -245,12 +252,12 @@ func (k8s *K8sFramework) UpdateIngressAndWait(oldIngress, newIngress *extensions
 }
 
 // GetDiscoRecord returns the Record or an error.
-func (k8s *K8sFramework) GetDiscoRecord(namespace, name string) (*v1.Record, error) {
+func (k8s *K8sFramework) GetDiscoRecord(namespace, name string) (*discov1.Record, error) {
 	return k8s.DiscoCRDClientset.Records(namespace).Get(name, metaV1.GetOptions{})
 }
 
 // UpdateDiscoRecordAndWait updates the given Record and waits until successfully completed or errored.
-func (k8s *K8sFramework) UpdateDiscoRecordAndWait(oldDiscoRecord, newDiscoRecord *v1.Record, conditionFuncs ...watch.ConditionFunc) error {
+func (k8s *K8sFramework) UpdateDiscoRecordAndWait(oldDiscoRecord, newDiscoRecord *discov1.Record, conditionFuncs ...watch.ConditionFunc) error {
 	oldDiscoRecord, err := k8s.GetDiscoRecord(oldDiscoRecord.GetNamespace(), oldDiscoRecord.GetName())
 	if err != nil {
 		return err
@@ -285,8 +292,8 @@ func (k8s *K8sFramework) UpdateObjectAndWait(oldObj, newObj runtime.Object, cond
 	switch oldObj.(type) {
 	case *extensionsv1beta1.Ingress:
 		return k8s.UpdateIngressAndWait(oldObj.(*extensionsv1beta1.Ingress), newObj.(*extensionsv1beta1.Ingress), conditionFuncs...)
-	case *v1.Record:
-		return k8s.UpdateDiscoRecordAndWait(oldObj.(*v1.Record), newObj.(*v1.Record), conditionFuncs...)
+	case *discov1.Record:
+		return k8s.UpdateDiscoRecordAndWait(oldObj.(*discov1.Record), newObj.(*discov1.Record), conditionFuncs...)
 	}
 
 	return fmt.Errorf("unknown kind: %q", oldKind)
@@ -315,7 +322,7 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerExists(obj runtime.Object) error {
 					return false, apiErrors.NewNotFound(schema.GroupResource{Resource: obj.GetObjectKind().GroupVersionKind().Kind}, objMeta.GetName())
 				}
 				switch o := event.Object.(type) {
-				case *extensionsv1beta1.Ingress, *v1.Record:
+				case *extensionsv1beta1.Ingress, *discov1.Record:
 					return hasDiscoFinalizer(o, k8s.finalizer), nil
 				}
 				return false, nil
@@ -352,7 +359,7 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerRemoved(obj runtime.Object) error {
 					return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "ingress"}, "")
 				}
 				switch ing := event.Object.(type) {
-				case *extensionsv1beta1.Ingress, *v1.Record:
+				case *extensionsv1beta1.Ingress, *discov1.Record:
 					return !hasDiscoFinalizer(ing, k8s.finalizer), nil
 				}
 				return false, nil
@@ -382,7 +389,7 @@ func (k8s *K8sFramework) waitForUpstreamIngress(ingress *extensionsv1beta1.Ingre
 	return err
 }
 
-func (k8s *K8sFramework) waitForUpstreamDiscoRecord(discoRecord *v1.Record, conditionFuncs ...watch.ConditionFunc) error {
+func (k8s *K8sFramework) waitForUpstreamDiscoRecord(discoRecord *discov1.Record, conditionFuncs ...watch.ConditionFunc) error {
 	ctx, _ := context.WithTimeout(context.TODO(), WaitTimeout)
 	_, err := watch.UntilWithSync(
 		ctx,

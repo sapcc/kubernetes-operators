@@ -1,4 +1,4 @@
-apiVersion:  disco.stable.sap.cc
+apiVersion:  disco.stable.sap.cc/v1
 kind: Record
 
 metadata:
@@ -11,7 +11,7 @@ spec:
     - foo.evil.corp
 
 ---
-apiVersion:  disco.stable.sap.cc
+apiVersion:  disco.stable.sap.cc/v1
 kind: Record
 
 metadata:

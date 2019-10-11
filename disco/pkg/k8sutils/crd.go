@@ -28,7 +28,7 @@ import (
 
 // NewDiscoRecordCRD returns a new Record custom resource definition.
 func NewDiscoRecordCRD() *extensionsobj.CustomResourceDefinition {
-	return crdutils.NewCustomResourceDefinition(crdutils.Config{
+	crd := crdutils.NewCustomResourceDefinition(crdutils.Config{
 		SpecDefinitionName:    "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1.Record",
 		EnableValidation:      true,
 		ResourceScope:         string(extensionsobj.NamespaceScoped),
@@ -38,4 +38,6 @@ func NewDiscoRecordCRD() *extensionsobj.CustomResourceDefinition {
 		Plural:                discoV1.RecordKindPlural,
 		GetOpenAPIDefinitions: discoV1.GetOpenAPIDefinitions,
 	})
+	crd.Spec.Subresources = nil
+	return crd
 }

@@ -43,13 +43,11 @@ vendor:
 
 .PHONY: crd-gen
 crd-gen: openapi-gen
-	./hack/codegen.sh && $(GOBIN)/crd-gen > crd/record.disco.stable.sap.cc.crd.yaml
+	./hack/codegen.sh && go run -mod=vendor cmd/crd-gen/main.go > crd/record.disco.stable.sap.cc.crd.yaml
 
-openapi-gen: $(CRDGEN_BINARY)
+openapi-gen:
 	$(OPENAPI_GEN_BINARY) \
 	--go-header-file hack/boilerplate.go.txt \
 	-i $(GO_PKG)/pkg/apis/disco/v1 \
 	-p $(GO_PKG)/pkg/apis/disco/v1
 
-$(CRDGEN_BINARY): cmd/crd-gen/main.go
-	@go install -mod=vendor $(GO_PKG)/cmd/crd-gen/main.go

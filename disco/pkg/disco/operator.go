@@ -22,6 +22,7 @@ package disco
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -265,7 +266,7 @@ func (disco *Operator) syncHandler(key string) error {
 		}
 
 	// Handle resource with kind record.
-	case discoV1.RecordKind:
+	case strings.ToLower(discoV1.RecordKind):
 		o, exists, err := disco.k8sFramework.GetDiscoRecordFromIndexerByKey(key)
 		if err != nil {
 			return errors.Wrapf(err, "%v failed with", key)
@@ -300,7 +301,8 @@ func (disco *Operator) syncHandler(key string) error {
 		}
 
 	default:
-		return fmt.Errorf("unknown resource %q", objKind)
+		disco.logger.LogInfo("unknown resource %q", objKind)
+		return nil
 	}
 
 	for _, host := range hosts {
@@ -388,6 +390,11 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 	recordType := RecordsetType.CNAME
 	if rt := discoRecord.recordType; rt != "" {
 		recordType = stringToRecordsetType(rt)
+	}
+
+	// Only make it a FQDN if not an IP address.
+	if recordType != RecordsetType.A {
+		record = ensureFQDN(record)
 	}
 
 	description := DiscoRecordsetDescription

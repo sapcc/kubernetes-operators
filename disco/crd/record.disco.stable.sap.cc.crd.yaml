@@ -10,12 +10,6 @@ spec:
     kind: Record
     plural: records
   scope: Namespaced
-  subresources:
-    scale:
-      labelSelectorPath: ""
-      specReplicasPath: ""
-      statusReplicasPath: ""
-    status: {}
   validation:
     openAPIV3Schema:
       properties:

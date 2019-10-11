@@ -47,7 +47,7 @@ var (
 			Name:      "successful_creations_total",
 			Help:      "Counter for successful recordset creations",
 		},
-		[]string{"ingress", "host"},
+		[]string{"kind", "key", "host"},
 	)
 
 	// RecordsetCreationFailedCounter counts failed recordset creations.
@@ -58,7 +58,7 @@ var (
 			Name:      "failed_creations_total",
 			Help:      "Counter for failed recordset creations.",
 		},
-		[]string{"ingress", "host"},
+		[]string{"kind", "key", "host"},
 	)
 
 	// RecordsetDeletionSuccessCounter counts successful recordset deletions.
@@ -69,7 +69,7 @@ var (
 			Name:      "successful_deletions_total",
 			Help:      "Counter for successful recordset deletions",
 		},
-		[]string{"ingress", "host"},
+		[]string{"kind", "key", "host"},
 	)
 
 	// RecordsetDeletionFailedCounter counts failed recordset deletions.
@@ -80,7 +80,7 @@ var (
 			Name:      "failed_deletions_total",
 			Help:      "Counter for failed recordset deletions",
 		},
-		[]string{"ingress", "host"},
+		[]string{"kind", "key", "host"},
 	)
 )
 
