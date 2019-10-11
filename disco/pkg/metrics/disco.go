@@ -39,6 +39,7 @@ const (
 )
 
 var (
+	// RecordsetCreationSuccessCounter counts successful recordset creations.
 	RecordsetCreationSuccessCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricNamespace,
@@ -49,6 +50,7 @@ var (
 		[]string{"ingress", "host"},
 	)
 
+	// RecordsetCreationFailedCounter counts failed recordset creations.
 	RecordsetCreationFailedCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricNamespace,
@@ -59,6 +61,7 @@ var (
 		[]string{"ingress", "host"},
 	)
 
+	// RecordsetDeletionSuccessCounter counts successful recordset deletions.
 	RecordsetDeletionSuccessCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricNamespace,
@@ -69,6 +72,7 @@ var (
 		[]string{"ingress", "host"},
 	)
 
+	// RecordsetDeletionFailedCounter counts failed recordset deletions.
 	RecordsetDeletionFailedCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricNamespace,

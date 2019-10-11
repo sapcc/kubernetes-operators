@@ -7,7 +7,7 @@ BINARY  := disco
 LDFLAGS := -X github.com/sapcc/kubernetes-operators/disco/pkg/disco.VERSION=$(VERSION)
 GOFLAGS := -ldflags "$(LDFLAGS)"
 
-SRCDIRS  := cmd pkg
+SRCDIRS  := cmd/disco pkg
 PACKAGES := $(shell find $(SRCDIRS) -type d)
 GO_PKG	 := github.com/sapcc/kubernetes-operators/disco
 GOFILES  := $(addsuffix /*.go,$(PACKAGES))
@@ -20,7 +20,7 @@ OPENAPI_GEN_BINARY:=$(GOPATH)/bin/openapi-gen
 all: bin/$(GOOS)/$(BINARY)
 
 bin/%/$(BINARY): $(GOFILES) Makefile
-	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd
+	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd/disco
 
 build: bin/linux/$(BINARY)
 	docker build -t $(IMAGE):$(VERSION) .
@@ -48,8 +48,8 @@ crd-gen: openapi-gen
 openapi-gen: $(CRDGEN_BINARY)
 	$(OPENAPI_GEN_BINARY) \
 	--go-header-file hack/boilerplate.go.txt \
-	-i $(GO_PKG)/pkg/apis/disco.stable.sap.cc/v1 \
-	-p $(GO_PKG)/pkg/apis/disco.stable.sap.cc/v1
+	-i $(GO_PKG)/pkg/apis/disco/v1 \
+	-p $(GO_PKG)/pkg/apis/disco/v1
 
-$(CRDGEN_BINARY): cmd/crd-gen.go
-	@go install -mod=vendor $(GO_PKG)/cmd/crd-gen.go
+$(CRDGEN_BINARY): cmd/crd-gen/main.go
+	@go install -mod=vendor $(GO_PKG)/cmd/crd-gen/main.go

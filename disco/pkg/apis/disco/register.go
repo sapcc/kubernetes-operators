@@ -1,4 +1,4 @@
-package disco_stable_sap_cc
+package disco
 
 // GroupName is the group name used in this package
 const (

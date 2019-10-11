@@ -28,6 +28,7 @@ import (
 	"gopkg.in/yaml.v1"
 )
 
+// AuthOpts used for OpenStack authentication parameters.
 type AuthOpts struct {
 	AuthURL           string `yaml:"auth_url"`
 	RegionName        string `yaml:"region_name"`

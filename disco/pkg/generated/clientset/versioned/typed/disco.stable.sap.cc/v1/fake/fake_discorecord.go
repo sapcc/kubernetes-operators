@@ -22,7 +22,7 @@
 package fake
 
 import (
-	discostablesapccv1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1"
+	discostablesapccv1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

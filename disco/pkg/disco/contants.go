@@ -20,7 +20,7 @@
 package disco
 
 const (
-	// DiscoRecordDescription is the default description for a recordset.
+	// DiscoRecordsetDescription is the default description for a recordset.
 	DiscoRecordsetDescription = "Managed by the DISCOperator."
 
 	// DiscoAnnotationRecord allows setting a different record than the default per ingress.

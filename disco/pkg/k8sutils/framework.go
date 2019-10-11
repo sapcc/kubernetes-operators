@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"time"
 
-	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1"
+	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
 	genCRDClientset "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned"
 	discoClientV1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned/typed/disco.stable.sap.cc/v1"
@@ -52,7 +52,7 @@ import (
 	"k8s.io/client-go/tools/watch"
 )
 
-// WaitTimeout
+// WaitTimeout is the time we're waiting before considering an operation failed.
 const WaitTimeout = 2 * time.Minute
 
 // K8sFramework ..
@@ -70,7 +70,7 @@ type K8sFramework struct {
 	discoCRDInformer        cache.SharedIndexInformer
 }
 
-// NewK8sFramework ...
+// NewK8sFramework creates a new K8sFramework.
 func NewK8sFramework(options config.Options, logger log.Logger) (*K8sFramework, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{}
@@ -135,12 +135,14 @@ func NewK8sFramework(options config.Options, logger log.Logger) (*K8sFramework, 
 	}, nil
 }
 
+// Run starts the informers.
 func (k8s *K8sFramework) Run(stopCh <-chan struct{}) {
 	go k8s.discoCRDInformerFactory.Start(stopCh)
 	go k8s.discoCRDInformer.Run(stopCh)
 	go k8s.ingressInformer.Run(stopCh)
 }
 
+// WaitForCacheSync returns true if all caches have been synced.
 func (k8s *K8sFramework) WaitForCacheSync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(
 		stopCh,
@@ -149,6 +151,7 @@ func (k8s *K8sFramework) WaitForCacheSync(stopCh <-chan struct{}) bool {
 	)
 }
 
+// AddIngressInformerEventHandler adds event handlers to the ingress informer.
 func (k8s *K8sFramework) AddIngressInformerEventHandler(addFunc, deleteFunc func(obj interface{}), updateFunc func(oldObj, newObj interface{})) {
 	k8s.ingressInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    addFunc,
@@ -157,22 +160,27 @@ func (k8s *K8sFramework) AddIngressInformerEventHandler(addFunc, deleteFunc func
 	})
 }
 
+// GetIngressFromIndexerByKey gets an ingress from the ingress informer indexer by key.
 func (k8s *K8sFramework) GetIngressFromIndexerByKey(key string) (interface{}, bool, error) {
 	return k8s.ingressInformer.GetIndexer().GetByKey(key)
 }
 
+// GetIngressInformerStore returns the ingress infromer store.
 func (k8s *K8sFramework) GetIngressInformerStore() cache.Store {
 	return k8s.ingressInformer.GetStore()
 }
 
+// GetDiscoRecordFromIndexerByKey returns the DiscoRecord from the informer indexer by key.
 func (k8s *K8sFramework) GetDiscoRecordFromIndexerByKey(key string) (interface{}, bool, error) {
 	return k8s.discoCRDInformer.GetIndexer().GetByKey(key)
 }
 
+// GetDiscoRecordInformerStore returns the discoRecord informer store.
 func (k8s *K8sFramework) GetDiscoRecordInformerStore() cache.Store {
 	return k8s.discoCRDInformer.GetStore()
 }
 
+// AddDiscoCRDInformerEventHandler adds event handlers to the disco informer.
 func (k8s *K8sFramework) AddDiscoCRDInformerEventHandler(addFunc, deleteFunc func(obj interface{}), updateFunc func(oldObj, newObj interface{})) {
 	k8s.discoCRDInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    addFunc,
@@ -236,10 +244,12 @@ func (k8s *K8sFramework) UpdateIngressAndWait(oldIngress, newIngress *extensions
 	return k8s.waitForUpstreamIngress(updatedIngress, conditionFuncs...)
 }
 
+// GetDiscoRecord returns the DiscoRecord or an error.
 func (k8s *K8sFramework) GetDiscoRecord(namespace, name string) (*v1.DiscoRecord, error) {
 	return k8s.DiscoCRDClientset.DiscoRecords(namespace).Get(name, metaV1.GetOptions{})
 }
 
+// UpdateDiscoRecordAndWait updates the given DiscoRecord and waits until successfully completed or errored.
 func (k8s *K8sFramework) UpdateDiscoRecordAndWait(oldDiscoRecord, newDiscoRecord *v1.DiscoRecord, conditionFuncs ...watch.ConditionFunc) error {
 	oldDiscoRecord, err := k8s.GetDiscoRecord(oldDiscoRecord.GetNamespace(), oldDiscoRecord.GetName())
 	if err != nil {

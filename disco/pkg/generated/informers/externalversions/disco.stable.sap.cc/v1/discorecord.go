@@ -24,7 +24,7 @@ package v1
 import (
 	time "time"
 
-	discostablesapccv1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1"
+	discostablesapccv1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
 	versioned "github.com/sapcc/kubernetes-operators/disco/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/sapcc/kubernetes-operators/disco/pkg/generated/informers/externalversions/internalinterfaces"
 	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/generated/listers/disco.stable.sap.cc/v1"

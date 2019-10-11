@@ -48,7 +48,7 @@ func newAuthenticatedProviderClient(ao config.AuthOpts) (provider *gophercloud.P
 
 	provider, err = openstack.NewClient(ao.AuthURL)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not initialize openstack client: %v")
+		return nil, errors.Wrapf(err, "could not initialize openstack client")
 	}
 	provider.UseTokenLock()
 
@@ -63,6 +63,7 @@ func newAuthenticatedProviderClient(ao config.AuthOpts) (provider *gophercloud.P
 	return provider, err
 }
 
+// NewOpenStackDesignateClient returns an authenticated Designate v2 ServiceClient.
 func NewOpenStackDesignateClient(ao config.AuthOpts) (*gophercloud.ServiceClient, error) {
 	provider, err := newAuthenticatedProviderClient(ao)
 	if err != nil {

@@ -29,7 +29,7 @@ import (
 	expiringCache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
-	discoV1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1"
+	discoV1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/k8sutils"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"

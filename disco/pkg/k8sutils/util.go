@@ -22,7 +22,7 @@ package k8sutils
 import (
 	"reflect"
 
-	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1"
+	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -31,6 +31,7 @@ import (
 	apimachineryWatch "k8s.io/apimachinery/pkg/watch"
 )
 
+// HasDeletionTimestamp checks whether an attempt was made to delete the object and thus a deletion timestamp is set.
 func HasDeletionTimestamp(obj runtime.Object) bool {
 	objMeta, err := meta.Accessor(obj)
 	if err != nil {

@@ -118,7 +118,7 @@ func (c *DNSV2Client) listDesignateZones(listOpts zones.ListOpts) ([]zones.Zone,
 
 func (c *DNSV2Client) getDesignateZoneByName(zoneName string) (zones.Zone, error) {
 	// Add trailing `.` if not already present.
-	zoneName = addSuffixIfRequired(zoneName)
+	zoneName = ensureFQDN(zoneName)
 
 	zoneList, err := c.listDesignateZones(
 		zones.ListOpts{
@@ -142,7 +142,7 @@ func (c *DNSV2Client) getDesignateZoneByName(zoneName string) (zones.Zone, error
 func (c *DNSV2Client) listDesignateRecordsetsForZone(zone zones.Zone, recordsetName string) (recordsetList []recordsets.RecordSet, err error) {
 	opts := recordsets.ListOpts{}
 	if recordsetName != "" {
-		opts.Name = addSuffixIfRequired(recordsetName)
+		opts.Name = ensureFQDN(recordsetName)
 	}
 
 	pager := recordsets.ListByZone(c.client, zone.ID, opts)
@@ -173,7 +173,7 @@ func (c *DNSV2Client) createDesignateRecordset(zoneID, rsName string, records []
 	}
 
 	rec, err := recordsets.CreateOpts{
-		Name:        addSuffixIfRequired(rsName),
+		Name:        ensureFQDN(rsName),
 		Records:     records,
 		TTL:         rsTTL,
 		Type:        rsType,

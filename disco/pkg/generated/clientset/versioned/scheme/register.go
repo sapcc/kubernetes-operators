@@ -22,7 +22,7 @@
 package scheme
 
 import (
-	discov1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1"
+	discov1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

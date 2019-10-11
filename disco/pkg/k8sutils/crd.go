@@ -21,8 +21,8 @@ package k8sutils
 
 import (
 	crdutils "github.com/ant31/crd-validation/pkg"
-	discoCRD "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc"
-	discoV1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco.stable.sap.cc/v1"
+	discoCRD "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco"
+	discoV1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 )
 

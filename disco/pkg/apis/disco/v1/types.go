@@ -25,9 +25,12 @@ import (
 
 
 const (
+	// Version of the CRDs.
 	Version = "v1"
 
+	// DiscoRecordKind ...
 	DiscoRecordKind       = "Record"
+	// DiscoRecordKindPlural ...
 	DiscoRecordKindPlural = "records"
 )
 
