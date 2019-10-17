@@ -214,7 +214,7 @@ func (k8s *K8sFramework) CreateDiscoRecordCRDAndWaitUntilReady() error {
 		}
 	}
 	if err == nil {
-		k8s.logger.LogInfo("updating CRD", "group", crd.GetObjectKind().GroupVersionKind().Group, "name", crd.GetName(), crd.GetName())
+		k8s.logger.LogInfo("updating CRD", "group", crd.GetObjectKind().GroupVersionKind().Group, "name", crd.GetName())
 		crd.ResourceVersion = oldCRD.GetResourceVersion()
 		if _, err := crdClient.Update(crd); err != nil {
 			return errors.Wrap(err, "error updating crd")
