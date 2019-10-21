@@ -31,19 +31,20 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sapcc/go-vice"
+	"github.com/sapcc/kubernetes-operators/vice-president/pkg/config"
 	"github.com/sapcc/kubernetes-operators/vice-president/pkg/log"
 )
 
 type viceClient struct {
 	*vice.Client
-	config VicePresidentConfig
+	cfg    config.VicePresidentConfig
 	logger log.Logger
 }
 
-func newViceClient(ssoCert tls.Certificate, config VicePresidentConfig, logger log.Logger) *viceClient {
+func newViceClient(ssoCert tls.Certificate, cfg config.VicePresidentConfig, logger log.Logger) *viceClient {
 	return &viceClient{
 		Client: vice.New(ssoCert),
-		config: config,
+		cfg:    cfg,
 		logger: logger,
 	}
 }
@@ -57,13 +58,13 @@ func (v *viceClient) createCSR(cert *ViceCertificate) error {
 	csr, err := vice.CreateCSR(
 		pkix.Name{
 			CommonName:         cert.host,
-			Country:            []string{v.config.Country},
-			Province:           []string{v.config.Province},
-			Locality:           []string{v.config.Locality},
-			Organization:       []string{v.config.Organization},
-			OrganizationalUnit: []string{v.config.OrganizationalUnit},
+			Country:            []string{v.cfg.Country},
+			Province:           []string{v.cfg.Province},
+			Locality:           []string{v.cfg.Locality},
+			Organization:       []string{v.cfg.Organization},
+			OrganizationalUnit: []string{v.cfg.OrganizationalUnit},
 		},
-		v.config.EMail,
+		v.cfg.EMail,
 		cert.getSANs(),
 		key,
 	)
@@ -98,11 +99,11 @@ func (v *viceClient) enroll(cert *ViceCertificate) error {
 	enrollment, err := v.Certificates.Enroll(
 		context.TODO(),
 		&vice.EnrollRequest{
-			FirstName:          v.config.FirstName,
-			LastName:           v.config.LastName,
-			Email:              v.config.EMail,
+			FirstName:          v.cfg.FirstName,
+			LastName:           v.cfg.LastName,
+			Email:              v.cfg.EMail,
 			CSR:                string(cert.csr),
-			Challenge:          v.config.DefaultChallenge,
+			Challenge:          v.cfg.DefaultChallenge,
 			CertProductType:    vice.CertProductType.Server,
 			ServerType:         vice.ServerType.OpenSSL,
 			ValidityPeriod:     vice.ValidityPeriod.OneYear,
@@ -137,13 +138,13 @@ func (v *viceClient) renew(cert *ViceCertificate) error {
 	renewal, err := v.Certificates.Renew(
 		context.TODO(),
 		&vice.RenewRequest{
-			FirstName:           v.config.FirstName,
-			LastName:            v.config.LastName,
-			Email:               v.config.EMail,
+			FirstName:           v.cfg.FirstName,
+			LastName:            v.cfg.LastName,
+			Email:               v.cfg.EMail,
 			CSR:                 string(cert.csr),
 			SubjectAltNames:     cert.certificate.DNSNames,
-			OriginalChallenge:   v.config.DefaultChallenge,
-			Challenge:           v.config.DefaultChallenge,
+			OriginalChallenge:   v.cfg.DefaultChallenge,
+			Challenge:           v.cfg.DefaultChallenge,
 			OriginalCertificate: string(originalCertificate),
 			CertProductType:     vice.CertProductType.Server,
 			ServerType:          vice.ServerType.OpenSSL,
@@ -228,13 +229,13 @@ func (v *viceClient) replace(cert *ViceCertificate) error {
 		context.TODO(),
 		&vice.ReplaceRequest{
 			OriginalCertificate: string(originalCertificate),
-			OriginalChallenge:   v.config.DefaultChallenge,
-			Challenge:           v.config.DefaultChallenge,
+			OriginalChallenge:   v.cfg.DefaultChallenge,
+			Challenge:           v.cfg.DefaultChallenge,
 			Reason:              ReasonSuperseded,
 			CSR:                 string(cert.csr),
-			FirstName:           v.config.FirstName,
-			LastName:            v.config.LastName,
-			Email:               v.config.EMail,
+			FirstName:           v.cfg.FirstName,
+			LastName:            v.cfg.LastName,
+			Email:               v.cfg.EMail,
 			ServerType:          vice.ServerType.OpenSSL,
 			SignatureAlgorithm:  vice.SignatureAlgorithm.SHA256WithRSAEncryption,
 		},

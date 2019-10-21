@@ -100,9 +100,6 @@ func (s *TestSuite) TestStateMachine() {
 		},
 	}
 
-	err := s.ResetIngressInformerStoreAndAddIngress(ingress)
-	s.Require().NoError(err, "there must be no error resetting the ingress informer store")
-
 	// Go for it: Secret doesn't exist. This should result in below error.
 	key, err := cache.MetaNamespaceKeyFunc(ingress)
 	s.Require().NoError(err, "there must be no error creating a key from an ingress")

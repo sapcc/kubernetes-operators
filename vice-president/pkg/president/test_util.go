@@ -24,6 +24,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"github.com/sapcc/kubernetes-operators/vice-president/pkg/config"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -159,7 +160,7 @@ func (s *TestSuite) SetupSuite() {
 		},
 	}
 
-	opts := Options{
+	opts := config.Options{
 		ViceCrtFile:             "fixtures/example.pem",
 		ViceKeyFile:             "fixtures/example.key",
 		VicePresidentConfig:     "fixtures/example.vicepresidentconfig",
@@ -168,7 +169,10 @@ func (s *TestSuite) SetupSuite() {
 	}
 
 	// Create vice president.
-	s.VP = New(opts, log.NewLogger(true))
+	s.VP, err = New(opts, log.NewLogger(true))
+	if err != nil {
+		s.Fail("failed to create new vice president")
+	}
 
 	s.VP.viceClient.BaseURL, _ = url.Parse(fmt.Sprintf("http://localhost:%s", testPort))
 
@@ -232,17 +236,4 @@ func (s *TestSuite) respondWith(endpoint string, responseCode int, headers map[s
 		}
 		w.Write(fileContent)
 	})
-}
-
-// ResetIngressInformerStoreAndAddIngress clears the ingress informer store and adds the given ingress
-func (s *TestSuite) ResetIngressInformerStoreAndAddIngress(ingress *extensionsv1beta1.Ingress) error {
-	for _, v := range s.VP.ingressInformer.GetStore().List() {
-		if err := s.VP.ingressInformer.GetStore().Delete(v); err != nil {
-			return err
-		}
-	}
-	if ingress != nil {
-		return s.VP.ingressInformer.GetStore().Add(ingress)
-	}
-	return nil
 }

@@ -17,16 +17,13 @@
 *
 *******************************************************************************/
 
-package president
+package config
 
 import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/pkg/errors"
-	yaml "gopkg.in/yaml.v1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
+	"gopkg.in/yaml.v1"
 )
 
 // VicePresidentConfig is a wrapper for both parts of the config.
@@ -58,20 +55,4 @@ func ReadConfig(filePath string) (cfg VicePresidentConfig, err error) {
 		return cfg, fmt.Errorf("parse configuration: %s", err.Error())
 	}
 	return cfg, nil
-}
-
-func newClientConfig(options Options) (*rest.Config, error) {
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	overrides := &clientcmd.ConfigOverrides{}
-
-	if options.KubeConfig != "" {
-		rules.ExplicitPath = options.KubeConfig
-	}
-
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
-	if err != nil {
-		return nil, errors.Wrapf(err, "couldn't get kubernetes default config")
-	}
-
-	return config, nil
 }

@@ -22,37 +22,11 @@ package president
 import (
 	"crypto/rsa"
 	"crypto/x509"
-	"fmt"
-	"reflect"
-
-	coreV1 "k8s.io/api/core/v1"
-	apiErrors "k8s.io/apimachinery/pkg/api/errors"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/watch"
+	corev1 "k8s.io/api/core/v1"
 )
 
-func newEmptySecret(nameSpace, name string, labels, annotations map[string]string) *coreV1.Secret {
-	if labels == nil {
-		labels = map[string]string{}
-	}
-	if annotations == nil {
-		annotations = map[string]string{}
-	}
-	return &coreV1.Secret{
-		Type: coreV1.SecretTypeOpaque,
-		ObjectMeta: metaV1.ObjectMeta{
-			Name:        name,
-			Namespace:   nameSpace,
-			Labels:      labels,
-			Annotations: annotations,
-		},
-		Data: map[string][]byte{},
-	}
-}
-
-// GetCertificateAndKeyFromSecret extracts the certificate and private key from a given secrets spec
-func getCertificateAndKeyFromSecret(secret *coreV1.Secret, tlsKeySecretKey, tlsCertSecretKey string) (*x509.Certificate, *rsa.PrivateKey) {
+// getCertificateAndKeyFromSecret extracts the certificate and private key from a given secrets spec
+func getCertificateAndKeyFromSecret(secret *corev1.Secret, tlsKeySecretKey, tlsCertSecretKey string) (*x509.Certificate, *rsa.PrivateKey) {
 	var (
 		certificate *x509.Certificate
 		privateKey  *rsa.PrivateKey
@@ -82,7 +56,8 @@ func getCertificateAndKeyFromSecret(secret *coreV1.Secret, tlsKeySecretKey, tlsC
 	return certificate, privateKey
 }
 
-func addCertificateAndKeyToSecret(viceCert *ViceCertificate, oldSecret *coreV1.Secret, tlsKeySecretKey, tlsCertSecretKey string) (*coreV1.Secret, error) {
+// addCertificateAndKeyToSecret adds the given certificate and private key to the secret.
+func addCertificateAndKeyToSecret(viceCert *ViceCertificate, oldSecret *corev1.Secret, tlsKeySecretKey, tlsCertSecretKey string) (*corev1.Secret, error) {
 	certPEM, err := writeCertificatesToPEM(viceCert.withIntermediateCertificate())
 	if err != nil {
 		return nil, err
@@ -103,60 +78,11 @@ func addCertificateAndKeyToSecret(viceCert *ViceCertificate, oldSecret *coreV1.S
 	return secret, nil
 }
 
-func isSecretNeedsUpdate(sCur, sOld *coreV1.Secret) bool {
-	// make sure to only trigger an update there are no empty values.
-	// the ingress controller doesn't like this.
-	for _, v := range sCur.Data {
-		if v == nil {
-			return false
-		}
-	}
-	if !reflect.DeepEqual(sOld.Data, sCur.Data) {
-		return true
-	}
-	return false
-}
-
-func isSecretAddedOrModified(event watch.Event) (bool, error) {
-	switch event.Type {
-	case watch.Deleted:
-		return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "secret"}, "")
-	case watch.Added, watch.Modified:
-		return true, nil
-	default:
-		return false, nil
-	}
-	return false, nil
-}
-
-func isSecretDeleted(event watch.Event) (bool, error) {
-	switch event.Type {
-	case watch.Deleted:
-		return true, nil
-	default:
-		return false, nil
-	}
-	return false, nil
-}
-
-func secretKey(ingressNamespace, secretName string) string {
-	return fmt.Sprintf("%s/%s", ingressNamespace, secretName)
-}
-
 // isSecretClaimedByAnotherIngress checks whether the given Secret is already claimed at all and if so by a different ingress than the one given.
-func isSecretClaimedByAnotherIngress(secret *coreV1.Secret, ingressKey string) (string, bool) {
+func isSecretClaimedByAnotherIngress(secret *corev1.Secret, ingressKey string) (string, bool) {
 	if key, ok := secret.GetAnnotations()[AnnotationSecretClaimedByIngress]; ok {
 		return key, key != ingressKey
 	}
 	// Not claimed.
 	return "", false
-}
-
-func isSecretHasAnnotation(secret *coreV1.Secret, annotation string) bool {
-	for _, ann := range secret.GetAnnotations() {
-		if ann == annotation {
-			return true
-		}
-	}
-	return false
 }

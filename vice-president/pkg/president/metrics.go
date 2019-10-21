@@ -21,6 +21,7 @@ package president
 
 import (
 	"fmt"
+	"github.com/sapcc/kubernetes-operators/vice-president/pkg/config"
 	"net"
 	"net/http"
 	"sync"
@@ -158,7 +159,7 @@ func registerCollectors(collector prometheus.Collector) {
 }
 
 // ExposeMetrics exposes the above defined metrics on <metricPort>:/metrics
-func ExposeMetrics(options Options, stopCh <-chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
+func ExposeMetrics(options config.Options, stopCh <-chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
 	wg.Add(1)
 	defer wg.Done()
 

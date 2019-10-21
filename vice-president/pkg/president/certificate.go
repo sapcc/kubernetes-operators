@@ -67,12 +67,13 @@ func NewViceCertificate(ingress *extensionsv1beta1.Ingress, secretName, host str
 	return vc
 }
 
-// DoesCertificateAndHostMatch checks that a given certificate is for the correct host
+// DoesCertificateAndHostMatch checks that a given certificate is for the correct host and SANs.
 func (vc *ViceCertificate) DoesCertificateAndHostMatch() bool {
 	if err := vc.certificate.VerifyHostname(vc.host); err != nil {
 		return false
 	}
-	return true
+
+	return isStringSlicesEqual(vc.getSANs(), vc.certificate.DNSNames)
 }
 
 // DoesCertificateExpireSoon checks if a certificate is already expired or will expire within the next n month?
@@ -82,7 +83,7 @@ func (vc *ViceCertificate) DoesCertificateExpireSoon(minCertValidityDays int) bo
 	return certExpiry.Before(shouldBeValidUntil)
 }
 
-// DoesKeyAndCertificateTally checks if a given private key is for the correct certificate
+// DoesKeyAndCertificateTally checks if a given private key is for the correct certificate.
 func (vc *ViceCertificate) DoesKeyAndCertificateTally() bool {
 	certBlock := pem.Block{
 		Type:  CertificateType,

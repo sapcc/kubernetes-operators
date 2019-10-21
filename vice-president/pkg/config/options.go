@@ -17,7 +17,7 @@
 *
 *******************************************************************************/
 
-package president
+package config
 
 import (
 	"fmt"
@@ -43,6 +43,9 @@ type Options struct {
 	Threadiness                       int
 	MinCertValidityDays               int
 	MetricPort                        int
+	Finalizer                         string
+	EventComponent                    string
+	IngressAnnotation                 string
 }
 
 // CheckOptions verifies the Options and sets default values if necessary.
@@ -61,9 +64,6 @@ func (o *Options) CheckOptions() error {
 	}
 	if o.MetricPort == 0 {
 		o.MetricPort = 9091
-	}
-	if o.CertificateCheckInterval < MinimalCertificateRecheckInterval {
-		o.CertificateCheckInterval = MinimalCertificateRecheckInterval
 	}
 	if o.RateLimit <= 0 {
 		// Unlimited power!

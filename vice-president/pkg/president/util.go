@@ -28,11 +28,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ocsp"
-	"k8s.io/client-go/tools/cache"
 )
 
 func isAnyStringEmpty(s ...string) bool {
@@ -191,17 +191,25 @@ func getFileNameFromURI(URI string) string {
 }
 
 func isStringSlicesEqual(a, b []string) bool {
-	for _, k := range a {
-		if !contains(b, k) {
+	if len(a) != len(b) {
+		return false
+	}
+
+	aCopy := make([]string, len(a))
+	copy(aCopy, a)
+
+	bCopy := make([]string, len(b))
+	copy(bCopy, b)
+
+	sort.Strings(aCopy)
+	sort.Strings(bCopy)
+
+	for idx, val := range aCopy {
+		if bCopy[idx] != val {
 			return false
 		}
 	}
 	return true
-}
-
-func keyFunc(obj interface{}) string {
-	key, _ := cache.MetaNamespaceKeyFunc(obj)
-	return key
 }
 
 func saveToFile(contentBytes []byte, filePath string) ([]byte, error) {
@@ -219,8 +227,6 @@ func saveToFile(contentBytes []byte, filePath string) ([]byte, error) {
 	return contentBytes, nil
 }
 
-// normalizeHostname converts a hostname in the format `foo.bar.evil.corp` to the normalized form `tls-foo-bar-evil-corp that can be used a a secret name.
-func normalizeHostname(hostname string) string {
-	hostname = strings.ToLower(hostname)
-	return "tls-"+strings.ReplaceAll(hostname, ".", "-")
+func keyFunc(namespace, name string) string {
+	return fmt.Sprintf("%s/%s", namespace, name)
 }

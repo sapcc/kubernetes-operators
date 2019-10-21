@@ -27,7 +27,7 @@ static-check:
 	@if s="$$(golint . && find pkg -type d -exec golint {} \; 2>/dev/null)" && test -n "$$s"; then printf ' => %s\n%s\n' golint "$$s"; false; fi
 
 tests: all static-check
-	go test -v github.com/sapcc/kubernetes-operators/vice-president/pkg/president
+	go test -v github.com/sapcc/kubernetes-operators/vice-president/pkg/...
 
 push: build
 	docker push $(IMAGE):$(VERSION)

@@ -65,24 +65,12 @@ const (
 	// TmpPath points to tmp directory.
 	TmpPath = "/tmp"
 
-	// AnnotationVicePresident needs to be present on an ingress.
-	AnnotationVicePresident = "vice-president"
-
-	// AnnotationTLSKeySecretKey can be used to overwrite the key to use in the secret for the tls key.
-	AnnotationTLSKeySecretKey = "vice-president/tls-key-secret-key"
-
-	// AnnotationTLSCertSecretKey can be used to overwrite the key to use in the secret for the tls cert.
-	AnnotationTLSCertSecretKey = "vice-president/tls-cert-secret-key"
-
 	// AnnotationCertificateReplacement triggers one-time replacement of certificates for all hosts defined by the ingress.
 	AnnotationCertificateReplacement = "vice-president/replace-cert"
 
 	// AnnotationSecretClaimedByIngress is used to indicate that a secret is being used by another ingress.
 	// This prevents multiple ingress' from using the same secret.
 	AnnotationSecretClaimedByIngress = "vice-president/claimed-by-ingress"
-
-	// WaitTimeout defines how long the controller waits before timing out.
-	WaitTimeout = 1 * time.Minute
 
 	// RateLimitPeriod is the period after which all rate limits are reset.
 	RateLimitPeriod = 1 * time.Hour
@@ -96,15 +84,6 @@ const (
 	// ReasonSuperseded is the reason for replacing a existing certificate.
 	ReasonSuperseded = "SUPERSEDED"
 
-	// MinimalCertificateRecheckInterval is the minimal interval for checking certificates.
-	MinimalCertificateRecheckInterval = 5 * time.Minute
-
 	// UpdateEvent is the type of an update event.
 	UpdateEvent = "UpdateCertificate"
-
-	// EventComponent describes the component emitting an event.
-	EventComponent = "vice-president"
-
-	// FinalizerVicePresident is the vice presidential finalizer for an ingress.
-	FinalizerVicePresident = "vicepresident.extensions/v1beta1"
 )

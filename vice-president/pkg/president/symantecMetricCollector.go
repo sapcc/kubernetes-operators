@@ -24,6 +24,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/sapcc/kubernetes-operators/vice-president/pkg/config"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -50,7 +51,7 @@ type SymantecMetricsCollector struct {
 }
 
 // NewSymantecMetricsCollector returns a new collector for Symantec metrics.
-func NewSymantecMetricsCollector(options Options, logger log.Logger) *SymantecMetricsCollector {
+func NewSymantecMetricsCollector(options config.Options, logger log.Logger) *SymantecMetricsCollector {
 	cert, err := tls.LoadX509KeyPair(options.ViceCrtFile, options.ViceKeyFile)
 	if err != nil {
 		logger.LogFatal("couldn't load sso certificate", "cert path", options.ViceCrtFile, "key path", options.ViceKeyFile, "err", err)

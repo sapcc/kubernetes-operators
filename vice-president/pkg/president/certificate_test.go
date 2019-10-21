@@ -64,17 +64,12 @@ func (s *TestSuite) TestGetSANS() {
 }
 
 func (s *TestSuite) TestCertificateAndHostMatch() {
-
 	s.ViceCert.host = "invalid.com"
 	s.False(s.ViceCert.DoesCertificateAndHostMatch(), "certificate common name shouldn't match 'invalid.com'")
 
 	s.ViceCert.host = "example.com"
+	s.ViceCert.sans = []string{"example.com", "www.example.com", "www.my-example.com"}
 	s.True(s.ViceCert.DoesCertificateAndHostMatch(), "certificate common name and host should match")
-
-	san := "www.my-example.com"
-	s.ViceCert.setSANs([]string{san})
-	s.True(s.ViceCert.DoesCertificateAndHostMatch(), "certificate common name and host should match")
-	s.Contains(s.ViceCert.certificate.DNSNames, san)
 }
 
 func (s *TestSuite) TestDoesKeyAndCertificateTally() {

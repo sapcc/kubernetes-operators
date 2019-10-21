@@ -21,6 +21,7 @@ package main
 
 import (
 	"flag"
+	"github.com/sapcc/kubernetes-operators/vice-president/pkg/config"
 	"os"
 	"os/signal"
 	"sync"
@@ -32,7 +33,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var options president.Options
+var options config.Options
 
 func init() {
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
@@ -51,6 +52,9 @@ func init() {
 	pflag.IntVar(&options.RateLimit, "rate-limit", 2, "Rate limit of certificate enrollments per host. (unlimited: -1)")
 	pflag.IntVar(&options.Threadiness, "threadiness", 10, "Operator threadiness.")
 	pflag.StringVar(&options.Namespace, "namespace", "", "Limit operator to given namespace.")
+	pflag.StringVar(&options.Finalizer, "finalizer", "vicepresident.extensions/v1beta1", "FinalizerVicePresident is the vice presidential finalizer for an ingress")
+	pflag.StringVar(&options.EventComponent, "event-component", "vice-president", "Component to use for kubernetes events.")
+	pflag.StringVar(&options.IngressAnnotation, "ingress-annotation", "vice-president", "Handle ingress' with this annotation.")
 }
 
 func main() {
@@ -65,7 +69,13 @@ func main() {
 
 	wg := &sync.WaitGroup{} // Goroutines can add themselves to this to be waited on
 
-	go president.New(options, logger).Run(options.Threadiness, stop, wg)
+	vp, err := president.New(options, logger)
+	if err != nil {
+		logger.LogFatal("fatal error while starting operator", "err", err)
+		return
+	}
+
+	go vp.Run(options.Threadiness, stop, wg)
 	go president.ExposeMetrics(options, stop, wg, logger)
 
 	<-sigs // Wait for signals (this hangs until a signal arrives)
