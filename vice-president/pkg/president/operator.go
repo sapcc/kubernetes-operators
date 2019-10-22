@@ -429,7 +429,7 @@ func (vp *Operator) getNextState(vc *ViceCertificate) string {
 	}
 
 	if vc.DoesCertificateExpireSoon(vp.MinCertValidityDays) {
-		vp.logger.LogInfo("certificate will expire soon", "host", vc.host, "expiresInLessThan", vp.MinCertValidityDays)
+		vp.logger.LogInfo("certificate will expire soon", "host", vc.host, "expiresIn[d]", vp.MinCertValidityDays)
 		return IngressStateRenew
 	}
 
@@ -438,7 +438,7 @@ func (vp *Operator) getNextState(vc *ViceCertificate) string {
 		return IngressStateReplace
 	}
 
-	vp.logger.LogInfo("certificate ist valid", "host", vc.host, "sans", vc.getSANs(), "validUntil", vc.certificate.NotAfter.UTC().String())
+	vp.logger.LogInfo("certificate ist valid", "host", vc.host, "sans", vc.getSANsString(), "validUntil", vc.certificate.NotAfter.UTC().String())
 	return IngressStateApproved
 }
 
