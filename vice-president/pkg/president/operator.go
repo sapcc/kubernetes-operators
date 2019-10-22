@@ -417,7 +417,7 @@ func (vp *Operator) getNextState(vc *ViceCertificate) string {
 
 	//  is the certificate for the correct host?
 	if !vc.DoesCertificateAndHostMatch() {
-		vp.logger.LogInfo("certificate and hosts don't match", "host", vc.host, "sans", vc.getSANs())
+		vp.logger.LogInfo("certificate and hosts don't match", "host", vc.host, "sans", vc.getSANsString())
 		return IngressStateEnroll
 	}
 
