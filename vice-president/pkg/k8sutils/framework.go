@@ -128,7 +128,7 @@ func (k8s *K8sFramework) AddSecretInformerEventHandler(addFunc, deleteFunc func(
 
 // Eventf emits an event via the event recorder.
 func (k8s *K8sFramework) Eventf(object runtime.Object, eventType, reason, messageFmt string, args ...interface{}) {
-	k8s.eventRecorder.Eventf(object, eventType, reason, messageFmt)
+	k8s.eventRecorder.Eventf(object, eventType, reason, messageFmt, args)
 }
 
 // GetIngressFromIndexerByKey gets an ingress from the ingress informer indexer by key.
