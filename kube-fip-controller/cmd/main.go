@@ -39,7 +39,7 @@ func init() {
 	kingpin.Flag("kubeconfig", "Absolute path to kubeconfig").StringVar(&opts.KubeConfig)
 	kingpin.Flag("debug", "Enable debug logging").Default("false").BoolVar(&opts.IsDebug)
 	kingpin.Flag("threadiness", "The controllers threadiness").Default("1").IntVar(&opts.Threadiness)
-	kingpin.Flag("recheck-interval", "Interval for checking with OpenStack.").Default("5m").DurationVar(&opts.RecheckInterval)
+	kingpin.Flag("recheck-interval", "Interval for checking with OpenStack.").Default("10m").DurationVar(&opts.RecheckInterval)
 	kingpin.Flag("metric-host", "The host to expose Prometheus metrics on.").Default("0.0.0.0").IPVar(&opts.MetricHost)
 	kingpin.Flag("metric-port", "The port to expose Prometheus metrics on.").Default("9091").IntVar(&opts.MetricPort)
 	kingpin.Flag("default-floating-network", "Name of the default Floating IP network.").Required().StringVar(&opts.DefaultFloatingNetwork)

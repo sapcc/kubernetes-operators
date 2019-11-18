@@ -21,7 +21,6 @@ package frameworks
 
 import (
 	"fmt"
-
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/gophercloud/gophercloud"
@@ -39,6 +38,8 @@ import (
 )
 
 const statusActive = "ACTIVE"
+
+var allProjectsHeader = map[string]string{"X-Auth-All-Projects": "true"}
 
 // OSFramework is the OpenStack Framework.
 type OSFramework struct {
@@ -67,10 +68,10 @@ func NewOSFramework(opts config.Options, logger log.Logger) (*OSFramework, error
 	}
 
 	return &OSFramework{
-		computeClient: cClient,
-		neutronClient: nClient,
-		logger:        log.With(logger, "component", "openstackClient"),
-		opts:          opts,
+		computeClient:  cClient,
+		neutronClient:  nClient,
+		logger:         log.With(logger, "component", "osFramework"),
+		opts:           opts,
 	}, nil
 }
 
@@ -100,6 +101,7 @@ func newAuthenticatedProviderClient(auth *config.Auth) (*gophercloud.ProviderCli
 func (o *OSFramework) GetServerByName(name string) (*servers.Server, error) {
 	listOpts := servers.ListOpts{
 		Name: name,
+		AllTenants: true,
 	}
 
 	allPages, err := servers.List(o.computeClient, listOpts).AllPages()
@@ -114,7 +116,6 @@ func (o *OSFramework) GetServerByName(name string) (*servers.Server, error) {
 
 	for _, s := range allServers {
 		if s.Name == name {
-			level.Debug(o.logger).Log("msg", "found server by name", "name", name, "id", s.ID)
 			return &s, nil
 		}
 	}
@@ -123,24 +124,35 @@ func (o *OSFramework) GetServerByName(name string) (*servers.Server, error) {
 
 // GetNetworkIDByName returns a the id of the network found by name or an error.
 func (o *OSFramework) GetNetworkIDByName(name string) (string, error) {
-	b := true
+	url := o.neutronClient.ServiceURL("networks")
 	listOpts := networks.ListOpts{
 		Name:   name,
-		Shared: &b,
 		Status: statusActive,
 	}
 
-	allPages, err := networks.List(o.neutronClient, listOpts).AllPages()
+	listOptsStr, err := listOpts.ToNetworkListQuery()
 	if err != nil {
 		return "", err
 	}
+	url += listOptsStr
 
-	allNetworks, err := networks.ExtractNetworks(allPages)
-	if err != nil {
+	var (
+		res     gophercloud.Result
+		resData struct {
+			Networks []networks.Network `json:"networks"`
+		}
+	)
+
+	opts := gophercloud.RequestOpts{
+		MoreHeaders: allProjectsHeader,
+	}
+
+	_, res.Err = o.neutronClient.Get(url, &res.Body, &opts)
+	if err := res.ExtractInto(&resData); err != nil {
 		return "", err
 	}
 
-	for _, net := range allNetworks {
+	for _, net := range resData.Networks {
 		if net.Name == name {
 			return net.ID, nil
 		}
