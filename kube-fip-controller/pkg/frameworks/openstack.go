@@ -213,9 +213,10 @@ func (o *OSFramework) EnsureAssociatedInstanceAndFIP(server *servers.Server, fip
 		return o.associateInstanceAndFIP(server, fip.FloatingIP)
 	case server.ID:
 		// If the port belongs to the server, we can assume the FIP is already associated with the server and return here.
+		level.Info(o.logger).Log("msg", "FIP already attached to instance", "fip", fip.FloatingIP, "serverID", server.ID)
 		return nil
 	default:
-		return fmt.Errorf("fip already associated with %s", server.Name)
+		return fmt.Errorf("fip already associated with another server %s", server.Name)
 	}
 
 	return nil
