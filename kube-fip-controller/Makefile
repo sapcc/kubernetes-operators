@@ -18,7 +18,7 @@ GOFILES  := $(wildcard $(GOFILES))
 all: bin/$(GOOS)/$(BINARY)
 
 bin/%/$(BINARY): $(GOFILES) Makefile
-	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -mod vendor -v -i -o bin/$*/$(BINARY) ./cmd/main.go
+	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -mod vendor -v -i -o bin/$*/$(BINARY) ./cmd/main.go && chmod +x bin/$*/$(BINARY)
 
 build: bin/linux/$(BINARY)
 	docker build -t $(IMAGE):$(VERSION) .

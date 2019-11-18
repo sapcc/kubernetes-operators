@@ -28,7 +28,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// AuthOpts used for OpenStack authentication parameters.
+// Auth used for OpenStack authentication parameters.
 type Auth struct {
 	AuthURL           string `yaml:"auth_url"`
 	RegionName        string `yaml:"region_name"`
@@ -39,8 +39,8 @@ type Auth struct {
 	ProjectDomainName string `yaml:"project_domain_name"`
 }
 
-// ReadConfig reads a given configuration file and returns the ViceConfig object and if applicable an error.
-func ReadConfig(filePath string) (*Auth, error) {
+// ReadAuthConfig reads a given configuration file and returns the ViceConfig object and if applicable an error.
+func ReadAuthConfig(filePath string) (*Auth, error) {
 	cfgBytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not read configuration file")

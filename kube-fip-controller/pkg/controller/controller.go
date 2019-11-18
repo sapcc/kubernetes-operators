@@ -46,6 +46,12 @@ type Controller struct {
 
 // New returns a new Controller or an error.
 func New(opts config.Options, logger log.Logger) (*Controller, error) {
+	authConfig, err := config.ReadAuthConfig(*opts.ConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	opts.Auth = *authConfig
+
 	k8sFramework, err := frameworks.NewK8sFramework(opts, logger)
 	if err != nil {
 		return nil, err

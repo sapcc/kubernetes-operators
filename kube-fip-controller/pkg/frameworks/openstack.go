@@ -40,6 +40,7 @@ import (
 
 const statusActive = "ACTIVE"
 
+// OSFramework is the OpenStack Framework.
 type OSFramework struct {
 	computeClient,
 	neutronClient *gophercloud.ServiceClient
@@ -47,6 +48,7 @@ type OSFramework struct {
 	opts   config.Options
 }
 
+// NewOSFramework returns a new OSFramework.
 func NewOSFramework(opts config.Options, logger log.Logger) (*OSFramework, error) {
 	provider, err := newAuthenticatedProviderClient(opts.Auth)
 	if err != nil {
@@ -94,6 +96,7 @@ func newAuthenticatedProviderClient(auth config.Auth) (*gophercloud.ProviderClie
 	return provider, err
 }
 
+// GetServerByName returns an openstack server found by name or an error.
 func (o *OSFramework) GetServerByName(name string) (*servers.Server, error) {
 	listOpts := servers.ListOpts{
 		Name: name,
@@ -118,6 +121,7 @@ func (o *OSFramework) GetServerByName(name string) (*servers.Server, error) {
 	return nil, fmt.Errorf("no server with name %s found", name)
 }
 
+// GetNetworkIDByName returns a the id of the network found by name or an error.
 func (o *OSFramework) GetNetworkIDByName(name string) (string, error) {
 	b := true
 	listOpts := networks.ListOpts{
@@ -145,6 +149,7 @@ func (o *OSFramework) GetNetworkIDByName(name string) (string, error) {
 	return "", fmt.Errorf("no network with name %s found", name)
 }
 
+// GetSubnetIDByName returns the subnet's id for the given name or an error.
 func (o *OSFramework) GetSubnetIDByName(name string) (string, error) {
 	listOpts := subnets.ListOpts{
 		Name: name,
@@ -169,6 +174,7 @@ func (o *OSFramework) GetSubnetIDByName(name string) (string, error) {
 	return "", fmt.Errorf("no subnet with name %s found", name)
 }
 
+// GetOrCreateFloatingIP gets and existing or create a new neutron floating IP and returns it or an error.
 func (o *OSFramework) GetOrCreateFloatingIP(floatingIP, floatingNetworkID, subnetID string) (*neutronfip.FloatingIP, error) {
 	fip, err := o.getFloatingIP(floatingIP)
 	if err == nil {
@@ -182,6 +188,7 @@ func (o *OSFramework) GetOrCreateFloatingIP(floatingIP, floatingNetworkID, subne
 	return nil, err
 }
 
+// EnsureAssociatedInstanceAndFIP ensures the given floating IP is associated withe the given server.
 func (o *OSFramework) EnsureAssociatedInstanceAndFIP(server *servers.Server, fip *neutronfip.FloatingIP) error {
 	// Get the floating IPs port.
 	port, err := o.getPort(fip.PortID)
