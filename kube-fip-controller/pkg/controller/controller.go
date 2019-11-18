@@ -184,7 +184,12 @@ func (c *Controller) syncHandler(key string) error {
 		floatingIP = val
 	}
 
-	fip, err := c.osFramework.GetOrCreateFloatingIP(floatingIP, floatingNetworkID, floatingSubnetID)
+	server, err := c.osFramework.GetServerByName(node.GetName())
+	if err != nil {
+		return err
+	}
+
+	fip, err := c.osFramework.GetOrCreateFloatingIP(floatingIP, floatingNetworkID, floatingSubnetID, server.TenantID)
 	if err != nil {
 		return err
 	}
@@ -196,11 +201,6 @@ func (c *Controller) syncHandler(key string) error {
 			annotationExternalIPFIP: fip.FloatingIP,
 		},
 	)
-	if err != nil {
-		return err
-	}
-
-	server, err := c.osFramework.GetServerByName(node.GetName())
 	if err != nil {
 		return err
 	}
