@@ -55,7 +55,7 @@ func NewOSFramework(opts config.Options, logger log.Logger) (*OSFramework, error
 		return nil, errors.Wrap(err, "failed to authenticate")
 	}
 
-	endpointOpts := gophercloud.EndpointOpts{Region: opts.RegionName}
+	endpointOpts := gophercloud.EndpointOpts{}
 	cClient, err := openstack.NewComputeV2(provider, endpointOpts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create compute v2 client")
@@ -74,7 +74,7 @@ func NewOSFramework(opts config.Options, logger log.Logger) (*OSFramework, error
 	}, nil
 }
 
-func newAuthenticatedProviderClient(auth config.Auth) (*gophercloud.ProviderClient, error) {
+func newAuthenticatedProviderClient(auth *config.Auth) (*gophercloud.ProviderClient, error) {
 	opts := &tokens.AuthOptions{
 		IdentityEndpoint: auth.AuthURL,
 		Username:         auth.Username,
@@ -92,7 +92,7 @@ func newAuthenticatedProviderClient(auth config.Auth) (*gophercloud.ProviderClie
 		return nil, err
 	}
 
-	err = openstack.AuthenticateV3(provider, opts, gophercloud.EndpointOpts{Region: auth.RegionName})
+	err = openstack.AuthenticateV3(provider, opts, gophercloud.EndpointOpts{})
 	return provider, err
 }
 

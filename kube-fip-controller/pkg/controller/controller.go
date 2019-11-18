@@ -50,7 +50,7 @@ func New(opts config.Options, logger log.Logger) (*Controller, error) {
 	if err != nil {
 		return nil, err
 	}
-	opts.Auth = *authConfig
+	opts.Auth = authConfig
 
 	k8sFramework, err := frameworks.NewK8sFramework(opts, logger)
 	if err != nil {

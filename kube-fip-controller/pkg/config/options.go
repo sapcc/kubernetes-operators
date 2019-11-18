@@ -26,7 +26,7 @@ import (
 
 // Options for the controller.
 type Options struct {
-	Auth
+	*Auth
 	ConfigPath             string
 	KubeConfig             string
 	Threadiness            int
