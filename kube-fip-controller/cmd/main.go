@@ -36,13 +36,15 @@ import (
 var opts config.Options
 
 func init() {
-	kingpin.Flag("kubeconfig", "Absolute path to kubeconfig").StringVar(opts.KubeConfig)
-	kingpin.Flag("debug", "Enable debug logging").Default("false").BoolVar(opts.IsDebug)
-	kingpin.Flag("threadiness", "The controllers threadiness").Default("1").IntVar(opts.Threadiness)
-	kingpin.Flag("recheck-interval", "Interval for checking with OpenStack.").Default("5m").DurationVar(opts.RecheckInterval)
-	kingpin.Flag("default-floating-network", "Name of the default Floating IP network.").Required().StringVar(opts.DefaultFloatingNetwork)
-	kingpin.Flag("default-floating-subnet", "Name of the default Floating IP subnet.").Required().StringVar(opts.DefaultFloatingSubnet)
-	kingpin.Flag("config", "Absolute path to configuration file.").Required().StringVar(opts.ConfigPath)
+	kingpin.Flag("kubeconfig", "Absolute path to kubeconfig").StringVar(&opts.KubeConfig)
+	kingpin.Flag("debug", "Enable debug logging").Default("false").BoolVar(&opts.IsDebug)
+	kingpin.Flag("threadiness", "The controllers threadiness").Default("1").IntVar(&opts.Threadiness)
+	kingpin.Flag("recheck-interval", "Interval for checking with OpenStack.").Default("5m").DurationVar(&opts.RecheckInterval)
+	kingpin.Flag("metric-host", "The host to expose Prometheus metrics on.").Default("0.0.0.0").IPVar(&opts.MetricHost)
+	kingpin.Flag("metric-port", "The port to expose Prometheus metrics on.").Default("9091").IntVar(&opts.MetricPort)
+	kingpin.Flag("default-floating-network", "Name of the default Floating IP network.").Required().StringVar(&opts.DefaultFloatingNetwork)
+	kingpin.Flag("default-floating-subnet", "Name of the default Floating IP subnet.").Required().StringVar(&opts.DefaultFloatingSubnet)
+	kingpin.Flag("config", "Absolute path to configuration file.").Required().StringVar(&opts.ConfigPath)
 }
 
 func main() {
@@ -56,7 +58,7 @@ func main() {
 	wg := &sync.WaitGroup{}
 
 	logLevel := level.AllowInfo()
-	if *opts.IsDebug {
+	if opts.IsDebug {
 		logLevel = level.AllowDebug()
 	}
 
@@ -70,8 +72,8 @@ func main() {
 		return
 	}
 
-	go c.Run(*opts.Threadiness, stop)
-	go metrics.ServeMetrics(*opts.MetricHost, *opts.MetricPort, wg, stop, logger)
+	go c.Run(opts.Threadiness, stop)
+	go metrics.ServeMetrics(opts.MetricHost, opts.MetricPort, wg, stop, logger)
 
 	<-sigs
 	level.Info(logger).Log("msg", "shutting down")

@@ -46,7 +46,7 @@ type Controller struct {
 
 // New returns a new Controller or an error.
 func New(opts config.Options, logger log.Logger) (*Controller, error) {
-	authConfig, err := config.ReadAuthConfig(*opts.ConfigPath)
+	authConfig, err := config.ReadAuthConfig(opts.ConfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) {
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
 
-	ticker := time.NewTicker(*c.opts.RecheckInterval)
+	ticker := time.NewTicker(c.opts.RecheckInterval)
 	go func() {
 		for {
 			select {
@@ -159,7 +159,7 @@ func (c *Controller) syncHandler(key string) error {
 		return nil
 	}
 
-	floatingNetworkName := *c.opts.DefaultFloatingNetwork
+	floatingNetworkName := c.opts.DefaultFloatingNetwork
 	if val, ok := getAnnotationValue(node, annotationFloatingNetworkName); ok && val != "" {
 		floatingNetworkName = val
 	}
@@ -169,7 +169,7 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	floatingSubnetName := *c.opts.DefaultFloatingSubnet
+	floatingSubnetName := c.opts.DefaultFloatingSubnet
 	if val, ok := getAnnotationValue(node, annotationFloatingSubnetName); ok && val != "" {
 		floatingSubnetName = val
 	}

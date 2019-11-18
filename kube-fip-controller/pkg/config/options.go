@@ -27,13 +27,13 @@ import (
 // Options for the controller.
 type Options struct {
 	Auth
-	ConfigPath             *string
-	KubeConfig             *string
-	Threadiness            *int
-	IsDebug                *bool
-	RecheckInterval        *time.Duration
-	MetricHost             *net.IP
-	MetricPort             *int
-	DefaultFloatingNetwork *string
-	DefaultFloatingSubnet  *string
+	ConfigPath             string
+	KubeConfig             string
+	Threadiness            int
+	IsDebug                bool
+	RecheckInterval        time.Duration
+	MetricHost             net.IP
+	MetricPort             int
+	DefaultFloatingNetwork string
+	DefaultFloatingSubnet  string
 }

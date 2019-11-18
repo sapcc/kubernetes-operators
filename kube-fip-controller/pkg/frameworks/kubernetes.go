@@ -54,8 +54,8 @@ type K8sFramework struct {
 func NewK8sFramework(options config.Options, logger log.Logger) (*K8sFramework, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{}
-	if options.KubeConfig != nil {
-		rules.ExplicitPath = *options.KubeConfig
+	if options.KubeConfig != "" {
+		rules.ExplicitPath = options.KubeConfig
 	}
 
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
