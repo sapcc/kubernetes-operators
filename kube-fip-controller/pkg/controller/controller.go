@@ -1,3 +1,22 @@
+/*******************************************************************************
+*
+* Copyright 2019 SAP SE
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You should have received a copy of the License along with this
+* program. If not, you may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*
+*******************************************************************************/
+
 package controller
 
 import (
@@ -7,11 +26,11 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/sapcc/kubernetes-operators/kube-fip-controller/pkg/config"
 	"github.com/sapcc/kubernetes-operators/kube-fip-controller/pkg/frameworks"
 	"github.com/sapcc/kubernetes-operators/kube-fip-controller/pkg/metrics"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
@@ -23,16 +42,13 @@ const (
 	annotationKubeFIPControllerEnabled = "kube-fip-controller.ccloud.sap.com/enabled"
 
 	// annotationExternalIPFIP for storing the FIP assigned to the node.
-	annotationExternalIPFIP = "kube-fip-controller.ccloud.sap.com/fip"
+	annotationExternalIPFIP = "kube-fip-controller.ccloud.sap.com/externalIP"
 
 	// annotationFloatingNetworkName controls which floating network is used for the FIP.
 	annotationFloatingNetworkName = "kube-fip-controller.ccloud.sap.com/floating-network-name"
 
 	//annotationFloatingSubnetName controls which floating subnet is used for the FIP.
 	annotationFloatingSubnetName = "kube-fip-controller.ccloud.sap.com/floating-subnet-name"
-
-	// labelKubernikusNodePool is used to determine whether a node is part of a node pool.
-	labelKubernikusNodePool = "ccloud.sap.com/nodepool"
 )
 
 // Controller ...
@@ -184,7 +200,7 @@ func (c *Controller) syncHandler(key string) error {
 		floatingIP = val
 	}
 
-	server, err := c.osFramework.GetServerByName(node.GetName())
+	server, err := c.getServer(node)
 	if err != nil {
 		return err
 	}
@@ -205,18 +221,16 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	err = c.osFramework.EnsureAssociatedInstanceAndFIP(server, fip)
-	if err == nil {
-		metrics.MetricSuccessfulOperations.Inc()
-	}
-	return err
+	return c.osFramework.EnsureAssociatedInstanceAndFIP(server, fip)
 }
 
 func (c *Controller) handleError(err error, key interface{}) {
 	if err == nil {
+		metrics.MetricSuccessfulOperations.Inc()
 		c.queue.Forget(key)
 		return
 	}
+	metrics.MetricFailedOperations.Inc()
 
 	if c.queue.NumRequeues(key) < 5 {
 		level.Info(c.logger).Log("msg", "error syncing key", "key", key, "err", err)
@@ -244,17 +258,12 @@ func (c *Controller) enqueueAllItems() {
 	}
 }
 
-func getAnnotationValue(obj interface{}, annKey string) (string, bool) {
-	objMeta, err := meta.Accessor(obj)
-	if err != nil {
-		return "", false
+func (c *Controller) getServer(node *corev1.Node) (*servers.Server, error) {
+	if serverID, err := getServerIDFromNode(node); err == nil {
+		if server, err := c.osFramework.GetServerByID(serverID); err == nil {
+			return server, nil
+		}
 	}
 
-	ann := objMeta.GetAnnotations()
-	if ann == nil {
-		ann = make(map[string]string, 0)
-	}
-
-	val, ok := ann[annKey]
-	return val, ok
+	return c.osFramework.GetServerByName(node.GetName())
 }

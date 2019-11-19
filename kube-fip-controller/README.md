@@ -41,7 +41,7 @@ metadata:
     kube-fip-controller.ccloud.sap.com/enabled: "true"
 ```
 
-Once the controller successfully created and associated the FIP with the server it will adds the `kube-fip-controller.ccloud.sap.com/fip: "$floatingIP"` to the node.
+Once the controller successfully created and associated the FIP with the server it will adds the `kube-fip-controller.ccloud.sap.com/externalIP: "$floatingIP"` to the node.
 This annotation can also be used beforehand to specify the FIP.
 
 Optionally, the annotations `kube-fip-controller.ccloud.sap.com/floating-network-name: "$networkName"`, `kube-fip-controller.ccloud.sap.com/floating-subnet-name: "$subnetName"`

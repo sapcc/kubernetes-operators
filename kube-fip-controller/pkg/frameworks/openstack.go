@@ -21,6 +21,7 @@ package frameworks
 
 import (
 	"fmt"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/gophercloud/gophercloud"
@@ -120,6 +121,11 @@ func (o *OSFramework) GetServerByName(name string) (*servers.Server, error) {
 		}
 	}
 	return nil, fmt.Errorf("no server with name %s found", name)
+}
+
+// GetServerByID returns the server or an error.
+func (o *OSFramework) GetServerByID(id string) (*servers.Server, error) {
+	return servers.Get(o.computeClient, id).Extract()
 }
 
 // GetNetworkIDByName returns a the id of the network found by name or an error.

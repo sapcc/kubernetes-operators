@@ -2,38 +2,44 @@ package metrics
 
 import (
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
 	"net"
 	"net/http"
 	"sync"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const metricNamespace = ""
+const metricNamespace = "kube_fip_controller"
 
 var (
 	// MetricErrorAssociateInstanceAndFIP ...
 	MetricErrorAssociateInstanceAndFIP = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: metricNamespace,
-		Name: "associate_instance_fip_errors_total",
-		Help: "Counter for associating instance and FIP errors.",
+		Name:      "associate_instance_fip_errors_total",
+		Help:      "Counter for associating instance and FIP errors.",
 	})
 
 	// MetricErrorCreateFIP ...
 	MetricErrorCreateFIP = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: metricNamespace,
-		Name: "create_fip_errors_total",
-		Help: "Counter for creating FIP errors.",
+		Name:      "create_fip_errors_total",
+		Help:      "Counter for creating FIP errors.",
 	})
 
 	// MetricSuccessfulOperations ...
 	MetricSuccessfulOperations = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: metricNamespace,
-		Name: "successful_operations_total",
-		Help: "Counter for succcessful operations.",
+		Name:      "successful_operations_total",
+		Help:      "Counter for successful operations.",
+	})
+
+	MetricFailedOperations = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: metricNamespace,
+		Name:      "failed_operations_total",
+		Help:      "Counter for failed operations.",
 	})
 )
 
@@ -42,6 +48,7 @@ func init() {
 		MetricErrorAssociateInstanceAndFIP,
 		MetricErrorCreateFIP,
 		MetricSuccessfulOperations,
+		MetricFailedOperations,
 	)
 }
 
