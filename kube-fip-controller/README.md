@@ -34,16 +34,16 @@ The names of these are passed via the flags:
 
 ## Usage
 
-The controller is activated via node annotations:
+The controller is activated via node labels:
 ```
 metadata:
-  annotations:
+  labels:
     kube-fip-controller.ccloud.sap.com/enabled: "true"
 ```
 
 Once the controller successfully created and associated the FIP with the server it will adds the `kube-fip-controller.ccloud.sap.com/externalIP: "$floatingIP"` to the node.
-This annotation can also be used beforehand to specify the FIP.
+This label can also be used beforehand to specify the FIP.
 
-Optionally, the annotations `kube-fip-controller.ccloud.sap.com/floating-network-name: "$networkName"`, `kube-fip-controller.ccloud.sap.com/floating-subnet-name: "$subnetName"`
+Optionally, the labels `kube-fip-controller.ccloud.sap.com/floating-network-name: "$networkName"`, `kube-fip-controller.ccloud.sap.com/floating-subnet-name: "$subnetName"`
 can be used to specify the floating network and subnet used for the FIP.
 

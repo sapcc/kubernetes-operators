@@ -169,14 +169,14 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Ignore the node if enable annotation is not set.
-	val, ok := getAnnotationValue(node, annotationKubeFIPControllerEnabled)
+	val, ok := getLabelValue(node, annotationKubeFIPControllerEnabled)
 	if !ok || val != "true" {
 		level.Debug(c.logger).Log("msg", "ignoring node as annotation not set", "node", node.GetName(), "annotation", annotationKubeFIPControllerEnabled)
 		return nil
 	}
 
 	floatingNetworkName := c.opts.DefaultFloatingNetwork
-	if val, ok := getAnnotationValue(node, annotationFloatingNetworkName); ok && val != "" {
+	if val, ok := getLabelValue(node, annotationFloatingNetworkName); ok && val != "" {
 		floatingNetworkName = val
 	}
 
@@ -186,7 +186,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	floatingSubnetName := c.opts.DefaultFloatingSubnet
-	if val, ok := getAnnotationValue(node, annotationFloatingSubnetName); ok && val != "" {
+	if val, ok := getLabelValue(node, annotationFloatingSubnetName); ok && val != "" {
 		floatingSubnetName = val
 	}
 
@@ -196,7 +196,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	floatingIP := ""
-	if val, ok := getAnnotationValue(node, annotationExternalIPFIP); ok {
+	if val, ok := getLabelValue(node, annotationExternalIPFIP); ok {
 		floatingIP = val
 	}
 
