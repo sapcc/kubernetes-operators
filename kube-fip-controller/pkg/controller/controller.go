@@ -38,17 +38,17 @@ import (
 )
 
 const (
-	// annotationKubeFIPControllerEnabled whether the fip controller should handle the node.
-	annotationKubeFIPControllerEnabled = "kube-fip-controller.ccloud.sap.com/enabled"
+	// labelKubeFIPControllerEnabled whether the fip controller should handle the node.
+	labelKubeFIPControllerEnabled = "kube-fip-controller.ccloud.sap.com/enabled"
 
-	// annotationExternalIPFIP for storing the FIP assigned to the node.
-	annotationExternalIPFIP = "kube-fip-controller.ccloud.sap.com/externalIP"
+	// labelExternalIP for storing the FIP assigned to the node.
+	labelExternalIP = "kube-fip-controller.ccloud.sap.com/externalIP"
 
-	// annotationFloatingNetworkName controls which floating network is used for the FIP.
-	annotationFloatingNetworkName = "kube-fip-controller.ccloud.sap.com/floating-network-name"
+	// labelFloatingNetworkName controls which floating network is used for the FIP.
+	labelFloatingNetworkName = "kube-fip-controller.ccloud.sap.com/floating-network-name"
 
-	//annotationFloatingSubnetName controls which floating subnet is used for the FIP.
-	annotationFloatingSubnetName = "kube-fip-controller.ccloud.sap.com/floating-subnet-name"
+	//labelFloatingSubnetName controls which floating subnet is used for the FIP.
+	labelFloatingSubnetName = "kube-fip-controller.ccloud.sap.com/floating-subnet-name"
 )
 
 // Controller ...
@@ -92,7 +92,7 @@ func New(opts config.Options, logger log.Logger) (*Controller, error) {
 		func(oldObj, newObj interface{}) {
 			old := oldObj.(*corev1.Node)
 			new := newObj.(*corev1.Node)
-			if !reflect.DeepEqual(old.GetAnnotations(), new.GetAnnotations()) {
+			if !reflect.DeepEqual(old.GetAnnotations(), new.GetAnnotations()) || !reflect.DeepEqual(old.GetLabels(), new.GetLabels()) {
 				c.enqueueItem(newObj)
 			}
 		},
@@ -168,15 +168,15 @@ func (c *Controller) syncHandler(key string) error {
 		return nil
 	}
 
-	// Ignore the node if enable annotation is not set.
-	val, ok := getLabelValue(node, annotationKubeFIPControllerEnabled)
+	// Ignore the node if enable label is not set.
+	val, ok := getLabelValue(node, labelKubeFIPControllerEnabled)
 	if !ok || val != "true" {
-		level.Debug(c.logger).Log("msg", "ignoring node as annotation not set", "node", node.GetName(), "annotation", annotationKubeFIPControllerEnabled)
+		level.Debug(c.logger).Log("msg", "ignoring node as label not set", "node", node.GetName(), "label", labelKubeFIPControllerEnabled)
 		return nil
 	}
 
 	floatingNetworkName := c.opts.DefaultFloatingNetwork
-	if val, ok := getLabelValue(node, annotationFloatingNetworkName); ok && val != "" {
+	if val, ok := getLabelValue(node, labelFloatingNetworkName); ok && val != "" {
 		floatingNetworkName = val
 	}
 
@@ -186,7 +186,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	floatingSubnetName := c.opts.DefaultFloatingSubnet
-	if val, ok := getLabelValue(node, annotationFloatingSubnetName); ok && val != "" {
+	if val, ok := getLabelValue(node, labelFloatingSubnetName); ok && val != "" {
 		floatingSubnetName = val
 	}
 
@@ -196,7 +196,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	floatingIP := ""
-	if val, ok := getLabelValue(node, annotationExternalIPFIP); ok {
+	if val, ok := getLabelValue(node, labelExternalIP); ok {
 		floatingIP = val
 	}
 
@@ -210,11 +210,11 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	// Add the FIP to the node as annotation.
-	err = c.k8sFramework.AddAnnotationsToNode(
+	// Add the FIP to the node as label.
+	err = c.k8sFramework.AddLabelsToNode(
 		node,
 		map[string]string{
-			annotationExternalIPFIP: fip.FloatingIP,
+			labelExternalIP: fip.FloatingIP,
 		},
 	)
 	if err != nil {

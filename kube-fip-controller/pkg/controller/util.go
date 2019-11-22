@@ -39,6 +39,21 @@ func getServerIDFromNode(node *corev1.Node) (string, error) {
 	return "", errors.New("serverID not found in provider ID")
 }
 
+func getAnnotationValue(obj interface{}, lblKey string) (string, bool) {
+	objMeta, err := meta.Accessor(obj)
+	if err != nil {
+		return "", false
+	}
+
+	ann := objMeta.GetAnnotations()
+	if ann == nil {
+		return "", false
+	}
+
+	val, ok := ann[lblKey]
+	return val, ok
+}
+
 func getLabelValue(obj interface{}, lblKey string) (string, bool) {
 	objMeta, err := meta.Accessor(obj)
 	if err != nil {

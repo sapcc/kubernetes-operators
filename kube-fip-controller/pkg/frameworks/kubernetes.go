@@ -102,9 +102,9 @@ func (k8s *K8sFramework) GetNode(name string) (*corev1.Node, error) {
 	return k8s.CoreV1().Nodes().Get(name, metav1.GetOptions{})
 }
 
-// AddAnnotationsToNode adds a set of annotations to a node and waits until the operation is done or times out.
-func (k8s *K8sFramework) AddAnnotationsToNode(node *corev1.Node, annotations map[string]string) error {
-	if annotations == nil {
+// AddLabelsToNode adds a set of labels to a node and waits until the operation is done or times out.
+func (k8s *K8sFramework) AddLabelsToNode(node *corev1.Node, labels map[string]string) error {
+	if labels == nil {
 		return nil
 	}
 
@@ -114,15 +114,15 @@ func (k8s *K8sFramework) AddAnnotationsToNode(node *corev1.Node, annotations map
 	}
 
 	newNode := oldNode.DeepCopy()
-	existingAnnotations := newNode.GetAnnotations()
-	if existingAnnotations == nil {
-		existingAnnotations = make(map[string]string)
+	existingLabels := newNode.GetLabels()
+	if existingLabels== nil {
+		existingLabels = make(map[string]string)
 	}
 
-	for k, v := range annotations {
-		existingAnnotations[k] = v
+	for k, v := range labels {
+		existingLabels[k] = v
 	}
-	newNode.SetAnnotations(existingAnnotations)
+	newNode.SetLabels(existingLabels)
 
 	updatedNode, err := k8s.CoreV1().Nodes().Update(newNode)
 	if err != nil {
