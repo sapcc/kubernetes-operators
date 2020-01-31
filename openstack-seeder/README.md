@@ -22,6 +22,13 @@ Seeding currently only supports creating or updating of entities (upserts).
     - endpoints
 - flavors
     - extra-specs
+- share_types
+    - is_public
+    - specs
+        - driver_handles_share_servers
+        - snapshot_support
+    - extra-specs
+    
 - domains
     - configuration
     - domain-role-assignments
@@ -46,6 +53,7 @@ Seeding currently only supports creating or updating of entities (upserts).
         - dns_tsigkeys
         - ec2_creds
         - flavors
+        - share_types
     - groups
         - group-role-assignments
     - users
