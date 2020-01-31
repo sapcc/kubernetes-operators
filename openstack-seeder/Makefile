@@ -17,7 +17,7 @@ ifneq ($(http_proxy),)
 BUILD_ARGS+= --build-arg http_proxy=$(http_proxy) --build-arg https_proxy=$(https_proxy) --build-arg no_proxy=$(no_proxy)
 endif
 
-.PHONY: all clean build push linux darwin vendor
+.PHONY: all clean build push linux darwin
 
 all: bin/$(GOOS)/$(BINARY)
 
@@ -32,10 +32,6 @@ push: build
 
 clean:
 	rm -rf bin/*
-	rm -rf vendor/*
-
-vendor:
-	glide install --strip-vendor && glide update --strip-vendor
 
 linux:  bin/linux/openstack-seeder
 darwin: bin/darwin/openstack-seeder
