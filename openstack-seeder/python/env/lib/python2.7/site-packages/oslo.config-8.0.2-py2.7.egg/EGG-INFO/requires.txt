@@ -1,0 +1,7 @@
+debtcollector>=1.2.0
+netaddr>=0.7.18
+stevedore>=1.20.0
+oslo.i18n>=3.15.3
+rfc3986>=1.2.0
+PyYAML>=3.12
+requests>=2.18.0

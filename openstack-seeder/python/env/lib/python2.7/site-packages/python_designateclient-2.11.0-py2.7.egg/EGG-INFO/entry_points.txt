@@ -1,0 +1,104 @@
+[designateclient.cli]
+diagnostics-ping = designateclient.cli.diagnostics:PingCommand
+domain-create = designateclient.cli.domains:CreateDomainCommand
+domain-delete = designateclient.cli.domains:DeleteDomainCommand
+domain-get = designateclient.cli.domains:GetDomainCommand
+domain-list = designateclient.cli.domains:ListDomainsCommand
+domain-servers-list = designateclient.cli.domains:ListDomainServersCommand
+domain-update = designateclient.cli.domains:UpdateDomainCommand
+quota-get = designateclient.cli.quotas:GetQuotaCommand
+quota-reset = designateclient.cli.quotas:ResetQuotaCommand
+quota-update = designateclient.cli.quotas:UpdateQuotaCommand
+record-create = designateclient.cli.records:CreateRecordCommand
+record-delete = designateclient.cli.records:DeleteRecordCommand
+record-get = designateclient.cli.records:GetRecordCommand
+record-list = designateclient.cli.records:ListRecordsCommand
+record-update = designateclient.cli.records:UpdateRecordCommand
+report-count-all = designateclient.cli.reports:CountsCommand
+report-count-domains = designateclient.cli.reports:DomainCountCommand
+report-count-records = designateclient.cli.reports:RecordCountCommand
+report-count-tenants = designateclient.cli.reports:TenantCountCommand
+report-tenant-domains = designateclient.cli.reports:TenantCommand
+report-tenants-all = designateclient.cli.reports:TenantsCommand
+server-create = designateclient.cli.servers:CreateServerCommand
+server-delete = designateclient.cli.servers:DeleteServerCommand
+server-get = designateclient.cli.servers:GetServerCommand
+server-list = designateclient.cli.servers:ListServersCommand
+server-update = designateclient.cli.servers:UpdateServerCommand
+sync-all = designateclient.cli.sync:SyncAllCommand
+sync-domain = designateclient.cli.sync:SyncDomainCommand
+sync-record = designateclient.cli.sync:SyncRecordCommand
+touch-domain = designateclient.cli.touch:TouchDomainCommand
+
+[designateclient.v1.controllers]
+diagnostics = designateclient.v1.diagnostics:DiagnosticsController
+domains = designateclient.v1.domains:DomainsController
+quotas = designateclient.v1.quotas:QuotasController
+records = designateclient.v1.records:RecordsController
+reports = designateclient.v1.reports:ReportsController
+servers = designateclient.v1.servers:ServersController
+sync = designateclient.v1.sync:SyncController
+touch = designateclient.v1.touch:TouchController
+
+[designateclient.versions]
+1 = designateclient.v1:Client
+2 = designateclient.v2.client:Client
+
+[openstack.cli.extension]
+dns = designateclient.osc.plugin
+
+[openstack.dns.v2]
+dns_quota_list = designateclient.v2.cli.quotas:ListQuotasCommand
+dns_quota_reset = designateclient.v2.cli.quotas:ResetQuotasCommand
+dns_quota_set = designateclient.v2.cli.quotas:SetQuotasCommand
+dns_service_list = designateclient.v2.cli.service_statuses:ListServiceStatusesCommand
+dns_service_show = designateclient.v2.cli.service_statuses:ShowServiceStatusCommand
+ptr_record_list = designateclient.v2.cli.reverse:ListFloatingIPCommand
+ptr_record_set = designateclient.v2.cli.reverse:SetFloatingIPCommand
+ptr_record_show = designateclient.v2.cli.reverse:ShowFloatingIPCommand
+ptr_record_unset = designateclient.v2.cli.reverse:UnsetFloatingIPCommand
+recordset_create = designateclient.v2.cli.recordsets:CreateRecordSetCommand
+recordset_delete = designateclient.v2.cli.recordsets:DeleteRecordSetCommand
+recordset_list = designateclient.v2.cli.recordsets:ListRecordSetsCommand
+recordset_set = designateclient.v2.cli.recordsets:SetRecordSetCommand
+recordset_show = designateclient.v2.cli.recordsets:ShowRecordSetCommand
+tld_create = designateclient.v2.cli.tlds:CreateTLDCommand
+tld_delete = designateclient.v2.cli.tlds:DeleteTLDCommand
+tld_list = designateclient.v2.cli.tlds:ListTLDsCommand
+tld_set = designateclient.v2.cli.tlds:SetTLDCommand
+tld_show = designateclient.v2.cli.tlds:ShowTLDCommand
+tsigkey_create = designateclient.v2.cli.tsigkeys:CreateTSIGKeyCommand
+tsigkey_delete = designateclient.v2.cli.tsigkeys:DeleteTSIGKeyCommand
+tsigkey_list = designateclient.v2.cli.tsigkeys:ListTSIGKeysCommand
+tsigkey_set = designateclient.v2.cli.tsigkeys:SetTSIGKeyCommand
+tsigkey_show = designateclient.v2.cli.tsigkeys:ShowTSIGKeyCommand
+zone_abandon = designateclient.v2.cli.zones:AbandonZoneCommand
+zone_axfr = designateclient.v2.cli.zones:AXFRZoneCommand
+zone_blacklist_create = designateclient.v2.cli.blacklists:CreateBlacklistCommand
+zone_blacklist_delete = designateclient.v2.cli.blacklists:DeleteBlacklistCommand
+zone_blacklist_list = designateclient.v2.cli.blacklists:ListBlacklistsCommand
+zone_blacklist_set = designateclient.v2.cli.blacklists:SetBlacklistCommand
+zone_blacklist_show = designateclient.v2.cli.blacklists:ShowBlacklistCommand
+zone_create = designateclient.v2.cli.zones:CreateZoneCommand
+zone_delete = designateclient.v2.cli.zones:DeleteZoneCommand
+zone_export_create = designateclient.v2.cli.zones:ExportZoneCommand
+zone_export_delete = designateclient.v2.cli.zones:DeleteZoneExportCommand
+zone_export_list = designateclient.v2.cli.zones:ListZoneExportsCommand
+zone_export_show = designateclient.v2.cli.zones:ShowZoneExportCommand
+zone_export_showfile = designateclient.v2.cli.zones:ShowZoneExportFileCommand
+zone_import_create = designateclient.v2.cli.zones:ImportZoneCommand
+zone_import_delete = designateclient.v2.cli.zones:DeleteZoneImportCommand
+zone_import_list = designateclient.v2.cli.zones:ListZoneImportsCommand
+zone_import_show = designateclient.v2.cli.zones:ShowZoneImportCommand
+zone_list = designateclient.v2.cli.zones:ListZonesCommand
+zone_set = designateclient.v2.cli.zones:SetZoneCommand
+zone_show = designateclient.v2.cli.zones:ShowZoneCommand
+zone_transfer_accept_list = designateclient.v2.cli.zones:ListTransferAcceptsCommand
+zone_transfer_accept_request = designateclient.v2.cli.zones:AcceptTransferRequestCommand
+zone_transfer_accept_show = designateclient.v2.cli.zones:ShowTransferAcceptCommand
+zone_transfer_request_create = designateclient.v2.cli.zones:CreateTransferRequestCommand
+zone_transfer_request_delete = designateclient.v2.cli.zones:DeleteTransferRequestCommand
+zone_transfer_request_list = designateclient.v2.cli.zones:ListTransferRequestsCommand
+zone_transfer_request_set = designateclient.v2.cli.zones:SetTransferRequestCommand
+zone_transfer_request_show = designateclient.v2.cli.zones:ShowTransferRequestCommand
+

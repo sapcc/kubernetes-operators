@@ -1,0 +1,52 @@
+Metadata-Version: 1.2
+Name: oslo.serialization
+Version: 3.1.1
+Summary: Oslo Serialization library
+Home-page: https://docs.openstack.org/oslo.serialization/latest/
+Author: OpenStack
+Author-email: openstack-discuss@lists.openstack.org
+License: UNKNOWN
+Description: ========================
+        Team and repository tags
+        ========================
+        
+        .. image:: https://governance.openstack.org/tc/badges/oslo.serialization.svg
+            :target: https://governance.openstack.org/tc/ference/tags/index.html
+        
+        .. Change things from this point on
+        
+        ===================
+         oslo.serialization
+        ===================
+        
+        .. image:: https://img.shields.io/pypi/v/oslo.serialization.svg
+            :target: https://pypi.org/project/oslo.serialization/
+            :alt: Latest Version
+        
+        .. image:: https://img.shields.io/pypi/dm/oslo.serialization.svg
+            :target: https://pypi.org/project/oslo.serialization/
+            :alt: Downloads
+        
+        The oslo.serialization library provides support for representing objects
+        in transmittable and storable formats, such as Base64, JSON and MessagePack.
+        
+        * Free software: Apache license
+        * Documentation: https://docs.openstack.org/oslo.serialization/latest/
+        * Source: https://opendev.org/openstack/oslo.serialization
+        * Bugs: https://bugs.launchpad.net/oslo.serialization
+        * Release notes: https://docs.openstack.org/releasenotes/oslo.serialization/
+        
+        
+Platform: UNKNOWN
+Classifier: Environment :: OpenStack
+Classifier: Intended Audience :: Information Technology
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Requires-Python: >=3.6

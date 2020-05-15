@@ -1,0 +1,55 @@
+# Andi Chandler <andi@gowling.com>, 2016. #zanata
+msgid ""
+msgstr ""
+"Project-Id-Version: oslo.log VERSION\n"
+"Report-Msgid-Bugs-To: https://bugs.launchpad.net/openstack-i18n/\n"
+"POT-Creation-Date: 2018-02-09 00:09+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2016-06-28 05:56+0000\n"
+"Last-Translator: Andi Chandler <andi@gowling.com>\n"
+"Language-Team: English (United Kingdom)\n"
+"Language: en_GB\n"
+"X-Generator: Zanata 4.3.3\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+#, python-format
+msgid ""
+"%(what)s is deprecated as of %(as_of)s and may be removed in %(remove_in)s. "
+"It will not be superseded."
+msgstr ""
+"%(what)s is deprecated as of %(as_of)s and may be removed in %(remove_in)s. "
+"It will not be superseded."
+
+#, python-format
+msgid ""
+"%(what)s is deprecated as of %(as_of)s in favor of %(in_favor_of)s and may "
+"be removed in %(remove_in)s."
+msgstr ""
+"%(what)s is deprecated as of %(as_of)s in favour of %(in_favor_of)s and may "
+"be removed in %(remove_in)s."
+
+#, python-format
+msgid "%(what)s is deprecated as of %(as_of)s in favor of %(in_favor_of)s."
+msgstr "%(what)s is deprecated as of %(as_of)s in favour of %(in_favor_of)s."
+
+#, python-format
+msgid "%(what)s is deprecated as of %(as_of)s. It will not be superseded."
+msgstr "%(what)s is deprecated as of %(as_of)s. It will not be superseded."
+
+#, python-format
+msgid "Deprecated: %s"
+msgstr "Deprecated: %s"
+
+#, python-format
+msgid "Error loading logging config %(log_config)s: %(err_msg)s"
+msgstr "Error loading logging config %(log_config)s: %(err_msg)s"
+
+#, python-format
+msgid "Fatal call to deprecated config: %(msg)s"
+msgstr "Fatal call to deprecated config: %(msg)s"
+
+#, python-format
+msgid "syslog facility must be one of: %s"
+msgstr "syslog facility must be one of: %s"

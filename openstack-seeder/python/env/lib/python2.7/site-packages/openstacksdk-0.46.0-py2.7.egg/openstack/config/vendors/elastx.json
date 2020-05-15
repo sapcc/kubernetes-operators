@@ -1,0 +1,10 @@
+{
+  "name": "elastx",
+  "profile": {
+    "auth": {
+      "auth_url": "https://ops.elastx.cloud:5000/v3"
+    },
+    "identity_api_version": "3",
+    "region_name": "se-sto"
+  }
+}

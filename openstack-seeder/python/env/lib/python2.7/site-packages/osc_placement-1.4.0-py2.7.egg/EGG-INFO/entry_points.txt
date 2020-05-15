@@ -1,0 +1,35 @@
+[openstack.cli.extension]
+placement = osc_placement.plugin
+
+[openstack.placement.v1]
+allocation_candidate_list = osc_placement.resources.allocation_candidate:ListAllocationCandidate
+resource_class_create = osc_placement.resources.resource_class:CreateResourceClass
+resource_class_delete = osc_placement.resources.resource_class:DeleteResourceClass
+resource_class_list = osc_placement.resources.resource_class:ListResourceClass
+resource_class_set = osc_placement.resources.resource_class:SetResourceClass
+resource_class_show = osc_placement.resources.resource_class:ShowResourceClass
+resource_provider_aggregate_list = osc_placement.resources.aggregate:ListAggregate
+resource_provider_aggregate_set = osc_placement.resources.aggregate:SetAggregate
+resource_provider_allocation_delete = osc_placement.resources.allocation:DeleteAllocation
+resource_provider_allocation_set = osc_placement.resources.allocation:SetAllocation
+resource_provider_allocation_show = osc_placement.resources.allocation:ShowAllocation
+resource_provider_create = osc_placement.resources.resource_provider:CreateResourceProvider
+resource_provider_delete = osc_placement.resources.resource_provider:DeleteResourceProvider
+resource_provider_inventory_class_set = osc_placement.resources.inventory:SetClassInventory
+resource_provider_inventory_delete = osc_placement.resources.inventory:DeleteInventory
+resource_provider_inventory_list = osc_placement.resources.inventory:ListInventory
+resource_provider_inventory_set = osc_placement.resources.inventory:SetInventory
+resource_provider_inventory_show = osc_placement.resources.inventory:ShowInventory
+resource_provider_list = osc_placement.resources.resource_provider:ListResourceProvider
+resource_provider_set = osc_placement.resources.resource_provider:SetResourceProvider
+resource_provider_show = osc_placement.resources.resource_provider:ShowResourceProvider
+resource_provider_trait_delete = osc_placement.resources.trait:DeleteResourceProviderTrait
+resource_provider_trait_list = osc_placement.resources.trait:ListResourceProviderTrait
+resource_provider_trait_set = osc_placement.resources.trait:SetResourceProviderTrait
+resource_provider_usage_show = osc_placement.resources.usage:ShowUsage
+resource_usage_show = osc_placement.resources.usage:ResourceShowUsage
+trait_create = osc_placement.resources.trait:CreateTrait
+trait_delete = osc_placement.resources.trait:DeleteTrait
+trait_list = osc_placement.resources.trait:ListTrait
+trait_show = osc_placement.resources.trait:ShowTrait
+

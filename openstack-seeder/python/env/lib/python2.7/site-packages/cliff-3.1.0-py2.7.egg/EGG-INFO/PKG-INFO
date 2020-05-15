@@ -1,0 +1,47 @@
+Metadata-Version: 1.2
+Name: cliff
+Version: 3.1.0
+Summary: Command Line Interface Formulation Framework
+Home-page: https://docs.openstack.org/cliff/latest/
+Author: OpenStack
+Author-email: openstack-discuss@lists.openstack.org
+License: UNKNOWN
+Description: ========================
+        Team and repository tags
+        ========================
+        
+        .. image:: https://governance.openstack.org/tc/badges/cliff.svg
+            :target: https://governance.openstack.org/tc/reference/tags/index.html
+        
+        .. Change things from this point on
+        
+        =======================================================
+         cliff -- Command Line Interface Formulation Framework
+        =======================================================
+        
+        cliff is a framework for building command line programs. It uses
+        `setuptools entry points`_ to provide subcommands, output formatters, and
+        other extensions.
+        
+        .. _setuptools entry points: http://setuptools.readthedocs.io/en/latest/pkg_resources.html#convenience-api
+        
+        * Free software: Apache license
+        * Documentation: https://docs.openstack.org/cliff/latest/
+        * Source: https://opendev.org/openstack/cliff
+        * Bugs: https://bugs.launchpad.net/python-cliff
+        * Contributors: https://github.com/openstack/cliff/graphs/contributors
+        
+        
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Classifier: Intended Audience :: Developers
+Classifier: Environment :: Console
+Requires-Python: >=3.5

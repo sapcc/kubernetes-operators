@@ -1,0 +1,53 @@
+Metadata-Version: 1.1
+Name: os-client-config
+Version: 2.1.0
+Summary: OpenStack Client Configuation Library
+Home-page: https://docs.openstack.org/os-client-config/latest
+Author: OpenStack
+Author-email: openstack-discuss@lists.openstack.org
+License: UNKNOWN
+Description: ================
+        os-client-config
+        ================
+        
+        .. image:: https://governance.openstack.org/tc/badges/os-client-config.svg
+            :target: https://governance.openstack.org/tc/reference/tags/index.html
+        
+        .. warning::
+          `os-client-config` has been superceded by `openstacksdk`_. While
+          `os-client-config` will continue to exist, it is highly recommended that
+          users transition to using `openstacksdk`_ directly.
+        
+        `os-client-config` is a library for collecting client configuration for
+        using an OpenStack cloud in a consistent and comprehensive manner. It
+        will find cloud config for as few as 1 cloud and as many as you want to
+        put in a config file. It will read environment variables and config files,
+        and it also contains some vendor specific default values so that you don't
+        have to know extra info to use OpenStack
+        
+        * If you have a config file, you will get the clouds listed in it
+        * If you have environment variables, you will get a cloud named `envvars`
+        * If you have neither, you will get a cloud named `defaults` with base defaults
+        
+        Source
+        ------
+        
+        * Free software: Apache license
+        * Documentation: http://docs.openstack.org/os-client-config/latest
+        * Source: http://opendev.org/openstack/os-client-config
+        * Bugs: https://storyboard.openstack.org/#!/project/openstack/os-client-config
+        * Release Notes https://docs.openstack.org/releasenotes/os-client-config
+        
+        .. _openstacksdk: http://docs.openstack.org/openstacksdk/latest
+        
+        
+Platform: UNKNOWN
+Classifier: Environment :: OpenStack
+Classifier: Intended Audience :: Information Technology
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7

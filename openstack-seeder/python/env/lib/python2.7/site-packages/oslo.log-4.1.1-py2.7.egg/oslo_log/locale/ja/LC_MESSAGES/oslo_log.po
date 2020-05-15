@@ -1,0 +1,57 @@
+# Andreas Jaeger <jaegerandi@gmail.com>, 2016. #zanata
+msgid ""
+msgstr ""
+"Project-Id-Version: oslo.log 3.4.1.dev1\n"
+"Report-Msgid-Bugs-To: https://bugs.launchpad.net/openstack-i18n/\n"
+"POT-Creation-Date: 2016-04-19 12:12+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2016-02-20 06:53+0000\n"
+"Last-Translator: KATO Tomoyuki <kato.tomoyuki@jp.fujitsu.com>\n"
+"Language-Team: Japanese\n"
+"Language: ja\n"
+"X-Generator: Zanata 3.7.3\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+
+#, python-format
+msgid ""
+"%(what)s is deprecated as of %(as_of)s and may be removed in %(remove_in)s. "
+"It will not be superseded."
+msgstr ""
+"%(what)s は %(as_of)s において非推奨になります。%(remove_in)s において削除さ"
+"れる可能性があります。後継はありません。"
+
+#, python-format
+msgid ""
+"%(what)s is deprecated as of %(as_of)s in favor of %(in_favor_of)s and may "
+"be removed in %(remove_in)s."
+msgstr ""
+"%(what)s は、%(in_favor_of)s に移行するために %(as_of)s において非推奨になり"
+"ます。 %(remove_in)s において削除される可能性があります。"
+
+#, python-format
+msgid "%(what)s is deprecated as of %(as_of)s in favor of %(in_favor_of)s."
+msgstr ""
+"%(what)s は、%(in_favor_of)s に移行するために %(as_of)s において非推奨になり"
+"ます。"
+
+#, python-format
+msgid "%(what)s is deprecated as of %(as_of)s. It will not be superseded."
+msgstr "%(what)s は %(as_of)s において非推奨になります。後継はありません。"
+
+#, python-format
+msgid "Deprecated: %s"
+msgstr "非推奨: %s"
+
+#, python-format
+msgid "Error loading logging config %(log_config)s: %(err_msg)s"
+msgstr "ロギング設定 %(log_config)s の読み込み中にエラー発生: %(err_msg)s"
+
+#, python-format
+msgid "Fatal call to deprecated config: %(msg)s"
+msgstr "非推奨設定の致命的な呼び出し: %(msg)s"
+
+#, python-format
+msgid "syslog facility must be one of: %s"
+msgstr "syslog ファシリティーは次のどれかである必要があります: %s"

@@ -1,0 +1,4 @@
+#!/Users/d058695/Development/go/src/github.com/sapcc/kubernetes-operators/openstack-seeder/python/env/bin/python
+# EASY-INSTALL-SCRIPT: 'python-designateclient==2.11.0','designate'
+__requires__ = 'python-designateclient==2.11.0'
+__import__('pkg_resources').run_script('python-designateclient==2.11.0', 'designate')

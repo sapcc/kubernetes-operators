@@ -35,6 +35,7 @@ from novaclient import client as novaclient
 from novaclient import exceptions as novaexceptions
 from manilaclient.v2 import client as manilaclient
 from manilaclient import api_versions
+from cinderclient.v3 import client as cinderclient
 from osc_placement.http import SessionClient as placementclient
 from osc_placement.resources.resource_class import PER_CLASS_URL
 from raven.base import Client
@@ -283,6 +284,55 @@ def seed_role_inference(role_inference, keystone):
     except exceptions.NotFound:
         logging.info("create role-inference '%s'" % role_inference)
         keystone.inference_rules.create(prior_role_id, implied_role_id)
+
+
+def seed_volume_type(volume_type, args, sess):
+    """seed a cinder volume type"""
+    logging.debug("seeding volume-type %s" % volume_type)
+    # intialize cinder client
+
+    try:
+        cinder = cinderclient.Client(session=sess, interface=args.interface, api_version="3.50")
+    except Exception as e:
+        logging.error("Fail to initialize cinder client: %s" % e)
+        raise
+
+    def get_type_by_name(name):
+        for t in cinder.volume_types.list(is_public=volume_type['is_public']):
+            if t.name == name:
+                return t
+        return None
+
+    def update_type(vtype, extra_specs):
+        to_be_unset = []
+        for k in vtype.extra_specs.keys():
+            if k not in extra_specs.keys():
+                to_be_unset.append(k)
+        vtype.unset_keys(to_be_unset)
+        vtype.set_keys(extra_specs)
+
+    def create_type(volume_type):
+        vtype = cinder.volume_types.create(volume_type['name'], volume_type['description'], volume_type['is_public'])
+        if 'extra_specs' in volume_type:
+            extra_specs = volume_type.pop('extra_specs', None)
+            if not isinstance(extra_specs, dict):
+                logging.warn("skipping volume-type '%s', since it has invalid extra_specs" % volume_type)
+        else:
+            vtype.set_keys(extra_specs)
+
+    vtype = get_type_by_name(volume_type['name'])
+    if vtype:
+        try:
+            update_type(vtype, volume_type['extra_specs'])
+        except Exception as e:
+            logging.error("Failed to update volume type %s: %s" % (volume_type, e))
+            raise
+    else:
+        try:
+            create_type(volume_type)
+        except Exception as e:
+            logging.error("Failed to create volume type %s: %s" % (volume_type, e))
+            raise
 
 
 def seed_region(region, keystone):
@@ -2341,7 +2391,6 @@ def seed_quota_class_sets(quota_class_set, sess):
 
 def seed_config(config, args, sess):
     global group_members, role_assignments, resource_classes
-
     # reset
     group_members = {}
     role_assignments = []
@@ -2400,6 +2449,11 @@ def seed_config(config, args, sess):
         for role_inference in config['role_inferences']:
             if role_inference:
                 seed_role_inference(role_inference, keystone)
+
+    if 'volume_types' in config:
+        for volume_type in config['volume_types']:
+            if volume_type:
+                seed_volume_type(volume_type, args, sess)
 
     if group_members:
         resolve_group_members(keystone)

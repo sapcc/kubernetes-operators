@@ -1,0 +1,14 @@
+apiVersion: "openstack.stable.sap.cc/v1"
+kind: "OpenstackSeed"
+metadata:
+  name: test-seed
+spec:
+  volume_types:
+  - name: "test-hdd"
+    description: "testing"
+    is_public: true
+    extra_specs:
+      "test_volume_backend_name": "test_hdd"
+      "test_vmware:storage_profile": "cinder-standard-hdd"
+      "test_vmware:vmdk_type": "thick"
+      "test_provisioning:min_vol_size": "1000"

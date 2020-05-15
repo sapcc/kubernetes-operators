@@ -20,7 +20,7 @@ package v1
 import (
 	v1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1"
 	scheme "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/clientset/versioned/scheme"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
@@ -37,11 +37,11 @@ type OpenstackSeedInterface interface {
 	Create(*v1.OpenstackSeed) (*v1.OpenstackSeed, error)
 	Update(*v1.OpenstackSeed) (*v1.OpenstackSeed, error)
 	UpdateStatus(*v1.OpenstackSeed) (*v1.OpenstackSeed, error)
-	Delete(name string, options *meta_v1.DeleteOptions) error
-	DeleteCollection(options *meta_v1.DeleteOptions, listOptions meta_v1.ListOptions) error
-	Get(name string, options meta_v1.GetOptions) (*v1.OpenstackSeed, error)
-	List(opts meta_v1.ListOptions) (*v1.OpenstackSeedList, error)
-	Watch(opts meta_v1.ListOptions) (watch.Interface, error)
+	Delete(name string, options *metav1.DeleteOptions) error
+	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
+	Get(name string, options metav1.GetOptions) (*v1.OpenstackSeed, error)
+	List(opts metav1.ListOptions) (*v1.OpenstackSeedList, error)
+	Watch(opts metav1.ListOptions) (watch.Interface, error)
 	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.OpenstackSeed, err error)
 	OpenstackSeedExpansion
 }
@@ -61,7 +61,7 @@ func newOpenstackSeeds(c *OpenstackV1Client, namespace string) *openstackSeeds {
 }
 
 // Get takes name of the openstackSeed, and returns the corresponding openstackSeed object, and an error if there is any.
-func (c *openstackSeeds) Get(name string, options meta_v1.GetOptions) (result *v1.OpenstackSeed, err error) {
+func (c *openstackSeeds) Get(name string, options metav1.GetOptions) (result *v1.OpenstackSeed, err error) {
 	result = &v1.OpenstackSeed{}
 	err = c.client.Get().
 		Namespace(c.ns).
@@ -74,7 +74,7 @@ func (c *openstackSeeds) Get(name string, options meta_v1.GetOptions) (result *v
 }
 
 // List takes label and field selectors, and returns the list of OpenstackSeeds that match those selectors.
-func (c *openstackSeeds) List(opts meta_v1.ListOptions) (result *v1.OpenstackSeedList, err error) {
+func (c *openstackSeeds) List(opts metav1.ListOptions) (result *v1.OpenstackSeedList, err error) {
 	result = &v1.OpenstackSeedList{}
 	err = c.client.Get().
 		Namespace(c.ns).
@@ -86,7 +86,7 @@ func (c *openstackSeeds) List(opts meta_v1.ListOptions) (result *v1.OpenstackSee
 }
 
 // Watch returns a watch.Interface that watches the requested openstackSeeds.
-func (c *openstackSeeds) Watch(opts meta_v1.ListOptions) (watch.Interface, error) {
+func (c *openstackSeeds) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
 	return c.client.Get().
 		Namespace(c.ns).
@@ -137,7 +137,7 @@ func (c *openstackSeeds) UpdateStatus(openstackSeed *v1.OpenstackSeed) (result *
 }
 
 // Delete takes name of the openstackSeed and deletes it. Returns an error if one occurs.
-func (c *openstackSeeds) Delete(name string, options *meta_v1.DeleteOptions) error {
+func (c *openstackSeeds) Delete(name string, options *metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("openstackseeds").
@@ -148,7 +148,7 @@ func (c *openstackSeeds) Delete(name string, options *meta_v1.DeleteOptions) err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *openstackSeeds) DeleteCollection(options *meta_v1.DeleteOptions, listOptions meta_v1.ListOptions) error {
+func (c *openstackSeeds) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("openstackseeds").

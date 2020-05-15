@@ -1,0 +1,6 @@
+[console_scripts]
+manila = manilaclient.shell:main
+
+[oslo.config.opts]
+manilaclient.config = manilaclient.config:list_opts
+

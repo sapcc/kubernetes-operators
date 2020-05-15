@@ -26,3 +26,4 @@ import:
   version: 39cb288412c48cb533ba4be5d6c28620b9a0c1b4
 - package: github.com/ant31/crd-validation
 - package: k8s.io/gengo
+- package: k8s.io/klog/v2

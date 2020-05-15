@@ -1,0 +1,73 @@
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+from openstack import resource
+
+
+class Flavor(resource.Resource):
+    resource_key = 'flavor'
+    resources_key = 'flavors'
+    base_path = '/flavors'
+
+    # capabilities
+    allow_create = True
+    allow_fetch = True
+    allow_delete = True
+    allow_list = True
+
+    _query_mapping = resource.QueryParameters(
+        "sort_key", "sort_dir", "is_public",
+        min_disk="minDisk",
+        min_ram="minRam")
+
+    # extra_specs introduced in 2.61
+    _max_microversion = '2.61'
+
+    # Properties
+    #: Links pertaining to this flavor. This is a list of dictionaries,
+    #: each including keys ``href`` and ``rel``.
+    links = resource.Body('links')
+    #: The name of this flavor.
+    name = resource.Body('name')
+    #: The description of the flavor.
+    description = resource.Body('description')
+    #: Size of the disk this flavor offers. *Type: int*
+    disk = resource.Body('disk', type=int)
+    #: ``True`` if this is a publicly visible flavor. ``False`` if this is
+    #: a private image. *Type: bool*
+    is_public = resource.Body('os-flavor-access:is_public', type=bool)
+    #: The amount of RAM (in MB) this flavor offers. *Type: int*
+    ram = resource.Body('ram', type=int)
+    #: The number of virtual CPUs this flavor offers. *Type: int*
+    vcpus = resource.Body('vcpus', type=int)
+    #: Size of the swap partitions.
+    swap = resource.Body('swap')
+    #: Size of the ephemeral data disk attached to this server. *Type: int*
+    ephemeral = resource.Body('OS-FLV-EXT-DATA:ephemeral', type=int)
+    #: ``True`` if this flavor is disabled, ``False`` if not. *Type: bool*
+    is_disabled = resource.Body('OS-FLV-DISABLED:disabled', type=bool)
+    #: The bandwidth scaling factor this flavor receives on the network.
+    rxtx_factor = resource.Body('rxtx_factor', type=float)
+    # TODO(mordred) extra_specs can historically also come from
+    #               OS-FLV-WITH-EXT-SPECS:extra_specs. Do we care?
+    #: A dictionary of the flavor's extra-specs key-and-value pairs.
+    extra_specs = resource.Body('extra_specs', type=dict)
+
+
+class FlavorDetail(Flavor):
+    base_path = '/flavors/detail'
+
+    allow_create = False
+    allow_fetch = False
+    allow_commit = False
+    allow_delete = False
+    allow_list = True

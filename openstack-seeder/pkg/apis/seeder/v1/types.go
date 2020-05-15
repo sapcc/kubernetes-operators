@@ -28,7 +28,7 @@ type OpenstackSeed struct {
 	// +k8s:openapi-gen=false
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   OpenstackSeedSpec    `json:"spec"`
+	Spec OpenstackSeedSpec `json:"spec"`
 	// +optional
 	Status OpenstackSeedStatus `json:"status,omitempty"`
 }
@@ -49,16 +49,28 @@ type OpenstackSeedStatus struct {
 
 // +k8s:openapi-gen=true
 type OpenstackSeedSpec struct {
-	Dependencies    []string            `json:"requires,omitempty" yaml:"requires,omitempty"`                 // list of required specs that need to be resolved before the current one
-	Roles           []RoleSpec          `json:"roles,omitempty" yaml:"roles,omitempty"`                       // list of keystone roles
-	RoleInferences  []RoleInferenceSpec `json:"role_inferences,omitempty" yaml:"role_inferences,omitempty"`   // list of implied roles
-	Regions         []RegionSpec        `json:"regions,omitempty" yaml:"regions,omitempty"`                   // list keystone regions
-	Services        []ServiceSpec       `json:"services,omitempty" yaml:"services,omitempty"`                 // list keystone services and their endpoints
-	Flavors         []FlavorSpec        `json:"flavors,omitempty" yaml:"flavors,omitempty"`                   // list of nova flavors
-	ShareTypes      []ShareTypeSpec     `json:"share_types,omitempty" yaml:"share_types,omitempty"`           // list of Manila share types
-	ResourceClasses []string            `json:"resource_classes,omitempty" yaml:"resource_classes,omitempty"` // list of resource classes for the placement service (currently still part of nova)
-	Domains         []DomainSpec        `json:"domains,omitempty" yaml:"domains,omitempty"`                   // list keystone domains with their configuration, users, groups, projects, etc.
-	RBACPolicies    []RBACPolicySpec    `json:"rbac_policies,omitempty" yaml:"rbac_policies,omitempty"`       // list of neutron rbac polices (currently only network rbacs are supported).
+	// list of required specs that need to be resolved before the current one
+	Dependencies []string `json:"requires,omitempty" yaml:"requires,omitempty"`
+	// list of keystone roles
+	Roles []RoleSpec `json:"roles,omitempty" yaml:"roles,omitempty"`
+	// list of implied roles
+	RoleInferences []RoleInferenceSpec `json:"role_inferences,omitempty" yaml:"role_inferences,omitempty"`
+	// list keystone regions
+	Regions []RegionSpec `json:"regions,omitempty" yaml:"regions,omitempty"`
+	// list keystone services and their endpoints
+	Services []ServiceSpec `json:"services,omitempty" yaml:"services,omitempty"`
+	// list of nova flavors
+	Flavors []FlavorSpec `json:"flavors,omitempty" yaml:"flavors,omitempty"`
+	// list of Manila share types
+	ShareTypes []ShareTypeSpec `json:"share_types,omitempty" yaml:"share_types,omitempty"`
+	// list of resource classes for the placement service (currently still part of nova)
+	ResourceClasses []string `json:"resource_classes,omitempty" yaml:"resource_classes,omitempty"`
+	// list keystone domains with their configuration, users, groups, projects, etc
+	Domains []DomainSpec `json:"domains,omitempty" yaml:"domains,omitempty"`
+	// list of neutron rbac polices (currently only network rbacs are supported)
+	RBACPolicies []RBACPolicySpec `json:"rbac_policies,omitempty" yaml:"rbac_policies,omitempty"`
+	// list of cinder volume types
+	VolumeTypes []VolumeTypeSpec `json:"volume_types,omitempty" yaml:"volume_types,omitempty"`
 }
 
 // A keystone role (see https://developer.openstack.org/api-ref/identity/v3/index.html#roles)
@@ -270,6 +282,15 @@ type FlavorSpec struct {
 	Disabled   *bool             `json:"disabled,omitempty" yaml:"disabled,omitempty"`
 	Ephemeral  int               `json:"ephemeral,omitempty" yaml:"ephemeral,omitempty"`
 	ExtraSpecs map[string]string `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // list of extra specs
+}
+
+// A Cinder Volume Type
+// +k8s:openapi-gen=true
+type VolumeTypeSpec struct {
+	Name        string            `json:"name" yaml:"name"`                                   // volume type name
+	Description string            `json:"description,omitempty" yaml:"description,omitempty"` // description
+	IsPublic    *bool             `json:"is_public,omitempty" yaml:"is_public,omitempty"`     // volume type is public or private; deafult is public
+	ExtraSpecs  map[string]string `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // extra specs that are not typed or validated
 }
 
 // A Manila Share Type (see https://developer.openstack.org/api-ref/shared-file-system/?expanded=create-share-type-detail#share-types )

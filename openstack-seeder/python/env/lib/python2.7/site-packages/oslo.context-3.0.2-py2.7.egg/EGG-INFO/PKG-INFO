@@ -1,0 +1,52 @@
+Metadata-Version: 1.2
+Name: oslo.context
+Version: 3.0.2
+Summary: Oslo Context library
+Home-page: https://docs.openstack.org/oslo.context/latest/
+Author: OpenStack
+Author-email: openstack-discuss@lists.openstack.org
+License: UNKNOWN
+Description: ====================
+        Oslo Context Library
+        ====================
+        
+        The Oslo context library has helpers to maintain useful information
+        about a request context. The request context is usually populated in
+        the WSGI pipeline and used by various modules such as logging.
+        
+        * License: Apache License, Version 2.0
+        * Documentation: https://docs.openstack.org/oslo.context/latest/
+        * Source: https://opendev.org/openstack/oslo.context
+        * Bugs: https://bugs.launchpad.net/oslo.context
+        * Release notes:  https://docs.openstack.org/releasenotes/oslo.context/
+        
+        Team and repository tags
+        ========================
+        
+        .. image:: https://governance.openstack.org/tc/badges/oslo.context.svg
+            :target: https://governance.openstack.org/tc/reference/tags/index.html
+        
+        .. Change things from this point on
+        
+        .. image:: https://img.shields.io/pypi/v/oslo.context.svg
+            :target: https://pypi.org/project/oslo.context/
+            :alt: Latest Version
+        
+        .. image:: https://img.shields.io/pypi/dm/oslo.context.svg
+            :target: https://pypi.org/project/oslo.context/
+            :alt: Downloads
+        
+        
+Platform: UNKNOWN
+Classifier: Environment :: OpenStack
+Classifier: Intended Audience :: Information Technology
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Requires-Python: >=3.6

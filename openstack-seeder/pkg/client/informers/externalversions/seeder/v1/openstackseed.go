@@ -20,11 +20,11 @@ package v1
 import (
 	time "time"
 
-	seeder_v1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1"
+	seederv1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1"
 	versioned "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/informers/externalversions/internalinterfaces"
 	v1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/listers/seeder/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
@@ -56,20 +56,20 @@ func NewOpenstackSeedInformer(client versioned.Interface, namespace string, resy
 func NewFilteredOpenstackSeedInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
 				return client.OpenstackV1().OpenstackSeeds(namespace).List(options)
 			},
-			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
 				return client.OpenstackV1().OpenstackSeeds(namespace).Watch(options)
 			},
 		},
-		&seeder_v1.OpenstackSeed{},
+		&seederv1.OpenstackSeed{},
 		resyncPeriod,
 		indexers,
 	)
@@ -80,7 +80,7 @@ func (f *openstackSeedInformer) defaultInformer(client versioned.Interface, resy
 }
 
 func (f *openstackSeedInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&seeder_v1.OpenstackSeed{}, f.defaultInformer)
+	return f.factory.InformerFor(&seederv1.OpenstackSeed{}, f.defaultInformer)
 }
 
 func (f *openstackSeedInformer) Lister() v1.OpenstackSeedLister {

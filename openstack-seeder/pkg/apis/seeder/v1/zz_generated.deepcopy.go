@@ -28,12 +28,8 @@ func (in *AddressScopeSpec) DeepCopyInto(out *AddressScopeSpec) {
 	*out = *in
 	if in.Shared != nil {
 		in, out := &in.Shared, &out.Shared
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.SubnetPools != nil {
 		in, out := &in.SubnetPools, &out.SubnetPools
@@ -136,21 +132,13 @@ func (in *DomainConfigSpec) DeepCopyInto(out *DomainConfigSpec) {
 	*out = *in
 	if in.IdentityConfig != nil {
 		in, out := &in.IdentityConfig, &out.IdentityConfig
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(IdentityConfigSpec)
-			**out = **in
-		}
+		*out = new(IdentityConfigSpec)
+		**out = **in
 	}
 	if in.LdapConfig != nil {
 		in, out := &in.LdapConfig, &out.LdapConfig
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(LdapConfigSpec)
-			(*in).DeepCopyInto(*out)
-		}
+		*out = new(LdapConfigSpec)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }
@@ -170,12 +158,8 @@ func (in *DomainSpec) DeepCopyInto(out *DomainSpec) {
 	*out = *in
 	if in.Enabled != nil {
 		in, out := &in.Enabled, &out.Enabled
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.Users != nil {
 		in, out := &in.Users, &out.Users
@@ -212,12 +196,8 @@ func (in *DomainSpec) DeepCopyInto(out *DomainSpec) {
 	}
 	if in.Config != nil {
 		in, out := &in.Config, &out.Config
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(DomainConfigSpec)
-			(*in).DeepCopyInto(*out)
-		}
+		*out = new(DomainConfigSpec)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }
@@ -253,12 +233,8 @@ func (in *EndpointSpec) DeepCopyInto(out *EndpointSpec) {
 	*out = *in
 	if in.Enabled != nil {
 		in, out := &in.Enabled, &out.Enabled
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	return
 }
@@ -294,12 +270,8 @@ func (in *ExternalGatewayInfoSpec) DeepCopyInto(out *ExternalGatewayInfoSpec) {
 	*out = *in
 	if in.EnableSNAT != nil {
 		in, out := &in.EnableSNAT, &out.EnableSNAT
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.ExternalFixedIPs != nil {
 		in, out := &in.ExternalFixedIPs, &out.ExternalFixedIPs
@@ -324,21 +296,13 @@ func (in *FlavorSpec) DeepCopyInto(out *FlavorSpec) {
 	*out = *in
 	if in.IsPublic != nil {
 		in, out := &in.IsPublic, &out.IsPublic
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.Disabled != nil {
 		in, out := &in.Disabled, &out.Disabled
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.ExtraSpecs != nil {
 		in, out := &in.ExtraSpecs, &out.ExtraSpecs
@@ -409,93 +373,53 @@ func (in *LdapConfigSpec) DeepCopyInto(out *LdapConfigSpec) {
 	*out = *in
 	if in.UseTLS != nil {
 		in, out := &in.UseTLS, &out.UseTLS
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.UsePool != nil {
 		in, out := &in.UsePool, &out.UsePool
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.UseAuthPool != nil {
 		in, out := &in.UseAuthPool, &out.UseAuthPool
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.UserAllowCreate != nil {
 		in, out := &in.UserAllowCreate, &out.UserAllowCreate
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.UserAllowUpdate != nil {
 		in, out := &in.UserAllowUpdate, &out.UserAllowUpdate
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.UserAllowDelete != nil {
 		in, out := &in.UserAllowDelete, &out.UserAllowDelete
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.GroupMembersAreIDs != nil {
 		in, out := &in.GroupMembersAreIDs, &out.GroupMembersAreIDs
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.GroupAllowCreate != nil {
 		in, out := &in.GroupAllowCreate, &out.GroupAllowCreate
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.GroupAllowUpdate != nil {
 		in, out := &in.GroupAllowUpdate, &out.GroupAllowUpdate
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.GroupAllowDelete != nil {
 		in, out := &in.GroupAllowDelete, &out.GroupAllowDelete
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	return
 }
@@ -531,48 +455,28 @@ func (in *NetworkSpec) DeepCopyInto(out *NetworkSpec) {
 	*out = *in
 	if in.AdminStateUp != nil {
 		in, out := &in.AdminStateUp, &out.AdminStateUp
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.PortSecurityEnabled != nil {
 		in, out := &in.PortSecurityEnabled, &out.PortSecurityEnabled
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.RouterExternal != nil {
 		in, out := &in.RouterExternal, &out.RouterExternal
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.Shared != nil {
 		in, out := &in.Shared, &out.Shared
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.VlanTransparent != nil {
 		in, out := &in.VlanTransparent, &out.VlanTransparent
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.Subnets != nil {
 		in, out := &in.Subnets, &out.Subnets
@@ -721,6 +625,13 @@ func (in *OpenstackSeedSpec) DeepCopyInto(out *OpenstackSeedSpec) {
 		*out = make([]RBACPolicySpec, len(*in))
 		copy(*out, *in)
 	}
+	if in.VolumeTypes != nil {
+		in, out := &in.VolumeTypes, &out.VolumeTypes
+		*out = make([]VolumeTypeSpec, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 
@@ -778,21 +689,13 @@ func (in *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
 	*out = *in
 	if in.Enabled != nil {
 		in, out := &in.Enabled, &out.Enabled
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.IsDomain != nil {
 		in, out := &in.IsDomain, &out.IsDomain
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.Endpoints != nil {
 		in, out := &in.Endpoints, &out.Endpoints
@@ -832,12 +735,8 @@ func (in *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
 	}
 	if in.NetworkQuota != nil {
 		in, out := &in.NetworkQuota, &out.NetworkQuota
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(NetworkQuotaSpec)
-			**out = **in
-		}
+		*out = new(NetworkQuotaSpec)
+		**out = **in
 	}
 	if in.Networks != nil {
 		in, out := &in.Networks, &out.Networks
@@ -855,21 +754,13 @@ func (in *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
 	}
 	if in.Swift != nil {
 		in, out := &in.Swift, &out.Swift
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(SwiftAccountSpec)
-			(*in).DeepCopyInto(*out)
-		}
+		*out = new(SwiftAccountSpec)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.DNSQuota != nil {
 		in, out := &in.DNSQuota, &out.DNSQuota
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(DNSQuotaSpec)
-			**out = **in
-		}
+		*out = new(DNSQuotaSpec)
+		**out = **in
 	}
 	if in.DNSZones != nil {
 		in, out := &in.DNSZones, &out.DNSZones
@@ -938,12 +829,8 @@ func (in *RoleAssignmentSpec) DeepCopyInto(out *RoleAssignmentSpec) {
 	*out = *in
 	if in.Inherited != nil {
 		in, out := &in.Inherited, &out.Inherited
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	return
 }
@@ -1027,39 +914,23 @@ func (in *RouterSpec) DeepCopyInto(out *RouterSpec) {
 	*out = *in
 	if in.AdminStateUp != nil {
 		in, out := &in.AdminStateUp, &out.AdminStateUp
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.ExternalGatewayInfo != nil {
 		in, out := &in.ExternalGatewayInfo, &out.ExternalGatewayInfo
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(ExternalGatewayInfoSpec)
-			(*in).DeepCopyInto(*out)
-		}
+		*out = new(ExternalGatewayInfoSpec)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.Distributed != nil {
 		in, out := &in.Distributed, &out.Distributed
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.HA != nil {
 		in, out := &in.HA, &out.HA
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.RouterPorts != nil {
 		in, out := &in.RouterPorts, &out.RouterPorts
@@ -1089,12 +960,8 @@ func (in *ServiceSpec) DeepCopyInto(out *ServiceSpec) {
 	*out = *in
 	if in.Enabled != nil {
 		in, out := &in.Enabled, &out.Enabled
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.Endpoints != nil {
 		in, out := &in.Endpoints, &out.Endpoints
@@ -1121,21 +988,13 @@ func (in *ShareTypeSpec) DeepCopyInto(out *ShareTypeSpec) {
 	*out = *in
 	if in.IsPublic != nil {
 		in, out := &in.IsPublic, &out.IsPublic
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.Specs != nil {
 		in, out := &in.Specs, &out.Specs
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(ShareTypeSpecifiedSpecs)
-			(*in).DeepCopyInto(*out)
-		}
+		*out = new(ShareTypeSpecifiedSpecs)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.ExtraSpecs != nil {
 		in, out := &in.ExtraSpecs, &out.ExtraSpecs
@@ -1162,21 +1021,13 @@ func (in *ShareTypeSpecifiedSpecs) DeepCopyInto(out *ShareTypeSpecifiedSpecs) {
 	*out = *in
 	if in.DHSS != nil {
 		in, out := &in.DHSS, &out.DHSS
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.SnapshotSupport != nil {
 		in, out := &in.SnapshotSupport, &out.SnapshotSupport
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	return
 }
@@ -1201,21 +1052,13 @@ func (in *SubnetPoolSpec) DeepCopyInto(out *SubnetPoolSpec) {
 	}
 	if in.Shared != nil {
 		in, out := &in.Shared, &out.Shared
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.IsDefault != nil {
 		in, out := &in.IsDefault, &out.IsDefault
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	return
 }
@@ -1235,12 +1078,8 @@ func (in *SubnetSpec) DeepCopyInto(out *SubnetSpec) {
 	*out = *in
 	if in.EnableDHCP != nil {
 		in, out := &in.EnableDHCP, &out.EnableDHCP
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.DNSNameServers != nil {
 		in, out := &in.DNSNameServers, &out.DNSNameServers
@@ -1259,12 +1098,8 @@ func (in *SubnetSpec) DeepCopyInto(out *SubnetSpec) {
 	}
 	if in.Prefixlen != nil {
 		in, out := &in.Prefixlen, &out.Prefixlen
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int)
-			**out = **in
-		}
+		*out = new(int)
+		**out = **in
 	}
 	if in.Tags != nil {
 		in, out := &in.Tags, &out.Tags
@@ -1289,12 +1124,8 @@ func (in *SwiftAccountSpec) DeepCopyInto(out *SwiftAccountSpec) {
 	*out = *in
 	if in.Enabled != nil {
 		in, out := &in.Enabled, &out.Enabled
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.Containers != nil {
 		in, out := &in.Containers, &out.Containers
@@ -1344,12 +1175,8 @@ func (in *UserSpec) DeepCopyInto(out *UserSpec) {
 	*out = *in
 	if in.Enabled != nil {
 		in, out := &in.Enabled, &out.Enabled
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.RoleAssignments != nil {
 		in, out := &in.RoleAssignments, &out.RoleAssignments
@@ -1367,6 +1194,34 @@ func (in *UserSpec) DeepCopy() *UserSpec {
 		return nil
 	}
 	out := new(UserSpec)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *VolumeTypeSpec) DeepCopyInto(out *VolumeTypeSpec) {
+	*out = *in
+	if in.IsPublic != nil {
+		in, out := &in.IsPublic, &out.IsPublic
+		*out = new(bool)
+		**out = **in
+	}
+	if in.ExtraSpecs != nil {
+		in, out := &in.ExtraSpecs, &out.ExtraSpecs
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new VolumeTypeSpec.
+func (in *VolumeTypeSpec) DeepCopy() *VolumeTypeSpec {
+	if in == nil {
+		return nil
+	}
+	out := new(VolumeTypeSpec)
 	in.DeepCopyInto(out)
 	return out
 }

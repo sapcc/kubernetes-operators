@@ -158,6 +158,28 @@ func (e *OpenstackSeedSpec) MergeShareType(t ShareTypeSpec) {
 	e.ShareTypes = append(e.ShareTypes, t)
 }
 
+func (e *OpenstackSeedSpec) MergeVolumeType(t VolumeTypeSpec) {
+	if e.VolumeTypes == nil {
+		e.VolumeTypes = make([]VolumeTypeSpec, 0)
+	}
+	for i, s := range e.VolumeTypes {
+		if s.Name == t.Name {
+			glog.V(2).Info("merge Cinder volume type ", t)
+			if s.ExtraSpecs == nil {
+				s.ExtraSpecs = make(map[string]string)
+			}
+			for k, v := range t.ExtraSpecs {
+				s.ExtraSpecs[k] = v
+			}
+			utils.MergeStructFields(&s, t)
+			e.VolumeTypes[i] = s
+			return
+		}
+	}
+	glog.V(2).Info("append cinder volume type ", t)
+	e.VolumeTypes = append(e.VolumeTypes, t)
+}
+
 // MergeResourceClass merges resource-class by name into the spec
 func (e *OpenstackSeedSpec) MergeResourceClass(resourceClass string) {
 	if e.ResourceClasses == nil {
@@ -1020,6 +1042,13 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 			return errors.New("Share type name is required")
 		}
 		e.MergeShareType(shareType)
+	}
+
+	for _, volumeType := range spec.VolumeTypes {
+		if volumeType.Name == "" {
+			return errors.New("volume type name is required")
+		}
+		e.MergeVolumeType(volumeType)
 	}
 
 	for _, roleInference := range spec.RoleInferences {

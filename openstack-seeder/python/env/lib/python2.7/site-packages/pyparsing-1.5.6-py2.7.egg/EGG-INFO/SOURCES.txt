@@ -1,0 +1,8 @@
+README
+pyparsing.py
+setup.cfg
+setup.py
+pyparsing.egg-info/PKG-INFO
+pyparsing.egg-info/SOURCES.txt
+pyparsing.egg-info/dependency_links.txt
+pyparsing.egg-info/top_level.txt

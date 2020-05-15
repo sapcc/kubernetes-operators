@@ -1,0 +1,14 @@
+{
+  "name": "betacloud",
+  "profile": {
+    "auth": {
+      "auth_url": "https://api-1.betacloud.de:5000"
+    },
+    "regions": [
+      "betacloud-1"
+    ],
+    "identity_api_version": "3",
+    "image_format": "raw",
+    "block_storage_api_version": "3"
+  }
+}

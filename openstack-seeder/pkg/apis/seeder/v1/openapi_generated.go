@@ -1255,7 +1255,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					Properties: map[string]spec.Schema{
 						"requires": {
 							SchemaProps: spec.SchemaProps{
-								Type: []string{"array"},
+								Description: "list of required specs that need to be resolved before the current one",
+								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
@@ -1268,7 +1269,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"roles": {
 							SchemaProps: spec.SchemaProps{
-								Description: "list of required specs that need to be resolved before the current one",
+								Description: "list of keystone roles",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1281,7 +1282,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"role_inferences": {
 							SchemaProps: spec.SchemaProps{
-								Description: "list of keystone roles",
+								Description: "list of implied roles",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1294,7 +1295,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"regions": {
 							SchemaProps: spec.SchemaProps{
-								Description: "list of implied roles",
+								Description: "list keystone regions",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1307,7 +1308,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"services": {
 							SchemaProps: spec.SchemaProps{
-								Description: "list keystone regions",
+								Description: "list keystone services and their endpoints",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1320,7 +1321,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"flavors": {
 							SchemaProps: spec.SchemaProps{
-								Description: "list keystone services and their endpoints",
+								Description: "list of nova flavors",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1333,7 +1334,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"share_types": {
 							SchemaProps: spec.SchemaProps{
-								Description: "list of nova flavors",
+								Description: "list of Manila share types",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1346,7 +1347,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"resource_classes": {
 							SchemaProps: spec.SchemaProps{
-								Description: "list of Manila share types",
+								Description: "list of resource classes for the placement service (currently still part of nova)",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1360,7 +1361,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"domains": {
 							SchemaProps: spec.SchemaProps{
-								Description: "list of resource classes for the placement service (currently still part of nova)",
+								Description: "list keystone domains with their configuration, users, groups, projects, etc",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1373,7 +1374,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"rbac_policies": {
 							SchemaProps: spec.SchemaProps{
-								Description: "list keystone domains with their configuration, users, groups, projects, etc.",
+								Description: "list of neutron rbac polices (currently only network rbacs are supported)",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1384,11 +1385,24 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 						},
+						"volume_types": {
+							SchemaProps: spec.SchemaProps{
+								Description: "list of cinder volume types",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.VolumeTypeSpec"),
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DomainSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.FlavorSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RBACPolicySpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RegionSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleInferenceSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ServiceSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ShareTypeSpec"},
+				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.DomainSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.FlavorSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RBACPolicySpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RegionSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleInferenceSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ServiceSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.ShareTypeSpec", "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.VolumeTypeSpec"},
 		},
 		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.OpenstackSeedStatus": {
 			Schema: spec.Schema{
@@ -2460,6 +2474,51 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{
 				"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.RoleAssignmentSpec"},
+		},
+		"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.VolumeTypeSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "A Cinder Volume Type",
+					Properties: map[string]spec.Schema{
+						"name": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"description": {
+							SchemaProps: spec.SchemaProps{
+								Description: "volume type name",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"is_public": {
+							SchemaProps: spec.SchemaProps{
+								Description: "description",
+								Type:        []string{"boolean"},
+								Format:      "",
+							},
+						},
+						"extra_specs": {
+							SchemaProps: spec.SchemaProps{
+								Description: "volume type is public or private; deafult is public",
+								Type:        []string{"object"},
+								AdditionalProperties: &spec.SchemaOrBool{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+					},
+					Required: []string{"name"},
+				},
+			},
+			Dependencies: []string{},
 		},
 	}
 }

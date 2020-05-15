@@ -1,0 +1,60 @@
+# Andreas Jaeger <jaegerandi@gmail.com>, 2016. #zanata
+msgid ""
+msgstr ""
+"Project-Id-Version: oslo.log 3.10.1.dev3\n"
+"Report-Msgid-Bugs-To: https://bugs.launchpad.net/openstack-i18n/\n"
+"POT-Creation-Date: 2016-06-24 09:24+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2016-06-20 06:43+0000\n"
+"Last-Translator: Andreas Jaeger <jaegerandi@gmail.com>\n"
+"Language-Team: German\n"
+"Language: de\n"
+"X-Generator: Zanata 3.7.3\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+#, python-format
+msgid ""
+"%(what)s is deprecated as of %(as_of)s and may be removed in %(remove_in)s. "
+"It will not be superseded."
+msgstr ""
+"Seit %(as_of)s wird %(what)s nicht mehr unterstützt  und voraussichtlich in "
+"%(remove_in)s entfernt. Es gibt keine Alternative."
+
+#, python-format
+msgid ""
+"%(what)s is deprecated as of %(as_of)s in favor of %(in_favor_of)s and may "
+"be removed in %(remove_in)s."
+msgstr ""
+"Seit %(as_of)s wird %(what)s nicht mehr unterstützt  und voraussichtlich in "
+"%(remove_in)s entfernt. Benutzen Sie %(in_favor_of)s."
+
+#, python-format
+msgid "%(what)s is deprecated as of %(as_of)s in favor of %(in_favor_of)s."
+msgstr ""
+"Seit %(as_of)s wird %(what)s nicht mehr unterstützt. Benutzen Sie "
+"%(in_favor_of)s."
+
+#, python-format
+msgid "%(what)s is deprecated as of %(as_of)s. It will not be superseded."
+msgstr ""
+"Seit %(as_of)s wird %(what)s nicht mehr unterstützt. Es gibt keine "
+"Alternative."
+
+#, python-format
+msgid "Deprecated: %s"
+msgstr "Nicht weiter unterstützt: %s"
+
+#, python-format
+msgid "Error loading logging config %(log_config)s: %(err_msg)s"
+msgstr ""
+"Fehler beim Laden der Logging Konfiguration %(log_config)s: %(err_msg)s"
+
+#, python-format
+msgid "Fatal call to deprecated config: %(msg)s"
+msgstr "Aufruf zu nicht weiter unterstützter Konfiguration: %(msg)s"
+
+#, python-format
+msgid "syslog facility must be one of: %s"
+msgstr "Sylog Facility muß einer von %s sein."

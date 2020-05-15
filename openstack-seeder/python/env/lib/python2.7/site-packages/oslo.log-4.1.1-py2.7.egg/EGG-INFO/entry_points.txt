@@ -1,0 +1,6 @@
+[console_scripts]
+convert-json = oslo_log.cmds.convert_json:main
+
+[oslo.config.opts]
+oslo.log = oslo_log._options:list_opts
+

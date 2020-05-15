@@ -1,0 +1,77 @@
+Metadata-Version: 2.1
+Name: python-novaclient
+Version: 14.2.0
+Summary: Client library for OpenStack Compute API
+Home-page: https://docs.openstack.org/python-novaclient/latest
+Author: OpenStack
+Author-email: openstack-discuss@lists.openstack.org
+License: Apache License, Version 2.0
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Console
+Classifier: Environment :: OpenStack
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Information Technology
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Requires-Dist: pbr (!=2.1.0,>=2.0.0)
+Requires-Dist: keystoneauth1 (>=3.5.0)
+Requires-Dist: iso8601 (>=0.1.11)
+Requires-Dist: oslo.i18n (>=3.15.3)
+Requires-Dist: oslo.serialization (!=2.19.1,>=2.18.0)
+Requires-Dist: oslo.utils (>=3.33.0)
+Requires-Dist: PrettyTable (<0.8,>=0.7.2)
+Requires-Dist: simplejson (>=3.5.1)
+Requires-Dist: six (>=1.10.0)
+Requires-Dist: Babel (!=2.4.0,>=2.3.4)
+
+========================
+Team and repository tags
+========================
+
+.. image:: https://governance.openstack.org/tc/badges/python-novaclient.svg
+    :target: https://governance.openstack.org/tc/reference/tags/index.html
+
+.. Change things from this point on
+
+============================================
+Python bindings to the OpenStack Compute API
+============================================
+
+.. image:: https://img.shields.io/pypi/v/python-novaclient.svg
+    :target: https://pypi.org/project/python-novaclient/
+    :alt: Latest Version
+
+This is a client for the OpenStack Compute API. It provides a Python API (the
+``novaclient`` module) and a command-line script (``nova``). Each implements
+100% of the OpenStack Compute API.
+
+* License: Apache License, Version 2.0
+* `PyPi`_ - package installation
+* `Online Documentation`_
+* `Launchpad project`_ - release management
+* `Blueprints`_ - feature specifications
+* `Bugs`_ - issue tracking
+* `Source`_
+* `Specs`_
+* `How to Contribute`_
+* `Release Notes`_
+
+.. _PyPi: https://pypi.org/project/python-novaclient
+.. _Online Documentation: https://docs.openstack.org/python-novaclient/latest
+.. _Launchpad project: https://launchpad.net/python-novaclient
+.. _Blueprints: https://blueprints.launchpad.net/python-novaclient
+.. _Bugs: https://bugs.launchpad.net/python-novaclient
+.. _Source: https://opendev.org/openstack/python-novaclient
+.. _How to Contribute: https://docs.openstack.org/infra/manual/developers.html
+.. _Specs: http://specs.openstack.org/openstack/nova-specs/
+.. _Release Notes: https://docs.openstack.org/releasenotes/python-novaclient
+
+
+

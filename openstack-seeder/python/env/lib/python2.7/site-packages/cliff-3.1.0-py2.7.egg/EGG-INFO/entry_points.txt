@@ -1,0 +1,32 @@
+[cliff.demo]
+error = cliffdemo.simple:Error
+file = cliffdemo.show:File
+files = cliffdemo.list:Files
+hooked = cliffdemo.hook:Hooked
+list files = cliffdemo.list:Files
+show file = cliffdemo.show:File
+simple = cliffdemo.simple:Simple
+two_part = cliffdemo.simple:Simple
+unicode = cliffdemo.encoding:Encoding
+
+[cliff.demo.hooked]
+sample-hook = cliffdemo.hook:Hook
+
+[cliff.formatter.completion]
+bash = cliff.complete:CompleteBash
+none = cliff.complete:CompleteNoCode
+
+[cliff.formatter.list]
+csv = cliff.formatters.commaseparated:CSVLister
+json = cliff.formatters.json_format:JSONFormatter
+table = cliff.formatters.table:TableFormatter
+value = cliff.formatters.value:ValueFormatter
+yaml = cliff.formatters.yaml_format:YAMLFormatter
+
+[cliff.formatter.show]
+json = cliff.formatters.json_format:JSONFormatter
+shell = cliff.formatters.shell:ShellFormatter
+table = cliff.formatters.table:TableFormatter
+value = cliff.formatters.value:ValueFormatter
+yaml = cliff.formatters.yaml_format:YAMLFormatter
+
