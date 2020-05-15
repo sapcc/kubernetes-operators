@@ -12,7 +12,7 @@ setup(
         'python-swiftclient==3.8.0',
         'python-manilaclient==1.27.0',
         'python-cinderclient==6.0.0',
-        'osc-placement==1.5.0',
+        'osc-placement==1.4.0',
         'raven',
         'pyyaml>=4.2b4',
         'pyparsing==2.1.0',
