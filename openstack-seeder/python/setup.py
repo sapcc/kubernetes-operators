@@ -19,6 +19,7 @@ setup(
         'oslo.serialization==2.29.2',
         'funcsigs',
         'oslo.config==7.0.0',
+        'python-dateutil==2.7.0',
     ],
     url='https://github.com/sapcc/kubernetes-operators/openstack-seeder',
     license='',

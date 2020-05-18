@@ -59,12 +59,23 @@ type OpenstackSeedSpec struct {
 	ShareTypes      []ShareTypeSpec     `json:"share_types,omitempty" yaml:"share_types,omitempty"`           // list of Manila share types
 	Domains         []DomainSpec        `json:"domains,omitempty" yaml:"domains,omitempty"`                   // list keystone domains with their configuration, users, groups, projects, etc.
 	RBACPolicies    []RBACPolicySpec    `json:"rbac_policies,omitempty" yaml:"rbac_policies,omitempty"`       // list of neutron rbac polices (currently only network rbacs are supported).
+	// list of cinder volume types
+	VolumeTypes []VolumeTypeSpec `json:"volume_types,omitempty" yaml:"volume_types,omitempty"`
 }
 
 // A keystone role (see https://developer.openstack.org/api-ref/identity/v3/index.html#roles)
 type RoleSpec struct {
 	Name        string `json:"name" yaml:"name"`                                   // the role name
 	Description string `json:"description,omitempty" yaml:"description,omitempty"` // the role description
+}
+
+// A Cinder Volume Type
+// +k8s:openapi-gen=true
+type VolumeTypeSpec struct {
+	Name        string            `json:"name" yaml:"name"`                                   // volume type name
+	Description string            `json:"description,omitempty" yaml:"description,omitempty"` // description
+	IsPublic    *bool             `json:"is_public,omitempty" yaml:"is_public,omitempty"`     // volume type is public or private; deafult is public
+	ExtraSpecs  map[string]string `json:"extra_specs,omitempty" yaml:"extra_specs,omitempty"` // extra specs that are not typed or validated
 }
 
 // A keystone role inference (see https://developer.openstack.org/api-ref/identity/v3/index.html#roles)
@@ -548,6 +559,28 @@ func (e *OpenstackSeedSpec) MergeShareType(t ShareTypeSpec) {
 	}
 	glog.V(2).Info("append Manila share type ", t)
 	e.ShareTypes = append(e.ShareTypes, t)
+}
+
+func (e *OpenstackSeedSpec) MergeVolumeType(t VolumeTypeSpec) {
+	if e.VolumeTypes == nil {
+		e.VolumeTypes = make([]VolumeTypeSpec, 0)
+	}
+	for i, s := range e.VolumeTypes {
+		if s.Name == t.Name {
+			glog.V(2).Info("merge Cinder volume type ", t)
+			if s.ExtraSpecs == nil {
+				s.ExtraSpecs = make(map[string]string)
+			}
+			for k, v := range t.ExtraSpecs {
+				s.ExtraSpecs[k] = v
+			}
+			utils.MergeStructFields(&s, t)
+			e.VolumeTypes[i] = s
+			return
+		}
+	}
+	glog.V(2).Info("append cinder volume type ", t)
+	e.VolumeTypes = append(e.VolumeTypes, t)
 }
 
 func (e *OpenstackSeedSpec) MergeDomain(domain DomainSpec) {
@@ -1402,6 +1435,13 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 			return errors.New("Share type name is required")
 		}
 		e.MergeShareType(shareType)
+	}
+
+	for _, volumeType := range spec.VolumeTypes {
+		if volumeType.Name == "" {
+			return errors.New("volume type name is required")
+		}
+		e.MergeVolumeType(volumeType)
 	}
 
 	for _, rbacPolicy := range spec.RBACPolicies {
