@@ -290,7 +290,6 @@ def seed_volume_type(volume_type, args, sess):
     """seed a cinder volume type"""
     logging.debug("seeding volume-type %s" % volume_type)
     # intialize cinder client
-
     try:
         cinder = cinderclient.Client(session=sess, interface=args.interface, api_version="3.50")
     except Exception as e:
@@ -303,27 +302,24 @@ def seed_volume_type(volume_type, args, sess):
                 return t
         return None
 
-    def update_type(vtype, extra_specs):
-        to_be_unset = []
-        for k in vtype.extra_specs.keys():
-            if k not in extra_specs.keys():
-                to_be_unset.append(k)
-        vtype.unset_keys(to_be_unset)
-        vtype.set_keys(extra_specs)
+    def update_type(vtype, volume_type):
+        logging.debug("updating volume-type '%s'", volume_type['name'])
+        cinder.volume_types.update(vtype, volume_type['name'], volume_type['description'], volume_type['is_public'])
 
     def create_type(volume_type):
+        logging.debug("updating volume-type '%s'", volume_type['name'])
         vtype = cinder.volume_types.create(volume_type['name'], volume_type['description'], volume_type['is_public'])
         if 'extra_specs' in volume_type:
             extra_specs = volume_type.pop('extra_specs', None)
             if not isinstance(extra_specs, dict):
                 logging.warn("skipping volume-type '%s', since it has invalid extra_specs" % volume_type)
-        else:
-            vtype.set_keys(extra_specs)
+            else:
+                vtype.set_keys(extra_specs)
 
     vtype = get_type_by_name(volume_type['name'])
     if vtype:
         try:
-            update_type(vtype, volume_type['extra_specs'])
+            update_type(vtype, volume_type)
         except Exception as e:
             logging.error("Failed to update volume type %s: %s" % (volume_type, e))
             raise
