@@ -18,7 +18,7 @@ import (
 
 	seederv1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1"
 
-	"github.com/ant31/crd-validation/pkg"
+	crdvalidation "github.com/ant31/crd-validation/pkg"
 	"github.com/golang/glog"
 	"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -61,14 +61,12 @@ func CreateCustomResourceDefinition(clientset apiextensionsclient.Interface) (*a
 				glog.Errorf("Get CustomResourceDefinition %s failed: %v", openstackseedCRDName, err)
 				return nil, err
 			}
-			if crd.Spec.Validation == nil || len(crd.Spec.Validation.OpenAPIV3Schema.Properties) == 0 {
-				glog.Infof("Adding validation for CustomResourceDefinition %s", openstackseedCRDName)
-				crd.Spec.Validation = validation
-				crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Update(crd)
-				if err != nil {
-					glog.Errorf("Validation update of CustomResourceDefinition %s failed: %v", openstackseedCRDName, err)
-					return nil, err
-				}
+			glog.Infof("Updating validation for CustomResourceDefinition %s", openstackseedCRDName)
+			crd.Spec.Validation = validation
+			crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Update(crd)
+			if err != nil {
+				glog.Errorf("Validation update of CustomResourceDefinition %s failed: %v", openstackseedCRDName, err)
+				return nil, err
 			}
 			return crd, nil
 		}
