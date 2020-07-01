@@ -445,7 +445,7 @@ type RouterRouteSpec struct {
 // SwiftAccountSpec defines a swift account
 // +k8s:openapi-gen=true
 type SwiftAccountSpec struct {
-	Enabled    *bool                `json:"enabled" yaml:"enabled,omitempty"`                 // Create a swift account
+	Enabled    *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`       // Create a swift account
 	Containers []SwiftContainerSpec `json:"containers,omitempty" yaml:"containers,omitempty"` // Containers
 }
 
