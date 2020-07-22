@@ -4,9 +4,6 @@ VERSION = v$(DATE)
 GOOS    ?= $(shell go env | grep GOOS | cut -d'"' -f2)
 BINARY  := disco
 
-LDFLAGS := -X github.com/sapcc/kubernetes-operators/disco/pkg/disco.VERSION=$(VERSION)
-GOFLAGS := -ldflags "$(LDFLAGS)"
-
 SRCDIRS  := cmd pkg
 PACKAGES := $(shell find $(SRCDIRS) -type d)
 GO_PKG	 := github.com/sapcc/kubernetes-operators/disco
@@ -19,10 +16,15 @@ OPENAPI_GEN_BINARY:=$(GOPATH)/bin/openapi-gen
 
 all: bin/$(GOOS)/$(BINARY)
 
+bin/%/$(BINARY): BUILD_DATE  = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+bin/%/$(BINARY): GIT_REVISION  = $(shell git rev-parse --short HEAD)
+bin/%/$(BINARY): GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 bin/%/$(BINARY): $(GOFILES) Makefile
-	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd/$(BINARY)
+	GOOS=$* GOARCH=amd64 go build\
+		-ldflags "-s -w -X github.com/sapcc/kubernetes-operators/disco/pkg/version.Revision=$(GIT_REVISION) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.Branch=$(GIT_BRANCH) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.BuildDate=$(BUILD_DATE) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.Version=$(VERSION)"\
+		-v -i -o bin/$*/$(BINARY) ./cmd/$(BINARY)
 
-build: bin/linux/$(BINARY)
+docker-build: bin/linux/$(BINARY)
 	docker build -t $(IMAGE):$(VERSION) .
 
 static-check:
@@ -32,7 +34,7 @@ static-check:
 tests: all static-check
 	DEBUG=1 && go test -v github.com/sapcc/kubernetes-operators/disco/pkg/disco
 
-push: build
+docker-push: docker-build
 	docker push $(IMAGE):$(VERSION)
 
 clean:

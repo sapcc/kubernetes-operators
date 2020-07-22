@@ -121,22 +121,20 @@ func (c *DNSV2Client) getDesignateZoneByName(zoneName string) (zones.Zone, error
 	zoneName = ensureFQDN(zoneName)
 
 	zoneList, err := c.listDesignateZones(
-		zones.ListOpts{
-			Name:   zoneName,
-			Status: Status.ACTIVE,
-		},
+		zones.ListOpts{Name: zoneName},
 	)
 	if err != nil {
 		return zones.Zone{}, err
 	}
 
-	if len(zoneList) > 1 {
+	switch len := len(zoneList); {
+	case len == 1:
+		return zoneList[0], nil
+	case len > 1:
 		return zones.Zone{}, errors.Errorf("multiple zones with name %s found", zoneName)
-	}
-	if len(zoneList) == 0 || zoneList[0].Name != zoneName {
+	default:
 		return zones.Zone{}, errors.Errorf("no zone with name %s found", zoneName)
 	}
-	return zoneList[0], nil
 }
 
 func (c *DNSV2Client) listDesignateRecordsetsForZone(zone zones.Zone, recordsetName string) (recordsetList []recordsets.RecordSet, err error) {

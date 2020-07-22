@@ -10,5 +10,6 @@ MAINTAINER Arno Uhlig <arno.uhlig@@sap.com>
 
 RUN apk add --no-cache ca-certificates curl tini
 COPY --from=builder /go/src/github.com/sapcc/kubernetes-operators/disco/bin/linux/disco /usr/local/bin/
+RUN ["disco", "--version"]
 ENTRYPOINT ["tini", "--"]
 CMD ["disco"]

@@ -21,6 +21,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -31,11 +32,13 @@ import (
 	"github.com/sapcc/kubernetes-operators/disco/pkg/disco"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/metrics"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/version"
 	"github.com/spf13/pflag"
 )
 
 var (
-	options config.Options
+	options               config.Options
+	isPrintVersionAndExit bool
 )
 
 func init() {
@@ -54,11 +57,17 @@ func init() {
 	pflag.StringVar(&options.EventComponent, "event-component", "disco", "Component to use for kubernetes events.")
 	pflag.BoolVar(&options.IsInstallCRD, "install-crd", true, "Install the custom resource definitions (CRDs) if not present.")
 	flag.StringVar(&options.Finalizer, "finalizer", "disco.extensions/v1beta1", "The finalizer to use.")
+	flag.BoolVar(&isPrintVersionAndExit, "version", false, "Print the version and exit")
 }
 
 func main() {
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
+
+	if isPrintVersionAndExit {
+		fmt.Println(version.Print("disco"))
+		os.Exit(0)
+	}
 
 	sigs := make(chan os.Signal, 1)
 	stop := make(chan struct{})

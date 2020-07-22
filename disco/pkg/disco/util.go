@@ -46,7 +46,7 @@ func newDefaultRecordHelper(record, zoneName string) *recordHelper {
 		recordType:  RecordsetType.CNAME,
 		record:      record,
 		zoneName:    zoneName,
-		description: DiscoRecordsetDescription,
+		description: discoRecordsetDescription,
 	}
 }
 
@@ -172,4 +172,11 @@ func recordSetListToString(rsList []recordsets.RecordSet) string {
 		rsNameList = append(rsNameList, rs.Name)
 	}
 	return strings.Join(rsNameList, ", ")
+}
+
+func makeAnnotation(prefix, annotation string) string {
+	const slash = "/"
+	prefix = strings.TrimSuffix(prefix, slash)
+	annotation = strings.TrimPrefix(annotation, slash)
+	return fmt.Sprintf("%s/%s", prefix, annotation)
 }

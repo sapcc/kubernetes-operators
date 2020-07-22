@@ -20,27 +20,27 @@
 package disco
 
 const (
-	// DiscoRecordsetDescription is the default description for a recordset.
-	DiscoRecordsetDescription = "Managed by the DISCOperator."
+	// discoRecordsetDescription is the default description for a recordset.
+	discoRecordsetDescription = "Managed by the DISCOperator."
 
-	// DiscoAnnotationRecord allows setting a different record than the default per ingress.
-	DiscoAnnotationRecord = "disco/record"
+	// discoAnnotationRecord allows setting a different record than the default per ingress.
+	discoAnnotationRecord = "record"
 
-	// DiscoAnnotationRecordType allows setting the record type. Must be CNAME, A, NS, SOA. Default: CNAME.
-	DiscoAnnotationRecordType = "disco/record-type"
+	// discoAnnotationRecordType allows setting the record type. Must be CNAME, A, NS, SOA. Default: CNAME.
+	discoAnnotationRecordType = "record-type"
 
-	// DiscoAnnotationRecordDescription allows setting the records description.
-	DiscoAnnotationRecordDescription = "disco/record-description"
+	// discoAnnotationRecordDescription allows setting the records description.
+	discoAnnotationRecordDescription = "record-description"
 
-	// DiscoAnnotationRecordZoneName allows creating a record in a different DNS zone.
-	DiscoAnnotationRecordZoneName = "disco/zone-name"
+	// discoAnnotationRecordZoneName allows creating a record in a different DNS zone.
+	discoAnnotationRecordZoneName = "zone-name"
 
-	// CreateEvent is the type of an creation event.
-	CreateEvent = "CreateRecordset"
+	// createEvent is the type of an creation event.
+	createEvent = "CreateRecordset"
 
-	// UpdateEvent is the type of an update event.
-	UpdateEvent = "UpdateRecordset"
+	// updateEvent is the type of an update event.
+	updateEvent = "UpdateRecordset"
 
-	// DeleteEvent is the type of an deletion event.
-	DeleteEvent = "DeleteRecordset"
+	// deleteEvent is the type of an deletion event.
+	deleteEvent = "DeleteRecordset"
 )

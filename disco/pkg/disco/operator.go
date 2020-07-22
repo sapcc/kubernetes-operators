@@ -21,6 +21,7 @@ package disco
 
 import (
 	"fmt"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/version"
 	"reflect"
 	"strings"
 	"sync"
@@ -40,11 +41,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
-)
-
-var (
-	// VERSION of the disco
-	VERSION = "0.0.0.dev"
 )
 
 // Operator is the CNAME operator (disco).
@@ -130,7 +126,7 @@ func (disco *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.Wai
 	defer wg.Done()
 	wg.Add(1)
 
-	disco.logger.LogInfo("Ladies and Gentlemen, the DISCO is about to begin! Creating your OpenStack Designate records now.", "version", VERSION)
+	disco.logger.LogInfo("Ladies and Gentlemen, the DISCO is about to begin! Creating your OpenStack Designate records now.", "version", version.Version)
 
 	if disco.IsInstallCRD {
 		disco.logger.LogInfo("installing and updating Disco CRDs if not already present")
@@ -243,19 +239,23 @@ func (disco *Operator) syncHandler(key string) error {
 			return nil
 		}
 
-		if val, ok := ingress.GetAnnotations()[DiscoAnnotationRecord]; ok {
+		recordAnnotation := makeAnnotation(disco.IngressAnnotation, discoAnnotationRecord)
+		if val, ok := ingress.GetAnnotations()[recordAnnotation]; ok {
 			rec.record = val
 		}
 
-		if rt, ok := ingress.GetAnnotations()[DiscoAnnotationRecordType]; ok {
+		recordTypeAnnotation := makeAnnotation(disco.IngressAnnotation, discoAnnotationRecordType)
+		if rt, ok := ingress.GetAnnotations()[recordTypeAnnotation]; ok {
 			rec.recordType = stringToRecordsetType(rt)
 		}
 
-		if z, ok := ingress.GetAnnotations()[DiscoAnnotationRecordZoneName]; ok {
+		recordZoneAnnotation := makeAnnotation(disco.IngressAnnotation, discoAnnotationRecordZoneName)
+		if z, ok := ingress.GetAnnotations()[recordZoneAnnotation]; ok {
 			rec.zoneName = z
 		}
 
-		if desc, ok := ingress.GetAnnotations()[DiscoAnnotationRecordDescription]; ok {
+		recordDescriptionAnnotation := makeAnnotation(disco.IngressAnnotation, discoAnnotationRecordDescription)
+		if desc, ok := ingress.GetAnnotations()[recordDescriptionAnnotation]; ok {
 			rec.description = desc
 		}
 
@@ -326,7 +326,7 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 	defer func() {
 		if err != nil {
 			// Just emit the event here. The error is logged in he processNextWorkItem.
-			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, UpdateEvent, fmt.Sprintf("create recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey()))
+			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, updateEvent, fmt.Sprintf("create recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey()))
 		}
 	}()
 
@@ -341,6 +341,8 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 	if zoneNameOverride := discoRecord.zoneName; zoneNameOverride != "" {
 		zoneName = zoneNameOverride
 	}
+
+	disco.logger.LogDebug("ensuring record", "host", host, "type", discoRecord.recordType, "record", discoRecord.record, "zone", zoneName)
 
 	zone, err := disco.getZoneByName(zoneName)
 	if err != nil {
@@ -363,16 +365,16 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 	if k8sutils.HasDeletionTimestamp(discoRecord.object) {
 		if recordsetID == "" {
 			disco.logger.LogInfo("would delete recordset but was unable to find its uid", "host", host, "zoneName", zone.Name)
-			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", discoRecord.getKey()))
+			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", discoRecord.getKey()))
 			return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 		}
 		if err := disco.dnsV2Client.deleteDesignateRecordset(host, recordsetID, zone.ID); err != nil {
 			metrics.RecordsetDeletionFailedCounter.With(labels).Inc()
 			disco.logger.LogError("failed to delete recordset", err)
-			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", discoRecord.getKey()))
+			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", discoRecord.getKey()))
 			return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 		}
-		disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, DeleteEvent, fmt.Sprintf("deleted recordset on ingress %s successful", discoRecord.getKey()))
+		disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, fmt.Sprintf("deleted recordset on ingress %s successful", discoRecord.getKey()))
 		metrics.RecordsetDeletionSuccessCounter.With(labels).Inc()
 		return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 	}
@@ -397,7 +399,7 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 		record = ensureFQDN(record)
 	}
 
-	description := DiscoRecordsetDescription
+	description := discoRecordsetDescription
 	if desc := discoRecord.description; desc != "" {
 		description = desc
 	}
@@ -416,7 +418,7 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 
 	metrics.RecordsetCreationSuccessCounter.With(labels).Inc()
 	disco.logger.LogInfo("create recordset successful", "key", discoRecord.getKey(), "host", host, "record", record, "zone", ensureFQDN(zone.Name), "recordType", recordType)
-	disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, CreateEvent, fmt.Sprintf("create recordset on ingress %s successful", discoRecord.getKey()))
+	disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, createEvent, fmt.Sprintf("create recordset on ingress %s successful", discoRecord.getKey()))
 
 	return nil
 }
