@@ -48,9 +48,11 @@ var (
 )
 
 type Options struct {
-	KubeConfig    string
-	DryRun        bool
-	InterfaceType string
+	KubeConfig      string
+	DryRun          bool
+	InterfaceType   string
+	IgnoreNamespace string
+	OnlyNamespace   string
 }
 
 type SeederController struct {
@@ -205,6 +207,20 @@ func (c *SeederController) seedApply(seed *seederv1.OpenstackSeed) {
 		raven.CaptureError(msg, nil)
 		glog.Errorf("ERROR: %s", msg.Error())
 		return
+	}
+
+	// to allow to ignore seeds from a particular namespace
+	if seed.ObjectMeta.Namespace == c.Options.IgnoreNamespace {
+		glog.Infof("Ignoring seeds from %s Namespace.", c.Options.IgnoreNamespace)
+		return
+	}
+
+	// to only apply seeds from a particular namespace and ignore the rest
+	if c.Options.OnlyNamespace != "" {
+		if seed.ObjectMeta.Namespace != c.Options.OnlyNamespace {
+			glog.Infof("Ignoring seeds from %s Namespace. Only seeds from %s Namespace will be applied.", seed.ObjectMeta.Namespace, c.Options.OnlyNamespace)
+			return
+		}
 	}
 
 	yaml_seed, _ := yaml.Marshal(result.Spec)

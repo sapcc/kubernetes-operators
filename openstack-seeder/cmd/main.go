@@ -49,6 +49,8 @@ func main() {
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
 	pflag.BoolVar(&options.DryRun, "dry-run", false, "Only pretend to seed.")
 	pflag.StringVar(&options.InterfaceType, "interface", "internal", "Openstack service interface type to use.")
+	pflag.StringVar(&options.IgnoreNamespace, "ignorenamespace", "", "Ignore seeds from a certain k8s Namespace.")
+	pflag.StringVar(&options.OnlyNamespace, "onlynamespace", "", "Only apply seeds from a certain k8s Namespace.")
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 
