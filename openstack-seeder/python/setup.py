@@ -14,6 +14,7 @@ setup(
         'python-cinderclient==6.0.0',
         'osc-placement==1.4.0',
         'raven',
+        'zipp==3.0.0',
         'pyyaml>=4.2b4',
         'pyparsing==2.1.0',
         'oslo.serialization==2.29.2',
