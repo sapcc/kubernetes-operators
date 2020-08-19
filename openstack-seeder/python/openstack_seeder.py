@@ -19,7 +19,7 @@ import copy
 import logging
 import os
 import re
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 import requests
 import sys
@@ -224,7 +224,7 @@ def redact(source,
                 if attr in data:
                     if isinstance(data[attr], str):
                         data[attr] = '********'
-            for k, v in data.iteritems():
+            for k, v in data.items():
                 _blankout(v, keys)
 
     result = copy.deepcopy(source)
@@ -247,7 +247,7 @@ def seed_role(role, keystone):
         resource = keystone.roles.create(**role)
     else:
         resource = result[0]
-        for attr in role.keys():
+        for attr in list(role.keys()):
             if role[attr] != resource._info.get(attr, ''):
                 logging.info(
                     "%s differs. update role '%s'" % (attr, role))
@@ -308,7 +308,7 @@ def seed_region(region, keystone):
         wtf = region.copy()
         if 'parent_region' in wtf:
             wtf['parent_region_id'] = wtf.pop('parent_region')
-        for attr in wtf.keys():
+        for attr in list(wtf.keys()):
             if wtf[attr] != result._info.get(attr, ''):
                 logging.info(
                     "%s differs. update region '%s'" % (attr, region))
@@ -366,7 +366,7 @@ def seed_endpoints(service, endpoints, keystone):
             keystone.endpoints.create(service.id, **endpoint)
         else:
             resource = result[0]
-            for attr in endpoint.keys():
+            for attr in list(endpoint.keys()):
                 if endpoint[attr] != resource._info.get(attr, ''):
                     logging.info("%s differs. update endpoint '%s/%s'" %
                                  (attr, service.name,
@@ -399,7 +399,7 @@ def seed_service(service, keystone):
         resource = keystone.services.create(**service)
     else:
         resource = result[0]
-        for attr in service.keys():
+        for attr in list(service.keys()):
             if service[attr] != resource._info.get(attr, ''):
                 logging.info("%s differs. update service '%s/%s'" % (
                     attr, service['name'], service['type']))
@@ -438,7 +438,7 @@ def seed_users(domain, users, keystone):
                 resource = keystone.users.create(domain=domain, **user)
             else:
                 resource = result[0]
-                for attr in user.keys():
+                for attr in list(user.keys()):
                     if attr == 'password':
                         continue
                     if user[attr] != resource._info.get(attr, ''):
@@ -505,7 +505,7 @@ def seed_groups(domain, groups, keystone):
             resource = keystone.groups.create(domain=domain, **group)
         else:
             resource = result[0]
-            for attr in group.keys():
+            for attr in list(group.keys()):
                 if group[attr] != resource._info.get(attr, ''):
                     logging.info(
                         "%s differs. update group '%s/%s'" % (
@@ -556,7 +556,7 @@ def seed_project_endpoints(project, endpoints, keystone):
     logging.debug(
         "seeding project endpoint %s %s" % (project.name, endpoints))
 
-    for name, endpoint in endpoints.iteritems():
+    for name, endpoint in endpoints.items():
         if 'endpoint_id' in endpoint:
             try:
                 ep = keystone.endpoints.find(id=endpoint['endpoint_id'])
@@ -689,7 +689,7 @@ def seed_projects(domain, projects, args, sess):
                                                 **project)
         else:
             resource = result[0]
-            for attr in project.keys():
+            for attr in list(project.keys()):
                 if project[attr] != resource._info.get(attr, ''):
                     logging.info(
                         "%s differs. update project '%s/%s'" % (
@@ -883,7 +883,7 @@ def seed_project_network_quota(project, quota, args, sess):
     else:
         resource = result['quota']
         new_quota = {}
-        for attr in quota.keys():
+        for attr in list(quota.keys()):
             if int(quota[attr]) > int(resource.get(attr, '')):
                 logging.info(
                     "%s differs. set project %s network quota to '%s'" % (
@@ -936,7 +936,7 @@ def seed_project_address_scopes(project, address_scopes, args, sess):
                 resource = result['address_scope']
             else:
                 resource = result['address_scopes'][0]
-                for attr in scope.keys():
+                for attr in list(scope.keys()):
                     if scope[attr] != resource.get(attr, ''):
                         logging.info(
                             "%s differs. update address-cope'%s/%s'" % (
@@ -983,7 +983,7 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess,
                 continue
 
             if kvargs:
-                subnet_pool = dict(subnet_pool.items() + kvargs.items())
+                subnet_pool = dict(list(subnet_pool.items()) + list(kvargs.items()))
 
             body = {'subnetpool': subnet_pool.copy()}
             body['subnetpool']['tenant_id'] = project.id
@@ -1010,7 +1010,7 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess,
                 subnetpool_cache[project.id][subnet_pool['name']] = \
                     resource['id']
 
-                for attr in subnet_pool.keys():
+                for attr in list(subnet_pool.keys()):
                     if attr == 'prefixes':
                         for prefix in subnet_pool['prefixes']:
                             if prefix not in resource.get('prefixes',
@@ -1075,7 +1075,7 @@ def seed_project_networks(project, networks, args, sess):
             tags = network.pop('tags', None)
 
             # rename some yaml unfriendly network attributes
-            for key, value in rename.items():
+            for key, value in list(rename.items()):
                 if key in network:
                     network[value] = network.pop(key)
 
@@ -1104,7 +1104,7 @@ def seed_project_networks(project, networks, args, sess):
                 resource = result['network']
             else:
                 resource = result['networks'][0]
-                for attr in network.keys():
+                for attr in list(network.keys()):
                     if network[attr] != resource.get(attr, ''):
                         logging.info(
                             "%s differs. update network'%s/%s'" % (
@@ -1264,7 +1264,7 @@ def seed_project_routers(project, routers, args, sess):
                 resource = result['routers'][0]
                 update = False
 
-                for attr in router.keys():
+                for attr in list(router.keys()):
                     if attr == 'external_gateway_info':
                         if 'network_id' in router[attr] and resource.get(attr, ''):
                             if router[attr]['network_id'] != \
@@ -1460,7 +1460,7 @@ def seed_network_subnets(network, subnets, args, sess):
             neutron.create_subnet(body)
         else:
             resource = result['subnets'][0]
-            for attr in subnet.keys():
+            for attr in list(subnet.keys()):
                 if subnet[attr] != resource.get(attr, ''):
                     logging.info(
                         "%s differs. update subnet'%s/%s'" % (
@@ -1549,13 +1549,13 @@ def seed_swift_containers(project, containers, conn):
             # prepare the container metadata
             headers = {}
             if 'metadata' in container:
-                for meta in container['metadata'].keys():
+                for meta in list(container['metadata'].keys()):
                     header = 'x-container-%s' % meta
                     headers[header] = str(container['metadata'][meta])
             try:
                 # see if the container already exists
                 result = conn.head_container(container['name'])
-                for header in headers.keys():
+                for header in list(headers.keys()):
                     if headers[header] != result.get(header, ''):
                         logging.info(
                             "%s differs. update container %s/%s" % (
@@ -1607,7 +1607,7 @@ def seed_project_designate_quota(project, config, args):
 
         result = designate.quotas.list(project.id)
         new_quota = {}
-        for attr in config.keys():
+        for attr in list(config.keys()):
             if int(config[attr]) > int(result.get(attr, '')):
                 logging.info(
                     "%s differs. set project %s designate quota to '%s'" % (
@@ -1664,7 +1664,7 @@ def seed_project_dns_zones(project, zones, args):
 
             try:
                 resource = designate.zones.get(zone['name'])
-                for attr in zone.keys():
+                for attr in list(zone.keys()):
                     if zone[attr] != resource.get(attr, ''):
                         logging.info(
                             "%s differs. update dns zone'%s/%s'" % (
@@ -1736,7 +1736,7 @@ def seed_dns_zone_recordsets(zone, recordsets, designate):
                                             ttl=recordset.get('ttl'))
             else:
                 resource = result[0]
-                for attr in recordset.keys():
+                for attr in list(recordset.keys()):
                     if attr == 'records':
                         for record in recordset['records']:
                             if record not in resource.get('records',
@@ -1802,7 +1802,7 @@ def seed_project_tsig_keys(project, keys, args):
                 continue
             try:
                 resource = designate.tsigkeys.get(key['name'])
-                for attr in key.keys():
+                for attr in list(key.keys()):
                     if key[attr] != resource.get(attr, ''):
                         logging.info(
                             "%s differs. update dns tsig key '%s/%s'" % (
@@ -1869,7 +1869,7 @@ def domain_config_equal(new, current):
     :param current:
     :return:
     """
-    for key, value in new.items():
+    for key, value in list(new.items()):
         if key in current:
             if isinstance(value, dict):
                 if not domain_config_equal(value, current[key]):
@@ -1940,7 +1940,7 @@ def seed_domain(domain, args, sess):
         resource = keystone.domains.create(**domain)
     else:
         resource = result[0]
-        for attr in domain.keys():
+        for attr in list(domain.keys()):
             if domain[attr] != resource._info.get(attr, ''):
                 logging.info(
                     "%s differs. update domain '%s'" % (
@@ -2053,7 +2053,7 @@ def seed_flavor(flavor, args, sess, config):
                     'ephemeral')
 
             # check for delta
-            for attr in flavor_cmp.keys():
+            for attr in list(flavor_cmp.keys()):
                 if flavor_cmp[attr] != getattr(resource, attr):
                     logging.info(
                         "deleting flavor '%s' to re-create, since '%s' differs" %
@@ -2075,7 +2075,7 @@ def seed_flavor(flavor, args, sess, config):
             set_extra_specs = False
             try:
                 keys = resource.get_keys()
-                for k, v in extra_specs.iteritems():
+                for k, v in extra_specs.items():
                     if v != keys.get(k, ''):
                         keys[k] = v
                         set_extra_specs = True
@@ -2125,8 +2125,8 @@ def seed_share_type(sharetype, args, sess, config):
 
     def update_type(stype, extra_specs):
         to_be_unset = []
-        for k in stype.extra_specs.keys():
-            if k not in extra_specs.keys():
+        for k in list(stype.extra_specs.keys()):
+            if k not in list(extra_specs.keys()):
                 to_be_unset.append(k)
         stype.unset_keys(to_be_unset)
         stype.set_keys(extra_specs)
@@ -2188,8 +2188,8 @@ def seed_volume_type(volume_type, args, sess):
 
     def update_type(vtype, extra_specs):
         to_be_unset = []
-        for k in vtype.extra_specs.keys():
-            if k not in extra_specs.keys():
+        for k in list(vtype.extra_specs.keys()):
+            if k not in list(extra_specs.keys()):
                 to_be_unset.append(k)
         vtype.unset_keys(to_be_unset)
         vtype.set_keys(extra_specs)
@@ -2283,7 +2283,7 @@ def seed_rbac_policy(rbac, args, sess, keystone):
 
 
 def resolve_group_members(keystone):
-    for group, users in group_members.iteritems():
+    for group, users in group_members.items():
         logging.debug("resolving group members %s %s" % (group, users))
         for uid in users:
             username, domain = uid.split('@')
@@ -2368,7 +2368,7 @@ def resolve_role_assignments(keystone):
 
 def seed_quota_class_sets(quota_class_set, sess):
     # this have been patched into Nova to create custom quotas (flavor based)
-    for quota_class, quotas in quota_class_set.iteritems():
+    for quota_class, quotas in quota_class_set.items():
         logging.debug("seeding nova quota-class-set %s" % quota_class)
 
         try:
