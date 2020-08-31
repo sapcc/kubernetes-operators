@@ -1,3 +1,0 @@
-[console_scripts]
-openstack-inventory = openstack.cloud.cmd.inventory:main
-

@@ -1,6 +1,0 @@
-[console_scripts]
-cinder = cinderclient.shell:main
-
-[keystoneauth1.plugin]
-noauth = cinderclient.contrib.noauth:CinderNoAuthLoader
-

@@ -18,6 +18,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	time "time"
 
 	seederv1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1"
@@ -60,13 +61,13 @@ func NewFilteredOpenstackSeedInformer(client versioned.Interface, namespace stri
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.OpenstackV1().OpenstackSeeds(namespace).List(options)
+				return client.OpenstackV1().OpenstackSeeds(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.OpenstackV1().OpenstackSeeds(namespace).Watch(options)
+				return client.OpenstackV1().OpenstackSeeds(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&seederv1.OpenstackSeed{},

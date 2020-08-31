@@ -1,4 +1,0 @@
-#!/Users/d058695/Development/go/src/github.com/sapcc/kubernetes-operators/openstack-seeder/python/env/bin/python
-# EASY-INSTALL-SCRIPT: 'jsonpatch==1.25','jsonpatch'
-__requires__ = 'jsonpatch==1.25'
-__import__('pkg_resources').run_script('jsonpatch==1.25', 'jsonpatch')

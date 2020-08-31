@@ -18,6 +18,9 @@ limitations under the License.
 package v1
 
 import (
+	"context"
+	"time"
+
 	v1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1"
 	scheme "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,15 +37,15 @@ type OpenstackSeedsGetter interface {
 
 // OpenstackSeedInterface has methods to work with OpenstackSeed resources.
 type OpenstackSeedInterface interface {
-	Create(*v1.OpenstackSeed) (*v1.OpenstackSeed, error)
-	Update(*v1.OpenstackSeed) (*v1.OpenstackSeed, error)
-	UpdateStatus(*v1.OpenstackSeed) (*v1.OpenstackSeed, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.OpenstackSeed, error)
-	List(opts metav1.ListOptions) (*v1.OpenstackSeedList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.OpenstackSeed, err error)
+	Create(ctx context.Context, openstackSeed *v1.OpenstackSeed, opts metav1.CreateOptions) (*v1.OpenstackSeed, error)
+	Update(ctx context.Context, openstackSeed *v1.OpenstackSeed, opts metav1.UpdateOptions) (*v1.OpenstackSeed, error)
+	UpdateStatus(ctx context.Context, openstackSeed *v1.OpenstackSeed, opts metav1.UpdateOptions) (*v1.OpenstackSeed, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.OpenstackSeed, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1.OpenstackSeedList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.OpenstackSeed, err error)
 	OpenstackSeedExpansion
 }
 
@@ -61,113 +64,131 @@ func newOpenstackSeeds(c *OpenstackV1Client, namespace string) *openstackSeeds {
 }
 
 // Get takes name of the openstackSeed, and returns the corresponding openstackSeed object, and an error if there is any.
-func (c *openstackSeeds) Get(name string, options metav1.GetOptions) (result *v1.OpenstackSeed, err error) {
+func (c *openstackSeeds) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.OpenstackSeed, err error) {
 	result = &v1.OpenstackSeed{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("openstackseeds").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of OpenstackSeeds that match those selectors.
-func (c *openstackSeeds) List(opts metav1.ListOptions) (result *v1.OpenstackSeedList, err error) {
+func (c *openstackSeeds) List(ctx context.Context, opts metav1.ListOptions) (result *v1.OpenstackSeedList, err error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
 	result = &v1.OpenstackSeedList{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("openstackseeds").
 		VersionedParams(&opts, scheme.ParameterCodec).
-		Do().
+		Timeout(timeout).
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested openstackSeeds.
-func (c *openstackSeeds) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *openstackSeeds) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
 	opts.Watch = true
 	return c.client.Get().
 		Namespace(c.ns).
 		Resource("openstackseeds").
 		VersionedParams(&opts, scheme.ParameterCodec).
-		Watch()
+		Timeout(timeout).
+		Watch(ctx)
 }
 
 // Create takes the representation of a openstackSeed and creates it.  Returns the server's representation of the openstackSeed, and an error, if there is any.
-func (c *openstackSeeds) Create(openstackSeed *v1.OpenstackSeed) (result *v1.OpenstackSeed, err error) {
+func (c *openstackSeeds) Create(ctx context.Context, openstackSeed *v1.OpenstackSeed, opts metav1.CreateOptions) (result *v1.OpenstackSeed, err error) {
 	result = &v1.OpenstackSeed{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("openstackseeds").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(openstackSeed).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a openstackSeed and updates it. Returns the server's representation of the openstackSeed, and an error, if there is any.
-func (c *openstackSeeds) Update(openstackSeed *v1.OpenstackSeed) (result *v1.OpenstackSeed, err error) {
+func (c *openstackSeeds) Update(ctx context.Context, openstackSeed *v1.OpenstackSeed, opts metav1.UpdateOptions) (result *v1.OpenstackSeed, err error) {
 	result = &v1.OpenstackSeed{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("openstackseeds").
 		Name(openstackSeed.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(openstackSeed).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-
-func (c *openstackSeeds) UpdateStatus(openstackSeed *v1.OpenstackSeed) (result *v1.OpenstackSeed, err error) {
+func (c *openstackSeeds) UpdateStatus(ctx context.Context, openstackSeed *v1.OpenstackSeed, opts metav1.UpdateOptions) (result *v1.OpenstackSeed, err error) {
 	result = &v1.OpenstackSeed{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("openstackseeds").
 		Name(openstackSeed.Name).
 		SubResource("status").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(openstackSeed).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the openstackSeed and deletes it. Returns an error if one occurs.
-func (c *openstackSeeds) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *openstackSeeds) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("openstackseeds").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *openstackSeeds) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *openstackSeeds) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
+	var timeout time.Duration
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
+	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("openstackseeds").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
-		Body(options).
-		Do().
+		VersionedParams(&listOpts, scheme.ParameterCodec).
+		Timeout(timeout).
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched openstackSeed.
-func (c *openstackSeeds) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.OpenstackSeed, err error) {
+func (c *openstackSeeds) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.OpenstackSeed, err error) {
 	result = &v1.OpenstackSeed{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("openstackseeds").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

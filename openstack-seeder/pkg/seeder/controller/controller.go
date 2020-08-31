@@ -16,13 +16,16 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"time"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -36,14 +39,15 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"flag"
+	"os"
+	"os/exec"
+
 	"github.com/getsentry/raven-go"
 	seederv1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1"
 	clientset "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/clientset/versioned"
 	seederscheme "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/clientset/versioned/scheme"
 	informers "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/informers/externalversions/seeder/v1"
 	listers "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/listers/seeder/v1"
-	"os"
-	"os/exec"
 )
 
 const controllerAgentName = "openstack-seeder-controller"
@@ -61,11 +65,13 @@ var (
 )
 
 type Options struct {
-	MasterURL     string
-	KubeConfig    string
-	DryRun        bool
-	InterfaceType string
-	ResyncPeriod  time.Duration
+	MasterURL       string
+	KubeConfig      string
+	DryRun          bool
+	InterfaceType   string
+	ResyncPeriod    time.Duration
+	IgnoreNamespace string
+	OnlyNamespace   string
 }
 
 // Controller is the controller implementation for OpenstackSeed resources
@@ -276,6 +282,20 @@ func (c *Controller) seedHandler(key string) error {
 		return err
 	}
 
+	// to allow to ignore seeds from a particular namespace
+	if seed.ObjectMeta.Namespace == c.Options.IgnoreNamespace {
+		glog.Infof("Ignoring seeds from %s Namespace.", c.Options.IgnoreNamespace)
+		return nil
+	}
+
+	// to only apply seeds from a particular namespace and ignore the rest
+	if c.Options.OnlyNamespace != "" {
+		if seed.ObjectMeta.Namespace != c.Options.OnlyNamespace {
+			glog.Infof("Ignoring seeds from %s Namespace. Only seeds from %s Namespace will be applied.", seed.ObjectMeta.Namespace, c.Options.OnlyNamespace)
+			return nil
+		}
+	}
+
 	yaml_seed, _ := yaml.Marshal(result.Spec)
 
 	glog.V(1).Infof("Seeding %s/%s ..", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name)
@@ -357,7 +377,7 @@ func (c *Controller) updateOpenstackSeedStatus(seed *seederv1.OpenstackSeed, las
 	// we must use Update instead of UpdateStatus to update the Status block of the OpenstackSeed resource.
 	// UpdateStatus will not allow changes to the Spec of the resource,
 	// which is ideal for ensuring nothing other than resource status has been updated.
-	_, err := c.seederclientset.OpenstackV1().OpenstackSeeds(seed.Namespace).UpdateStatus(seedCopy)
+	_, err := c.seederclientset.OpenstackV1().OpenstackSeeds(seed.Namespace).UpdateStatus(context.TODO(), seedCopy, v1.UpdateOptions{})
 	return err
 }
 

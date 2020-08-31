@@ -1,2 +1,0 @@
-enable_plugin neutron-fwaas git://git.openstack.org/openstack/neutron-fwaas
-enable_service q-fwaas

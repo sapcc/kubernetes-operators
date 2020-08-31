@@ -21,6 +21,9 @@ import (
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
+	"net/http"
+	"time"
+
 	"github.com/getsentry/raven-go"
 	"github.com/golang/glog"
 	clientset "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/client/clientset/versioned"
@@ -32,8 +35,6 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"net/http"
-	"time"
 )
 
 var options seedercontroller.Options
@@ -94,5 +95,7 @@ func init() {
 	pflag.BoolVar(&options.DryRun, "dry-run", false, "Only pretend to seed.")
 	pflag.StringVar(&options.InterfaceType, "interface", "internal", "Openstack service interface type to use.")
 	pflag.DurationVar(&options.ResyncPeriod, "resync", time.Hour*24, "Resync period")
+	pflag.StringVar(&options.IgnoreNamespace, "ignorenamespace", "", "Ignore seeds from a certain k8s Namespace.")
+	pflag.StringVar(&options.OnlyNamespace, "onlynamespace", "", "Only apply seeds from a certain k8s Namespace.")
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 }

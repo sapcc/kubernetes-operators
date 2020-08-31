@@ -26,10 +26,7 @@ endif
 
 OPENAPI_GEN := $(shell command -v openapi-gen 2> /dev/null)
 
-HAS_GLIDE := $(shell command -v glide;)
-HAS_GLIDE_VC := $(shell command -v glide-vc;)
-
-.PHONY: all clean build push linux darwin vendor openapi-gen
+.PHONY: all clean vendor build push linux darwin vendor openapi-gen
 
 all: bin/$(GOOS)/$(BINARY)
 
@@ -37,7 +34,7 @@ bin/%/$(BINARY): $(GOFILES) Makefile code-gen
 	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd
 
 build:
-	docker build $(BUILD_ARGS) -t $(IMAGE):$(VERSION) .
+	docker build $(BUILD_ARGS) -t $(IMAGE):test04 .
 
 tag:
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
@@ -46,7 +43,7 @@ pull:
 	docker pull $(IMAGE):latest
 
 push:
-	docker push $(IMAGE):$(VERSION)
+	docker push $(IMAGE):test04
 	docker push $(IMAGE):latest
 
 clean:
@@ -58,19 +55,7 @@ include code-generate.mk
 code-gen: client-gen informer-gen lister-gen deepcopy-gen openapi-gen
 
 vendor:
-ifndef HAS_GLIDE_VC
-	$(error glide-vc (vendor cleaner) not found. Run `make bootstrap to fix.`)
-endif
-	glide install -v
-	glide-vc --only-code --no-tests
-
-bootstrap:
-ifndef HAS_GLIDE
-	brew install glide
-endif
-ifndef HAS_GLIDE_VC
-	go get -u github.com/sgotti/glide-vc
-endif
+	go mod vendor
 
 linux:  bin/linux/openstack-seeder
 darwin: bin/darwin/openstack-seeder

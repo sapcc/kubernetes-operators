@@ -13,6 +13,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"reflect"
 	"time"
 
@@ -52,18 +53,18 @@ func CreateCustomResourceDefinition(clientset apiextensionsclient.Interface) (*a
 		},
 	}
 
-	_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
+	_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(context.TODO(), crd, metav1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			// check if the (new) CRD validation has been put in place yet
-			crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(openstackseedCRDName, metav1.GetOptions{})
+			crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(context.TODO(), openstackseedCRDName, metav1.GetOptions{})
 			if err != nil {
 				glog.Errorf("Get CustomResourceDefinition %s failed: %v", openstackseedCRDName, err)
 				return nil, err
 			}
 			glog.Infof("Updating validation for CustomResourceDefinition %s", openstackseedCRDName)
 			crd.Spec.Validation = validation
-			crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Update(crd)
+			crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Update(context.TODO(), crd, metav1.UpdateOptions{})
 			if err != nil {
 				glog.Errorf("Validation update of CustomResourceDefinition %s failed: %v", openstackseedCRDName, err)
 				return nil, err
@@ -77,7 +78,7 @@ func CreateCustomResourceDefinition(clientset apiextensionsclient.Interface) (*a
 	// wait for CRD being established
 	glog.Info("Waiting for CustomResourceDefinition")
 	err = wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-		crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(openstackseedCRDName, metav1.GetOptions{})
+		crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(context.TODO(), openstackseedCRDName, metav1.GetOptions{})
 		if err != nil {
 			glog.Errorf("Wait for CustomResourceDefinition failed %v", err)
 			return false, err
@@ -98,7 +99,7 @@ func CreateCustomResourceDefinition(clientset apiextensionsclient.Interface) (*a
 	})
 	if err != nil {
 		glog.Warningf("Deleting CustomResourceDefinition %s due to %v", openstackseedCRDName, err)
-		deleteErr := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(openstackseedCRDName, nil)
+		deleteErr := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(context.TODO(), openstackseedCRDName, metav1.DeleteOptions{})
 		if deleteErr != nil {
 			return nil, errors.NewAggregate([]error{err, deleteErr})
 		}

@@ -1,9 +1,0 @@
-volume_types:
-- name: "test_hdd"
-  description: "This volume type contains standard hard drives as the volume backing for more economical storage."
-  is_public: true
-  extra_specs:
-    "volume_backend_name": "test_hdd"
-    "vmware:storage_profile": "cinder-standard-hdd"
-    "vmware:vmdk_type": "thick"
-    "provisioning:min_vol_size": "1000"
