@@ -25,8 +25,10 @@ import (
 )
 
 // OpenstackSeedLister helps list OpenstackSeeds.
+// All objects returned here must be treated as read-only.
 type OpenstackSeedLister interface {
 	// List lists all OpenstackSeeds in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.OpenstackSeed, err error)
 	// OpenstackSeeds returns an object that can list and get OpenstackSeeds.
 	OpenstackSeeds(namespace string) OpenstackSeedNamespaceLister
@@ -57,10 +59,13 @@ func (s *openstackSeedLister) OpenstackSeeds(namespace string) OpenstackSeedName
 }
 
 // OpenstackSeedNamespaceLister helps list and get OpenstackSeeds.
+// All objects returned here must be treated as read-only.
 type OpenstackSeedNamespaceLister interface {
 	// List lists all OpenstackSeeds in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.OpenstackSeed, err error)
 	// Get retrieves the OpenstackSeed from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.OpenstackSeed, error)
 	OpenstackSeedNamespaceListerExpansion
 }

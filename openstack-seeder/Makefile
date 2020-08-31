@@ -34,7 +34,7 @@ bin/%/$(BINARY): $(GOFILES) Makefile code-gen
 	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd
 
 build:
-	docker build $(BUILD_ARGS) -t $(IMAGE):test04 .
+	docker build $(BUILD_ARGS) -t $(IMAGE):$(VERSION) .
 
 tag:
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
@@ -43,7 +43,7 @@ pull:
 	docker pull $(IMAGE):latest
 
 push:
-	docker push $(IMAGE):test04
+	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):latest
 
 clean:
