@@ -1,7 +1,7 @@
 DATE    = $(shell date +%Y%m%d%H%M)
 IMAGE   ?= hub.global.cloud.sap/monsoon/openstack-seeder
 #VERSION ?= v$(DATE)
-VERSION ?= v1.10.$(shell git rev-parse --verify HEAD)
+VERSION ?= $(shell git rev-parse --verify HEAD | head -c 8)
 GOOS    ?= $(shell go env | grep GOOS | cut -d'"' -f2)
 BINARY  := openstack-seeder
 
