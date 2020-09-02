@@ -10,7 +10,7 @@ Seed your openstack content with a kubernetes operator.
 - on a lifecycle event of a seed spec (only create/update), the operator resolves 
   the dependencies of the specs (merges them) and invokes the seeding of the 
   merged seed spec
-  
+- works with > k8s version 1.15
 Seeding currently only supports creating or updating of entities (upserts).  
 
 ## Supported entities
