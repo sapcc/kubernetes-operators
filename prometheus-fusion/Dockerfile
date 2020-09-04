@@ -7,6 +7,7 @@ RUN make all
 
 FROM alpine:3.7
 MAINTAINER Arno Uhlig <arno.uhlig@@sap.com>
+LABEL source_repository="https://github.com/sapcc/kubernetes-operators"
 
 RUN apk add --no-cache curl
 RUN curl -Lo /bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64 \

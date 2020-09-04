@@ -7,6 +7,7 @@ RUN make all
 
 FROM alpine:3.10
 LABEL maintainer="Michael Schmidt <michael.schmidt02@@sap.com>, Arno Uhlig <arno.uhlig@sap.com>"
+LABEL source_repository="https://github.com/sapcc/kubernetes-operators"
 
 RUN apk add --no-cache tini ca-certificates wget
 RUN tini --version

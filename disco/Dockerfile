@@ -7,6 +7,7 @@ RUN make all
 
 FROM alpine:3.10
 MAINTAINER Arno Uhlig <arno.uhlig@@sap.com>
+LABEL source_repository="https://github.com/sapcc/kubernetes-operators"
 
 RUN apk add --no-cache ca-certificates curl tini
 COPY --from=builder /go/src/github.com/sapcc/kubernetes-operators/disco/bin/linux/disco /usr/local/bin/
