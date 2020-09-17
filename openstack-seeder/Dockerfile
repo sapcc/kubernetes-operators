@@ -1,5 +1,6 @@
 FROM hub.global.cloud.sap/monsoon/ccloud-shell:20200803103552
 LABEL MAINTAINER="Stefan Hipfel <stefan.hipfel@sap.com>"
+LABEL source_repository="https://github.com/sapcc/kubernetes-operators"
 
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
