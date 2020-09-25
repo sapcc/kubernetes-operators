@@ -296,9 +296,13 @@ func (c *Controller) seedHandler(key string) error {
 		}
 	}
 
-	yaml_seed, _ := yaml.Marshal(result.Spec)
+	yamlSeed, err := yaml.Marshal(result.Spec)
+	if err != nil {
+		glog.Errorf("ERROR: parsing  yaml file: %s .", err.Error())
+		return err
+	}
 
-	glog.V(1).Infof("Seeding %s/%s ..", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name)
+	glog.Infof("Seeding %s/%s ..", seed.ObjectMeta.Namespace, seed.ObjectMeta.Name)
 
 	// spawn a python keystone-seeder as long as there is no functional golang keystone client
 	_, err = exec.LookPath(seeder_name)
@@ -342,7 +346,7 @@ func (c *Controller) seedHandler(key string) error {
 		glog.Errorf("ERROR: could not spawn %s: ", seeder_name, err)
 	}
 
-	stdin.Write(yaml_seed)
+	stdin.Write(yamlSeed)
 	stdin.Close()
 	if err := cmd.Wait(); err != nil {
 		// TODO: add errors that occured during seeding to CRD status
