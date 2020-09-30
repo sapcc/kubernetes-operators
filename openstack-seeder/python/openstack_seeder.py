@@ -2110,7 +2110,7 @@ def seed_flavor(flavor, args, sess, config):
                         (flavor['name'], attr))
                     resource.delete()
                     create = True
-                break
+                    break
         except novaexceptions.NotFound:
             create = True
 
