@@ -780,7 +780,10 @@ def seed_projects(domain, projects, args, sess):
 
         # seed the projects network quota
         if network_quota:
-            seed_project_network_quota(resource, network_quota, args,
+            limes = keystone.services.list(name='limes')
+            # only seed network quota if limes is not available
+            if not len(limes):
+                seed_project_network_quota(resource, network_quota, args,
                                        sess)
 
         # seed the projects network address scopes
@@ -807,7 +810,10 @@ def seed_projects(domain, projects, args, sess):
 
         # seed designate quota
         if dns_quota:
-            seed_project_designate_quota(resource, dns_quota, args)
+            limes = keystone.services.list(name='limes')
+            # only seed dns quota if limes is not available
+            if not len(limes):
+                seed_project_designate_quota(resource, dns_quota, args)
 
         # seed designate zone
         if dns_zones:
@@ -935,7 +941,7 @@ def seed_project_network_quota(project, quota, args, sess):
             if int(quota[attr]) > int(resource.get(attr, '')):
                 logging.info(
                     "%s differs. set project %s network quota to '%s'" % (
-                        attr, project.name, quota))
+                        attr, project.name, quota[attr]))
                 new_quota[attr] = quota[attr]
         if len(new_quota):
             neutron.update_quota(project.id, {'quota': new_quota})
