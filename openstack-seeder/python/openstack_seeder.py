@@ -1851,13 +1851,15 @@ def seed_project_ec2_creds(project, domain, creds, args, sess):
             return
 
         try:
-            # Check if credential exsist - Update if exists
-            keystone.credentials.create(user=user_id, type="ec2", project=project_id,
+            # Check if credential exist - Update if exists
+            result = keystone.credentials.get(cred)
+            if not result:
+                logging.info("Create ec2 credentials")
+                keystone.credentials.create(user=user_id, type="ec2", project=project_id,
                                         blob='{"access":"' + cred['access'] +
                                              '", "secret":"' + cred['key'] + '"}')
-        except keystoneauthexceptions.http.Conflict as e:
-            logging.info("Ec2 credentials already exist")
-            return
+            else:
+                logging.info("Ec2 credentials already exist")
         except Exception as e:
             logging.error("Could not seed ec2 credentials")
 
