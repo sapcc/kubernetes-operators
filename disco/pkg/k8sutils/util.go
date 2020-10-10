@@ -61,8 +61,6 @@ func isIngressAddedOrModified(event apimachineryWatch.Event) (bool, error) {
 		return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "ingress"}, "")
 	case apimachineryWatch.Added, apimachineryWatch.Modified:
 		return true, nil
-	default:
-		return false, nil
 	}
 	return false, nil
 }
@@ -73,8 +71,6 @@ func isDiscoRecordAddedOrModified(event apimachineryWatch.Event) (bool, error) {
 		return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "discoRecord"}, "")
 	case apimachineryWatch.Added, apimachineryWatch.Modified:
 		return true, nil
-	default:
-		return false, nil
 	}
 	return false, nil
 }
@@ -85,8 +81,6 @@ func isCRDAddedOrModified(event apimachineryWatch.Event) (bool, error) {
 		return false, apiErrors.NewNotFound(schema.GroupResource{Resource: "customresourcedefinition"}, "")
 	case apimachineryWatch.Added, apimachineryWatch.Modified:
 		return true, nil
-	default:
-		return false, nil
 	}
 	return false, nil
 }

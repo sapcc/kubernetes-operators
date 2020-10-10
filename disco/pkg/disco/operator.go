@@ -326,7 +326,7 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 	defer func() {
 		if err != nil {
 			// Just emit the event here. The error is logged in he processNextWorkItem.
-			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, updateEvent, fmt.Sprintf("create recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey()))
+			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, updateEvent, "create recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey())
 		}
 	}()
 
@@ -365,16 +365,16 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 	if k8sutils.HasDeletionTimestamp(discoRecord.object) {
 		if recordsetID == "" {
 			disco.logger.LogInfo("would delete recordset but was unable to find its uid", "host", host, "zoneName", zone.Name)
-			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", discoRecord.getKey()))
+			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, "delete recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey())
 			return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 		}
 		if err := disco.dnsV2Client.deleteDesignateRecordset(host, recordsetID, zone.ID); err != nil {
 			metrics.RecordsetDeletionFailedCounter.With(labels).Inc()
 			disco.logger.LogError("failed to delete recordset", err)
-			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", discoRecord.getKey()))
+			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, "delete recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey())
 			return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 		}
-		disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, fmt.Sprintf("deleted recordset on ingress %s successful", discoRecord.getKey()))
+		disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, "deleted recordset on %s %s successful", discoRecord.getKind(), discoRecord.getKey())
 		metrics.RecordsetDeletionSuccessCounter.With(labels).Inc()
 		return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 	}
@@ -418,7 +418,7 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 
 	metrics.RecordsetCreationSuccessCounter.With(labels).Inc()
 	disco.logger.LogInfo("create recordset successful", "key", discoRecord.getKey(), "host", host, "record", record, "zone", ensureFQDN(zone.Name), "recordType", recordType)
-	disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, createEvent, fmt.Sprintf("create recordset on ingress %s successful", discoRecord.getKey()))
+	disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, createEvent, "create recordset on %s %s successful", discoRecord.getKind(), discoRecord.getKey())
 
 	return nil
 }

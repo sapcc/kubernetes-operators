@@ -196,7 +196,7 @@ func (k8s *K8sFramework) AddDiscoCRDInformerEventHandler(addFunc, deleteFunc fun
 
 // Eventf emits an event via the event recorder.
 func (k8s *K8sFramework) Eventf(object runtime.Object, eventType, reason, messageFmt string, args ...interface{}) {
-	k8s.eventRecorder.Eventf(object, eventType, reason, messageFmt)
+	k8s.eventRecorder.Eventf(object, eventType, reason, messageFmt, args...)
 }
 
 // CreateDiscoRecordCRDAndWaitUntilReady creates the CRDs used by this operator and waits until they are ready or the operation times out.

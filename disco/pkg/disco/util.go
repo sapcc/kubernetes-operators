@@ -59,7 +59,14 @@ func (r *recordHelper) getKey() string {
 
 func (r *recordHelper) getKind() string {
 	objMeta, err := meta.TypeAccessor(r.object)
-	if err != nil {
+	if err != nil || objMeta.GetKind() == "" {
+		switch r.object.(type) {
+		case *v1beta1.Ingress:
+			return "ingress"
+		case *v1.Record:
+			return "record"
+		}
+
 		return ""
 	}
 	return strings.ToLower(objMeta.GetKind())
