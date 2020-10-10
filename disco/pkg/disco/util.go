@@ -136,14 +136,6 @@ func filterEmpty(sslice []string) []string {
 	return filteredSlice
 }
 
-func ingressKey(ing *v1beta1.Ingress) string {
-	key, err := keyFunc(ing)
-	if err != nil {
-		return ""
-	}
-	return key
-}
-
 // ensureFQDN ensures the recordset name ends with '.'
 func ensureFQDN(s string) string {
 	if !strings.HasSuffix(s, ".") {
