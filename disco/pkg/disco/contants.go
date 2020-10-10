@@ -23,7 +23,7 @@ const (
 	// discoRecordsetDescription is the default description for a recordset.
 	discoRecordsetDescription = "Managed by the DISCOperator."
 
-	// discoAnnotationRecord allows setting a different record than the default per ingress.
+	// discoAnnotationRecord allows setting a different record than the default per ingress or service.
 	discoAnnotationRecord = "record"
 
 	// discoAnnotationRecordType allows setting the record type. Must be CNAME, A, NS, SOA. Default: CNAME.

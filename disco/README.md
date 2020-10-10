@@ -76,6 +76,35 @@ the operator would create the following CNAME in the configured zone in OpenStac
 +-----------------------+-------+----------------+
 ```
 
+Given the following service:
+
+```
+apiVersion: v1
+kind: Service
+metadata
+  annotations:
+    disco: "true"
+    disco/record: myhost.zone.tld.
+spec:
+  externalIPs:
+  - 1.2.3.4
+  loadBalancerIP: 1.2.3.4
+  ...
+status:
+  loadBalancer:
+    ingress:
+    - ip: 1.2.3.4
+```
+
+the operator would create the following A record in the configured zone in OpenStack Designate
+```
++-----------------------+-------+----------------+
+| name                  | type  | records        |
++------------------------------------------------+
+| myhost.zone.tld.      | A     | 1.2.3.4        |
++-----------------------+-------+----------------+
+```
+
 **Fine-tuning:**  
 
 The operator has to be configured with a default record.
@@ -106,6 +135,7 @@ Usage of disco:
       --config string               Path to operator config file (default "/etc/disco/disco.conf")
       --debug                       Enable debug logging
       --ingress-annotation string   Handle ingress with this annotation (default "disco")
+      --service-annotation string   Handle service with this annotation (default "disco")
       --kubeconfig string           Path to kubeconfig file with authorization and master location information
       --metric-port int             Metrics are exposed on this port (default 9091)
       --recheck-period int          RecheckPeriod[min] defines the base period after which configmaps are checked again (default 5)

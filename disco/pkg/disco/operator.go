@@ -103,6 +103,19 @@ func New(options config.Options, logger log.Logger) (*Operator, error) {
 		},
 	)
 
+	operator.k8sFramework.AddServiceInformerEventHandler(
+		operator.enqueueItem,
+		operator.enqueueItem,
+		func(oldObj, newObj interface{}) {
+			old := oldObj.(*v1.Service)
+			new := newObj.(*v1.Service)
+			// Enqueue if either Spec, annotations changed or DeletionTimestamp was set.
+			if !reflect.DeepEqual(old.Spec, new.Spec) || !reflect.DeepEqual(old.GetAnnotations(), new.GetAnnotations()) || !reflect.DeepEqual(old.GetDeletionTimestamp(), new.GetDeletionTimestamp()) {
+				operator.enqueueItem(newObj)
+			}
+		},
+	)
+
 	operator.k8sFramework.AddDiscoCRDInformerEventHandler(
 		operator.enqueueItem,
 		operator.enqueueItem,
@@ -154,6 +167,7 @@ func (disco *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.Wai
 			select {
 			case <-ticker.C:
 				disco.requeueAllIngresses()
+				disco.requeueAllServices()
 				disco.requeueAllDiscoRecords()
 				disco.logger.LogInfo(fmt.Sprintf("next check in %v", disco.RecheckInterval.String()))
 			case <-stopCh:
@@ -265,6 +279,92 @@ func (disco *Operator) syncHandler(key string) error {
 			}
 		}
 
+	// Handle resources with kind service.
+	case "service":
+		o, exists, err := disco.k8sFramework.GetServiceFromIndexerByKey(key)
+		if err != nil {
+			return errors.Wrapf(err, "%v failed with", key)
+		}
+
+		if !exists {
+			disco.logger.LogDebug("resource doesn't exist", "key", key)
+			return nil
+		}
+
+		service := o.(*v1.Service)
+
+		var host string
+		recordAnnotation := makeAnnotation(disco.ServiceAnnotation, discoAnnotationRecord)
+		if val, ok := service.GetAnnotations()[recordAnnotation]; ok {
+			host = strings.TrimSpace(val)
+		}
+		if host == "" {
+			disco.logger.LogInfo("resource contains an empty record annotation", "key", key)
+			return nil
+		}
+
+		processIP := func(disco *Operator, ip string, host string) error {
+			if ip == "" {
+				// skipping an empty IP
+				return nil
+			}
+
+			r := newDefaultRecordHelper(disco.Record, disco.ZoneName)
+			r.object = service
+
+			if !disco.isTakeCareOfService(service) {
+				disco.logger.LogDebug("ignoring service as annotation is not set", "key", key)
+				return nil
+			}
+
+			// service record type is always A, because it uses an IP address from service status
+			r.recordType = RecordsetType.A
+			r.record = ip
+
+			recordZoneAnnotation := makeAnnotation(disco.ServiceAnnotation, discoAnnotationRecordZoneName)
+			if z, ok := service.GetAnnotations()[recordZoneAnnotation]; ok {
+				r.zoneName = z
+			}
+
+			recordDescriptionAnnotation := makeAnnotation(disco.ServiceAnnotation, discoAnnotationRecordDescription)
+			if desc, ok := service.GetAnnotations()[recordDescriptionAnnotation]; ok {
+				r.description = desc
+			}
+
+			if err := disco.checkRecord(r, host); err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		var ips []string
+		for _, ing := range service.Status.LoadBalancer.Ingress {
+			if !isSliceContainsStr(ips, ing.IP) {
+				ips = append(ips, ing.IP)
+			}
+		}
+
+		for _, ip := range service.Spec.ExternalIPs {
+			if !isSliceContainsStr(ips, ip) {
+				ips = append(ips, ip)
+			}
+		}
+
+		if !isSliceContainsStr(ips, service.Spec.LoadBalancerIP) {
+			ips = append(ips, service.Spec.LoadBalancerIP)
+		}
+
+		for _, ip := range filterEmpty(ips) {
+			err := processIP(disco, ip, host)
+			if err != nil {
+				return err
+			}
+		}
+
+		// done services
+		return nil
+
 	// Handle resource with kind record.
 	case strings.ToLower(discoV1.RecordKind):
 		o, exists, err := disco.k8sFramework.GetDiscoRecordFromIndexerByKey(key)
@@ -321,6 +421,13 @@ func (disco *Operator) isTakeCareOfIngress(ingress *v1beta1.Ingress) bool {
 	return false
 }
 
+func (disco *Operator) isTakeCareOfService(service *v1.Service) bool {
+	if service.GetAnnotations()[disco.ServiceAnnotation] == "true" {
+		return true
+	}
+	return false
+}
+
 func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error {
 	var err error
 	defer func() {
@@ -361,7 +468,7 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 		}
 	}
 
-	// there was an attempt to delete the ingress. cleanup recordset
+	// there was an attempt to delete the ingress or service. cleanup recordset
 	if k8sutils.HasDeletionTimestamp(discoRecord.object) {
 		if recordsetID == "" {
 			disco.logger.LogInfo("would delete recordset but was unable to find its uid", "host", host, "zoneName", zone.Name)
@@ -441,6 +548,12 @@ func (disco *Operator) getZoneByName(zoneName string) (zones.Zone, error) {
 
 func (disco *Operator) requeueAllIngresses() {
 	for _, o := range disco.k8sFramework.GetIngressInformerStore().List() {
+		disco.enqueueItem(o)
+	}
+}
+
+func (disco *Operator) requeueAllServices() {
+	for _, o := range disco.k8sFramework.GetServiceInformerStore().List() {
 		disco.enqueueItem(o)
 	}
 }

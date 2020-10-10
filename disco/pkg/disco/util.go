@@ -26,13 +26,14 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
 	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
+	coreV1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
 
-// recordHelper struct used to wrap ingress and discoRecord CRD.
+// recordHelper struct used to wrap ingress, service and discoRecord CRD.
 type recordHelper struct {
 	recordType,
 	record,
@@ -63,6 +64,8 @@ func (r *recordHelper) getKind() string {
 		switch r.object.(type) {
 		case *v1beta1.Ingress:
 			return "ingress"
+		case *coreV1.Service:
+			return "service"
 		case *v1.Record:
 			return "record"
 		}
@@ -85,12 +88,14 @@ func keyFunc(obj interface{}) (string, error) {
 
 	var kind string
 	k := typeMeta.GetKind()
-	if k == "Ingress" || k == v1.RecordKind {
+	if k == "Ingress" || k == "Service" || k == v1.RecordKind {
 		kind = strings.ToLower(k)
 	} else {
 		switch obj.(type) {
 		case *v1beta1.Ingress:
 			kind = "ingress"
+		case *coreV1.Service:
+			kind = "service"
 		case *v1.Record:
 			kind = "record"
 		default:
@@ -178,4 +183,13 @@ func makeAnnotation(prefix, annotation string) string {
 	prefix = strings.TrimSuffix(prefix, slash)
 	annotation = strings.TrimPrefix(annotation, slash)
 	return fmt.Sprintf("%s/%s", prefix, annotation)
+}
+
+func isSliceContainsStr(sl []string, str string) bool {
+	for _, s := range sl {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }
