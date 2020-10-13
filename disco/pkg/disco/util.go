@@ -22,6 +22,7 @@ package disco
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
@@ -35,17 +36,21 @@ import (
 
 // recordHelper struct used to wrap ingress, service and discoRecord CRD.
 type recordHelper struct {
-	recordType,
-	record,
-	zoneName,
+	recordType  string
+	records     []string
+	zoneName    string
 	description string
-	object runtime.Object
+	object      runtime.Object
+}
+
+func splitFunc(c rune) bool {
+	return !unicode.IsLetter(c) && !unicode.IsNumber(c) && c != '.' && c != '_' && c != '-'
 }
 
 func newDefaultRecordHelper(record, zoneName string) *recordHelper {
 	return &recordHelper{
 		recordType:  RecordsetType.CNAME,
-		record:      record,
+		records:     strings.FieldsFunc(record, splitFunc),
 		zoneName:    zoneName,
 		description: discoRecordsetDescription,
 	}

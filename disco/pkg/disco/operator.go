@@ -255,7 +255,7 @@ func (disco *Operator) syncHandler(key string) error {
 
 		recordAnnotation := makeAnnotation(disco.IngressAnnotation, discoAnnotationRecord)
 		if val, ok := ingress.GetAnnotations()[recordAnnotation]; ok {
-			rec.record = val
+			rec.records = strings.FieldsFunc(val, splitFunc)
 		}
 
 		recordTypeAnnotation := makeAnnotation(disco.IngressAnnotation, discoAnnotationRecordType)
@@ -293,48 +293,18 @@ func (disco *Operator) syncHandler(key string) error {
 
 		service := o.(*v1.Service)
 
-		var host string
-		recordAnnotation := makeAnnotation(disco.ServiceAnnotation, discoAnnotationRecord)
-		if val, ok := service.GetAnnotations()[recordAnnotation]; ok {
-			host = strings.TrimSpace(val)
-		}
-		if host == "" {
-			disco.logger.LogInfo("resource contains an empty record annotation", "key", key)
+		if !disco.isTakeCareOfService(service) {
+			disco.logger.LogDebug("ignoring service as annotation is not set", "key", key)
 			return nil
 		}
 
-		processIP := func(disco *Operator, ip string, host string) error {
-			if ip == "" {
-				// skipping an empty IP
-				return nil
-			}
+		recordAnnotation := makeAnnotation(disco.ServiceAnnotation, discoAnnotationRecord)
+		if val, ok := service.GetAnnotations()[recordAnnotation]; ok {
+			hosts = strings.FieldsFunc(val, splitFunc)
+		}
 
-			r := newDefaultRecordHelper(disco.Record, disco.ZoneName)
-			r.object = service
-
-			if !disco.isTakeCareOfService(service) {
-				disco.logger.LogDebug("ignoring service as annotation is not set", "key", key)
-				return nil
-			}
-
-			// service record type is always A, because it uses an IP address from service status
-			r.recordType = RecordsetType.A
-			r.record = ip
-
-			recordZoneAnnotation := makeAnnotation(disco.ServiceAnnotation, discoAnnotationRecordZoneName)
-			if z, ok := service.GetAnnotations()[recordZoneAnnotation]; ok {
-				r.zoneName = z
-			}
-
-			recordDescriptionAnnotation := makeAnnotation(disco.ServiceAnnotation, discoAnnotationRecordDescription)
-			if desc, ok := service.GetAnnotations()[recordDescriptionAnnotation]; ok {
-				r.description = desc
-			}
-
-			if err := disco.checkRecord(r, host); err != nil {
-				return err
-			}
-
+		if len(hosts) == 0 {
+			disco.logger.LogDebug("ignoring service as annotation record is not set", "key", key)
 			return nil
 		}
 
@@ -355,15 +325,22 @@ func (disco *Operator) syncHandler(key string) error {
 			ips = append(ips, service.Spec.LoadBalancerIP)
 		}
 
-		for _, ip := range filterEmpty(ips) {
-			err := processIP(disco, ip, host)
-			if err != nil {
-				return err
-			}
+		ips = filterEmpty(ips)
+
+		// service record type is always A, because it uses IP addresses from service spec and status
+		rec.recordType = RecordsetType.A
+		rec.records = ips
+		rec.object = service
+
+		recordZoneAnnotation := makeAnnotation(disco.ServiceAnnotation, discoAnnotationRecordZoneName)
+		if z, ok := service.GetAnnotations()[recordZoneAnnotation]; ok {
+			rec.zoneName = z
 		}
 
-		// done services
-		return nil
+		recordDescriptionAnnotation := makeAnnotation(disco.ServiceAnnotation, discoAnnotationRecordDescription)
+		if desc, ok := service.GetAnnotations()[recordDescriptionAnnotation]; ok {
+			rec.description = desc
+		}
 
 	// Handle resource with kind record.
 	case strings.ToLower(discoV1.RecordKind):
@@ -381,7 +358,7 @@ func (disco *Operator) syncHandler(key string) error {
 		rec.object = discoRecord
 
 		if val := discoRecord.Spec.Record; val != "" {
-			rec.record = val
+			rec.records = strings.FieldsFunc(val, splitFunc)
 		}
 
 		if val := discoRecord.Spec.Type; val != "" {
@@ -449,7 +426,7 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 		zoneName = zoneNameOverride
 	}
 
-	disco.logger.LogDebug("ensuring record", "host", host, "type", discoRecord.recordType, "record", discoRecord.record, "zone", zoneName)
+	disco.logger.LogDebug("ensuring record", "host", host, "type", discoRecord.recordType, "record", strings.Join(discoRecord.records, ","), "zone", zoneName)
 
 	zone, err := disco.getZoneByName(zoneName)
 	if err != nil {
@@ -491,9 +468,9 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 		return nil
 	}
 
-	record := disco.Record
-	if rec := discoRecord.record; rec != "" {
-		record = rec
+	records := strings.FieldsFunc(disco.Record, splitFunc)
+	if rec := discoRecord.records; len(rec) > 0 {
+		records = rec
 	}
 
 	recordType := RecordsetType.CNAME
@@ -503,7 +480,9 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 
 	// Only make it a FQDN if not an IP address.
 	if recordType != RecordsetType.A {
-		record = ensureFQDN(record)
+		for i, v := range records {
+			records[i] = ensureFQDN(v)
+		}
 	}
 
 	description := discoRecordsetDescription
@@ -514,7 +493,7 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 	if err := disco.dnsV2Client.createDesignateRecordset(
 		zone.ID,
 		ensureFQDN(host),
-		[]string{record},
+		records,
 		disco.RecordsetTTL,
 		recordType,
 		description,
@@ -524,7 +503,7 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 	}
 
 	metrics.RecordsetCreationSuccessCounter.With(labels).Inc()
-	disco.logger.LogInfo("create recordset successful", "key", discoRecord.getKey(), "host", host, "record", record, "zone", ensureFQDN(zone.Name), "recordType", recordType)
+	disco.logger.LogInfo("create recordset successful", "key", discoRecord.getKey(), "host", host, "record", strings.Join(records, ","), "zone", ensureFQDN(zone.Name), "recordType", recordType)
 	disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, createEvent, "create recordset on %s %s successful", discoRecord.getKind(), discoRecord.getKey())
 
 	return nil
