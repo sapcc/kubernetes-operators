@@ -22,29 +22,35 @@ package disco
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
 	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
+	coreV1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
 
-// recordHelper struct used to wrap ingress and discoRecord CRD.
+// recordHelper struct used to wrap ingress, service and discoRecord CRD.
 type recordHelper struct {
-	recordType,
-	record,
-	zoneName,
+	recordType  string
+	records     []string
+	zoneName    string
 	description string
-	object runtime.Object
+	object      runtime.Object
+}
+
+func splitFunc(c rune) bool {
+	return !unicode.IsLetter(c) && !unicode.IsNumber(c) && c != '.' && c != '_' && c != '-'
 }
 
 func newDefaultRecordHelper(record, zoneName string) *recordHelper {
 	return &recordHelper{
 		recordType:  RecordsetType.CNAME,
-		record:      record,
+		records:     strings.FieldsFunc(record, splitFunc),
 		zoneName:    zoneName,
 		description: discoRecordsetDescription,
 	}
@@ -59,7 +65,16 @@ func (r *recordHelper) getKey() string {
 
 func (r *recordHelper) getKind() string {
 	objMeta, err := meta.TypeAccessor(r.object)
-	if err != nil {
+	if err != nil || objMeta.GetKind() == "" {
+		switch r.object.(type) {
+		case *v1beta1.Ingress:
+			return "ingress"
+		case *coreV1.Service:
+			return "service"
+		case *v1.Record:
+			return "record"
+		}
+
 		return ""
 	}
 	return strings.ToLower(objMeta.GetKind())
@@ -78,12 +93,14 @@ func keyFunc(obj interface{}) (string, error) {
 
 	var kind string
 	k := typeMeta.GetKind()
-	if k == "Ingress" || k == v1.RecordKind {
+	if k == "Ingress" || k == "Service" || k == v1.RecordKind {
 		kind = strings.ToLower(k)
 	} else {
 		switch obj.(type) {
 		case *v1beta1.Ingress:
 			kind = "ingress"
+		case *coreV1.Service:
+			kind = "service"
 		case *v1.Record:
 			kind = "record"
 		default:
@@ -129,14 +146,6 @@ func filterEmpty(sslice []string) []string {
 	return filteredSlice
 }
 
-func ingressKey(ing *v1beta1.Ingress) string {
-	key, err := keyFunc(ing)
-	if err != nil {
-		return ""
-	}
-	return key
-}
-
 // ensureFQDN ensures the recordset name ends with '.'
 func ensureFQDN(s string) string {
 	if !strings.HasSuffix(s, ".") {
@@ -179,4 +188,13 @@ func makeAnnotation(prefix, annotation string) string {
 	prefix = strings.TrimSuffix(prefix, slash)
 	annotation = strings.TrimPrefix(annotation, slash)
 	return fmt.Sprintf("%s/%s", prefix, annotation)
+}
+
+func isSliceContainsStr(sl []string, str string) bool {
+	for _, s := range sl {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }

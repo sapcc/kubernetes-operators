@@ -103,6 +103,19 @@ func New(options config.Options, logger log.Logger) (*Operator, error) {
 		},
 	)
 
+	operator.k8sFramework.AddServiceInformerEventHandler(
+		operator.enqueueItem,
+		operator.enqueueItem,
+		func(oldObj, newObj interface{}) {
+			old := oldObj.(*v1.Service)
+			new := newObj.(*v1.Service)
+			// Enqueue if either Spec, annotations changed or DeletionTimestamp was set.
+			if !reflect.DeepEqual(old.Spec, new.Spec) || !reflect.DeepEqual(old.GetAnnotations(), new.GetAnnotations()) || !reflect.DeepEqual(old.GetDeletionTimestamp(), new.GetDeletionTimestamp()) {
+				operator.enqueueItem(newObj)
+			}
+		},
+	)
+
 	operator.k8sFramework.AddDiscoCRDInformerEventHandler(
 		operator.enqueueItem,
 		operator.enqueueItem,
@@ -154,6 +167,7 @@ func (disco *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.Wai
 			select {
 			case <-ticker.C:
 				disco.requeueAllIngresses()
+				disco.requeueAllServices()
 				disco.requeueAllDiscoRecords()
 				disco.logger.LogInfo(fmt.Sprintf("next check in %v", disco.RecheckInterval.String()))
 			case <-stopCh:
@@ -241,7 +255,7 @@ func (disco *Operator) syncHandler(key string) error {
 
 		recordAnnotation := makeAnnotation(disco.IngressAnnotation, discoAnnotationRecord)
 		if val, ok := ingress.GetAnnotations()[recordAnnotation]; ok {
-			rec.record = val
+			rec.records = strings.FieldsFunc(val, splitFunc)
 		}
 
 		recordTypeAnnotation := makeAnnotation(disco.IngressAnnotation, discoAnnotationRecordType)
@@ -265,6 +279,69 @@ func (disco *Operator) syncHandler(key string) error {
 			}
 		}
 
+	// Handle resources with kind service.
+	case "service":
+		o, exists, err := disco.k8sFramework.GetServiceFromIndexerByKey(key)
+		if err != nil {
+			return errors.Wrapf(err, "%v failed with", key)
+		}
+
+		if !exists {
+			disco.logger.LogDebug("resource doesn't exist", "key", key)
+			return nil
+		}
+
+		service := o.(*v1.Service)
+
+		if !disco.isTakeCareOfService(service) {
+			disco.logger.LogDebug("ignoring service as annotation is not set", "key", key)
+			return nil
+		}
+
+		recordAnnotation := makeAnnotation(disco.ServiceAnnotation, discoAnnotationRecord)
+		if val, ok := service.GetAnnotations()[recordAnnotation]; ok {
+			hosts = strings.FieldsFunc(val, splitFunc)
+		}
+
+		if len(hosts) == 0 {
+			disco.logger.LogDebug("ignoring service as annotation record is not set", "key", key)
+			return nil
+		}
+
+		var ips []string
+		for _, ing := range service.Status.LoadBalancer.Ingress {
+			if !isSliceContainsStr(ips, ing.IP) {
+				ips = append(ips, ing.IP)
+			}
+		}
+
+		for _, ip := range service.Spec.ExternalIPs {
+			if !isSliceContainsStr(ips, ip) {
+				ips = append(ips, ip)
+			}
+		}
+
+		if !isSliceContainsStr(ips, service.Spec.LoadBalancerIP) {
+			ips = append(ips, service.Spec.LoadBalancerIP)
+		}
+
+		ips = filterEmpty(ips)
+
+		// service record type is always A, because it uses IP addresses from service spec and status
+		rec.recordType = RecordsetType.A
+		rec.records = ips
+		rec.object = service
+
+		recordZoneAnnotation := makeAnnotation(disco.ServiceAnnotation, discoAnnotationRecordZoneName)
+		if z, ok := service.GetAnnotations()[recordZoneAnnotation]; ok {
+			rec.zoneName = z
+		}
+
+		recordDescriptionAnnotation := makeAnnotation(disco.ServiceAnnotation, discoAnnotationRecordDescription)
+		if desc, ok := service.GetAnnotations()[recordDescriptionAnnotation]; ok {
+			rec.description = desc
+		}
+
 	// Handle resource with kind record.
 	case strings.ToLower(discoV1.RecordKind):
 		o, exists, err := disco.k8sFramework.GetDiscoRecordFromIndexerByKey(key)
@@ -281,7 +358,7 @@ func (disco *Operator) syncHandler(key string) error {
 		rec.object = discoRecord
 
 		if val := discoRecord.Spec.Record; val != "" {
-			rec.record = val
+			rec.records = strings.FieldsFunc(val, splitFunc)
 		}
 
 		if val := discoRecord.Spec.Type; val != "" {
@@ -321,12 +398,19 @@ func (disco *Operator) isTakeCareOfIngress(ingress *v1beta1.Ingress) bool {
 	return false
 }
 
+func (disco *Operator) isTakeCareOfService(service *v1.Service) bool {
+	if service.GetAnnotations()[disco.ServiceAnnotation] == "true" {
+		return true
+	}
+	return false
+}
+
 func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error {
 	var err error
 	defer func() {
 		if err != nil {
 			// Just emit the event here. The error is logged in he processNextWorkItem.
-			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, updateEvent, fmt.Sprintf("create recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey()))
+			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, updateEvent, "create recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey())
 		}
 	}()
 
@@ -342,7 +426,7 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 		zoneName = zoneNameOverride
 	}
 
-	disco.logger.LogDebug("ensuring record", "host", host, "type", discoRecord.recordType, "record", discoRecord.record, "zone", zoneName)
+	disco.logger.LogDebug("ensuring record", "host", host, "type", discoRecord.recordType, "record", strings.Join(discoRecord.records, ","), "zone", zoneName)
 
 	zone, err := disco.getZoneByName(zoneName)
 	if err != nil {
@@ -361,20 +445,20 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 		}
 	}
 
-	// there was an attempt to delete the ingress. cleanup recordset
+	// there was an attempt to delete the ingress or service. cleanup recordset
 	if k8sutils.HasDeletionTimestamp(discoRecord.object) {
 		if recordsetID == "" {
 			disco.logger.LogInfo("would delete recordset but was unable to find its uid", "host", host, "zoneName", zone.Name)
-			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", discoRecord.getKey()))
+			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, "delete recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey())
 			return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 		}
 		if err := disco.dnsV2Client.deleteDesignateRecordset(host, recordsetID, zone.ID); err != nil {
 			metrics.RecordsetDeletionFailedCounter.With(labels).Inc()
 			disco.logger.LogError("failed to delete recordset", err)
-			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, fmt.Sprintf("delete recordset on ingress %s failed", discoRecord.getKey()))
+			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, "delete recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey())
 			return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 		}
-		disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, fmt.Sprintf("deleted recordset on ingress %s successful", discoRecord.getKey()))
+		disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, "deleted recordset on %s %s successful", discoRecord.getKind(), discoRecord.getKey())
 		metrics.RecordsetDeletionSuccessCounter.With(labels).Inc()
 		return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 	}
@@ -384,9 +468,9 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 		return nil
 	}
 
-	record := disco.Record
-	if rec := discoRecord.record; rec != "" {
-		record = rec
+	records := strings.FieldsFunc(disco.Record, splitFunc)
+	if rec := discoRecord.records; len(rec) > 0 {
+		records = rec
 	}
 
 	recordType := RecordsetType.CNAME
@@ -396,7 +480,9 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 
 	// Only make it a FQDN if not an IP address.
 	if recordType != RecordsetType.A {
-		record = ensureFQDN(record)
+		for i, v := range records {
+			records[i] = ensureFQDN(v)
+		}
 	}
 
 	description := discoRecordsetDescription
@@ -407,7 +493,7 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 	if err := disco.dnsV2Client.createDesignateRecordset(
 		zone.ID,
 		ensureFQDN(host),
-		[]string{record},
+		records,
 		disco.RecordsetTTL,
 		recordType,
 		description,
@@ -417,8 +503,8 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 	}
 
 	metrics.RecordsetCreationSuccessCounter.With(labels).Inc()
-	disco.logger.LogInfo("create recordset successful", "key", discoRecord.getKey(), "host", host, "record", record, "zone", ensureFQDN(zone.Name), "recordType", recordType)
-	disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, createEvent, fmt.Sprintf("create recordset on ingress %s successful", discoRecord.getKey()))
+	disco.logger.LogInfo("create recordset successful", "key", discoRecord.getKey(), "host", host, "record", strings.Join(records, ","), "zone", ensureFQDN(zone.Name), "recordType", recordType)
+	disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, createEvent, "create recordset on %s %s successful", discoRecord.getKind(), discoRecord.getKey())
 
 	return nil
 }
@@ -441,6 +527,12 @@ func (disco *Operator) getZoneByName(zoneName string) (zones.Zone, error) {
 
 func (disco *Operator) requeueAllIngresses() {
 	for _, o := range disco.k8sFramework.GetIngressInformerStore().List() {
+		disco.enqueueItem(o)
+	}
+}
+
+func (disco *Operator) requeueAllServices() {
+	for _, o := range disco.k8sFramework.GetServiceInformerStore().List() {
 		disco.enqueueItem(o)
 	}
 }

@@ -42,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	apimachineryWatch "k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/informers/core/v1"
 	v1beta12 "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -68,6 +69,7 @@ type K8sFramework struct {
 	finalizer               string
 	discoCRDInformerFactory genCRDInformers.SharedInformerFactory
 	ingressInformer         cache.SharedIndexInformer
+	serviceInformer         cache.SharedIndexInformer
 	discoCRDInformer        cache.SharedIndexInformer
 }
 
@@ -124,6 +126,13 @@ func NewK8sFramework(options config.Options, logger log.Logger) (*K8sFramework, 
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 	)
 
+	serviceInformer := v1.NewServiceInformer(
+		clientset,
+		apimetav1.NamespaceAll,
+		options.ResyncPeriod,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+	)
+
 	informerFactory := genCRDInformers.NewSharedInformerFactory(crdClient, options.ResyncPeriod)
 	discoCRDInformer := informerFactory.Disco().V1().Records().Informer()
 
@@ -132,6 +141,7 @@ func NewK8sFramework(options config.Options, logger log.Logger) (*K8sFramework, 
 		kubeConfig:              config,
 		eventRecorder:           eventRecorder,
 		ingressInformer:         ingressInformer,
+		serviceInformer:         serviceInformer,
 		discoCRDInformer:        discoCRDInformer,
 		CRDclientset:            crdclientset,
 		DiscoCRDClientset:       discoCRDClient,
@@ -145,6 +155,7 @@ func (k8s *K8sFramework) Run(stopCh <-chan struct{}) {
 	go k8s.discoCRDInformerFactory.Start(stopCh)
 	go k8s.discoCRDInformer.Run(stopCh)
 	go k8s.ingressInformer.Run(stopCh)
+	go k8s.serviceInformer.Run(stopCh)
 }
 
 // WaitForCacheSync returns true if all caches have been synced.
@@ -153,6 +164,7 @@ func (k8s *K8sFramework) WaitForCacheSync(stopCh <-chan struct{}) bool {
 		stopCh,
 		k8s.discoCRDInformer.HasSynced,
 		k8s.ingressInformer.HasSynced,
+		k8s.serviceInformer.HasSynced,
 	)
 }
 
@@ -173,6 +185,25 @@ func (k8s *K8sFramework) GetIngressFromIndexerByKey(key string) (interface{}, bo
 // GetIngressInformerStore returns the ingress infromer store.
 func (k8s *K8sFramework) GetIngressInformerStore() cache.Store {
 	return k8s.ingressInformer.GetStore()
+}
+
+// AddServiceInformerEventHandler adds event handlers to the service informer.
+func (k8s *K8sFramework) AddServiceInformerEventHandler(addFunc, deleteFunc func(obj interface{}), updateFunc func(oldObj, newObj interface{})) {
+	k8s.serviceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    addFunc,
+		UpdateFunc: updateFunc,
+		DeleteFunc: deleteFunc,
+	})
+}
+
+// GetServiceFromIndexerByKey returns the Service from the informer indexer by key.
+func (k8s *K8sFramework) GetServiceFromIndexerByKey(key string) (interface{}, bool, error) {
+	return k8s.serviceInformer.GetIndexer().GetByKey(key)
+}
+
+// GetServiceInformerStore returns the service infromer store.
+func (k8s *K8sFramework) GetServiceInformerStore() cache.Store {
+	return k8s.serviceInformer.GetStore()
 }
 
 // GetDiscoRecordFromIndexerByKey returns the Record from the informer indexer by key.
@@ -196,7 +227,7 @@ func (k8s *K8sFramework) AddDiscoCRDInformerEventHandler(addFunc, deleteFunc fun
 
 // Eventf emits an event via the event recorder.
 func (k8s *K8sFramework) Eventf(object runtime.Object, eventType, reason, messageFmt string, args ...interface{}) {
-	k8s.eventRecorder.Eventf(object, eventType, reason, messageFmt)
+	k8s.eventRecorder.Eventf(object, eventType, reason, messageFmt, args...)
 }
 
 // CreateDiscoRecordCRDAndWaitUntilReady creates the CRDs used by this operator and waits until they are ready or the operation times out.
@@ -255,6 +286,37 @@ func (k8s *K8sFramework) UpdateIngressAndWait(oldIngress, newIngress *extensions
 	return k8s.waitForUpstreamIngress(updatedIngress, conditionFuncs...)
 }
 
+// GetService returns the service or an error.
+func (k8s *K8sFramework) GetService(namespace, name string) (*coreV1.Service, error) {
+	return k8s.CoreV1().Services(namespace).Get(name, metaV1.GetOptions{})
+}
+
+// UpdateServiceAndWait updates an existing Service and waits until the operation times out or is completed.
+func (k8s *K8sFramework) UpdateServiceAndWait(oldService, newService *coreV1.Service, conditionFuncs ...watch.ConditionFunc) error {
+	oldService, err := k8s.GetService(oldService.GetNamespace(), oldService.GetName())
+	if err != nil {
+		return err
+	}
+
+	// Nothing to update.
+	if !isServiceNeedsUpdate(oldService, newService) {
+		return nil
+	}
+
+	updatedService, err := k8s.CoreV1().Services(oldService.GetNamespace()).Update(newService)
+	if err != nil {
+		return err
+	}
+
+	k8s.logger.LogDebug("updating service", "key", fmt.Sprintf("%s/%s", oldService.GetNamespace(), oldService.GetName()))
+
+	if conditionFuncs == nil {
+		conditionFuncs = []watch.ConditionFunc{isServiceAddedOrModified}
+	}
+
+	return k8s.waitForUpstreamService(updatedService, conditionFuncs...)
+}
+
 // GetDiscoRecord returns the Record or an error.
 func (k8s *K8sFramework) GetDiscoRecord(namespace, name string) (*discov1.Record, error) {
 	return k8s.DiscoCRDClientset.Records(namespace).Get(name, metaV1.GetOptions{})
@@ -296,6 +358,8 @@ func (k8s *K8sFramework) UpdateObjectAndWait(oldObj, newObj runtime.Object, cond
 	switch oldObj.(type) {
 	case *extensionsv1beta1.Ingress:
 		return k8s.UpdateIngressAndWait(oldObj.(*extensionsv1beta1.Ingress), newObj.(*extensionsv1beta1.Ingress), conditionFuncs...)
+	case *coreV1.Service:
+		return k8s.UpdateServiceAndWait(oldObj.(*coreV1.Service), newObj.(*coreV1.Service), conditionFuncs...)
 	case *discov1.Record:
 		return k8s.UpdateDiscoRecordAndWait(oldObj.(*discov1.Record), newObj.(*discov1.Record), conditionFuncs...)
 	}
@@ -325,6 +389,11 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerExists(obj runtime.Object) error {
 			ing.Finalizers = append(finalizers, k8s.finalizer)
 			newObj = ing
 
+		case *coreV1.Service:
+			svc := newObj.(*coreV1.Service)
+			svc.Finalizers = append(finalizers, k8s.finalizer)
+			newObj = svc
+
 		case *discov1.Record:
 			rec := newObj.(*discov1.Record)
 			rec.Finalizers = append(finalizers, k8s.finalizer)
@@ -344,7 +413,7 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerExists(obj runtime.Object) error {
 					return false, apiErrors.NewNotFound(schema.GroupResource{Resource: obj.GetObjectKind().GroupVersionKind().Kind}, objMeta.GetName())
 				}
 				switch o := event.Object.(type) {
-				case *extensionsv1beta1.Ingress, *discov1.Record:
+				case *extensionsv1beta1.Ingress, *coreV1.Service, *discov1.Record:
 					return hasDiscoFinalizer(o, k8s.finalizer), nil
 				}
 				return false, nil
@@ -378,6 +447,11 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerRemoved(obj runtime.Object) error {
 			ing.Finalizers = finalizers
 			newObj = ing
 
+		case *coreV1.Service:
+			svc := newObj.(*coreV1.Service)
+			svc.Finalizers = finalizers
+			newObj = svc
+
 		case *discov1.Record:
 			rec := newObj.(*discov1.Record)
 			rec.Finalizers = finalizers
@@ -397,7 +471,7 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerRemoved(obj runtime.Object) error {
 					return false, apiErrors.NewNotFound(schema.GroupResource{Resource: obj.GetObjectKind().GroupVersionKind().Kind}, objMeta.GetName())
 				}
 				switch ing := event.Object.(type) {
-				case *extensionsv1beta1.Ingress, *discov1.Record:
+				case *extensionsv1beta1.Ingress, *coreV1.Service, *discov1.Record:
 					return !hasDiscoFinalizer(ing, k8s.finalizer), nil
 				}
 				return false, nil
@@ -421,6 +495,26 @@ func (k8s *K8sFramework) waitForUpstreamIngress(ingress *extensionsv1beta1.Ingre
 			},
 		},
 		ingress,
+		nil,
+		conditionFuncs...,
+	)
+	return err
+}
+
+// waitForUpstreamService watches the given Service and wait for max. t minutes until the given condition applies.
+func (k8s *K8sFramework) waitForUpstreamService(service *coreV1.Service, conditionFuncs ...watch.ConditionFunc) error {
+	ctx, _ := context.WithTimeout(context.TODO(), WaitTimeout)
+	_, err := watch.UntilWithSync(
+		ctx,
+		&cache.ListWatch{
+			ListFunc: func(options metaV1.ListOptions) (object runtime.Object, e error) {
+				return k8s.CoreV1().Services(service.GetNamespace()).List(metaV1.SingleObject(metaV1.ObjectMeta{Name: service.GetName()}))
+			},
+			WatchFunc: func(options metaV1.ListOptions) (i apimachineryWatch.Interface, e error) {
+				return k8s.CoreV1().Services(service.GetNamespace()).Watch(metaV1.SingleObject(metaV1.ObjectMeta{Name: service.GetName()}))
+			},
+		},
+		service,
 		nil,
 		conditionFuncs...,
 	)

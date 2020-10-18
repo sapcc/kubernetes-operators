@@ -45,6 +45,7 @@ func init() {
 	pflag.StringVar(&options.KubeConfig, "kubeconfig", "", "Path to kubeconfig file with authorization and master location information")
 	pflag.StringVar(&options.ConfigPath, "config", "/etc/disco/disco.conf", "Path to operator config file")
 	pflag.StringVar(&options.IngressAnnotation, "ingress-annotation", "disco", "Handle ingress with this annotation")
+	pflag.StringVar(&options.ServiceAnnotation, "service-annotation", "disco", "Handle service with this annotation")
 	pflag.IntVar(&options.Threadiness, "threadiness", 1, "The operator threadiness")
 	pflag.StringVar(&options.MetricHost, "metric-host", "0.0.0.0", "Host to expose metrics on")
 	pflag.IntVar(&options.MetricPort, "metric-port", 9091, "Metrics are exposed on this port")

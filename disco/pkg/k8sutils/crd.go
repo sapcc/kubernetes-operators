@@ -40,16 +40,16 @@ func NewDiscoRecordCRD() *extensionsobj.CustomResourceDefinition {
 	})
 	crd.Spec.AdditionalPrinterColumns = []extensionsobj.CustomResourceColumnDefinition{
 		{
-			Name: "record",
-			Type: "string",
+			Name:        "record",
+			Type:        "string",
 			Description: "The record",
-			JSONPath: ".spec.record",
+			JSONPath:    ".spec.record",
 		},
 		{
-			Name: "type",
-			Type: "string",
+			Name:        "type",
+			Type:        "string",
 			Description: "The type of the record",
-			JSONPath: ".spec.type",
+			JSONPath:    ".spec.type",
 		},
 	}
 	crd.Spec.Subresources = nil

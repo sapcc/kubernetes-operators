@@ -35,6 +35,7 @@ type Options struct {
 	ZoneName,
 	EventComponent,
 	IngressAnnotation,
+	ServiceAnnotation,
 	Finalizer,
 	MetricHost string
 	Threadiness,
@@ -48,6 +49,7 @@ type Options struct {
 
 func (o *Options) applyDefaultsIfNotSet() {
 	o.IngressAnnotation = trimQuotesAndSpace(o.IngressAnnotation)
+	o.ServiceAnnotation = trimQuotesAndSpace(o.ServiceAnnotation)
 	o.ZoneName = trimQuotesAndSpace(o.ZoneName)
 	o.Record = trimQuotesAndSpace(o.Record)
 }
