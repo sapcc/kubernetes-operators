@@ -1,5 +1,5 @@
 DATE    = $(shell date +%Y%m%d%H%M)
-IMAGE   ?= hub.global.cloud.sap/monsoon/openstack-seeder
+IMAGE   ?= keppel.eu-de-1.cloud.sap/ccloud/openstack-seeder
 #VERSION ?= v$(DATE)
 VERSION ?= $(shell git rev-parse --verify HEAD | head -c 8)
 GOOS    ?= $(shell go env | grep GOOS | cut -d'"' -f2)
