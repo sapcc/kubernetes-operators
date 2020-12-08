@@ -42,8 +42,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	apimachineryWatch "k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/informers/core/v1"
-	v1beta12 "k8s.io/client-go/informers/extensions/v1beta1"
+	corev1informers "k8s.io/client-go/informers/core/v1"
+	v1beta1informers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -119,14 +119,14 @@ func NewK8sFramework(options config.Options, logger log.Logger) (*K8sFramework, 
 		Component: options.EventComponent,
 	})
 
-	ingressInformer := v1beta12.NewIngressInformer(
+	ingressInformer := v1beta1informers.NewIngressInformer(
 		clientset,
 		apimetav1.NamespaceAll,
 		options.ResyncPeriod,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 	)
 
-	serviceInformer := v1.NewServiceInformer(
+	serviceInformer := corev1informers.NewServiceInformer(
 		clientset,
 		apimetav1.NamespaceAll,
 		options.ResyncPeriod,
@@ -369,8 +369,13 @@ func (k8s *K8sFramework) UpdateObjectAndWait(oldObj, newObj runtime.Object, cond
 
 // EnsureDiscoFinalizerExists ensures the finalizer exists on the given object.
 func (k8s *K8sFramework) EnsureDiscoFinalizerExists(obj runtime.Object) error {
+	isHasDeletionTimestamp, err := HasDeletionTimestamp(obj)
+	if err != nil {
+		return err
+	}
+
 	// Add finalizer if not present and ingress was not deleted.
-	if !hasDiscoFinalizer(obj, k8s.finalizer) && !HasDeletionTimestamp(obj) {
+	if !hasDiscoFinalizer(obj, k8s.finalizer) && !isHasDeletionTimestamp {
 		newObj := obj.DeepCopyObject()
 
 		objMeta, err := meta.Accessor(obj)
@@ -425,7 +430,12 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerExists(obj runtime.Object) error {
 
 // EnsureDiscoFinalizerRemoved ensure the finalizer is removed from an existing Object.
 func (k8s *K8sFramework) EnsureDiscoFinalizerRemoved(obj runtime.Object) error {
-	if hasDiscoFinalizer(obj, k8s.finalizer) && HasDeletionTimestamp(obj) {
+	isHasDeletionTimestamp, err := HasDeletionTimestamp(obj)
+	if err != nil {
+		return err
+	}
+
+	if hasDiscoFinalizer(obj, k8s.finalizer) && isHasDeletionTimestamp {
 		newObj := obj.DeepCopyObject()
 
 		objMeta, err := meta.Accessor(newObj)

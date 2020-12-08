@@ -33,12 +33,12 @@ import (
 )
 
 // HasDeletionTimestamp checks whether an attempt was made to delete the object and thus a deletion timestamp is set.
-func HasDeletionTimestamp(obj runtime.Object) bool {
+func HasDeletionTimestamp(obj runtime.Object) (bool, error) {
 	objMeta, err := meta.Accessor(obj)
 	if err != nil {
-		return false
+		return false, err
 	}
-	return objMeta.GetDeletionTimestamp() != nil
+	return objMeta.GetDeletionTimestamp() != nil, nil
 }
 
 func isIngressNeedsUpdate(old, new *extensionsv1beta1.Ingress) bool {

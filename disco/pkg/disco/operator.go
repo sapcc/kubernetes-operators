@@ -21,7 +21,6 @@ package disco
 
 import (
 	"fmt"
-	"github.com/sapcc/kubernetes-operators/disco/pkg/version"
 	"reflect"
 	"strings"
 	"sync"
@@ -36,6 +35,7 @@ import (
 	"github.com/sapcc/kubernetes-operators/disco/pkg/k8sutils"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/metrics"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/version"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -223,6 +223,9 @@ func (disco *Operator) processNextWorkItem() bool {
 	return true
 }
 
+// TODO: Refactor this to only handle records.
+// Ingress, Service objects would be handled by separate controllers creating the records.
+// Remove the recordHelper hack.
 func (disco *Operator) syncHandler(key string) error {
 	objKind, key, err := splitKeyFuncWithObjKind(key)
 	if err != nil {
@@ -445,21 +448,21 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 		}
 	}
 
-	// there was an attempt to delete the ingress or service. cleanup recordset
-	if k8sutils.HasDeletionTimestamp(discoRecord.object) {
-		if recordsetID == "" {
-			disco.logger.LogInfo("would delete recordset but was unable to find its uid", "host", host, "zoneName", zone.Name)
-			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, "delete recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey())
-			return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
-		}
+	// Cleanup if there was an attempt to delete the ingress, service or record.
+	isHasDeletionTimestamp, err := k8sutils.HasDeletionTimestamp(discoRecord.object)
+	if err != nil {
+		return err
+	}
+	// Delete the recordset if if still exists in designate.
+	if isHasDeletionTimestamp && recordsetID != "" {
 		if err := disco.dnsV2Client.deleteDesignateRecordset(host, recordsetID, zone.ID); err != nil {
 			metrics.RecordsetDeletionFailedCounter.With(labels).Inc()
-			disco.logger.LogError("failed to delete recordset", err)
-			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, "delete recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey())
-			return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
-		}
-		disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, deleteEvent, "deleted recordset on %s %s successful", discoRecord.getKind(), discoRecord.getKey())
+			return err
+		 }
 		metrics.RecordsetDeletionSuccessCounter.With(labels).Inc()
+	}
+	// Remove the finalizer and allow the ingress, service or record to be deleted.
+	if isHasDeletionTimestamp {
 		return disco.k8sFramework.EnsureDiscoFinalizerRemoved(discoRecord.object)
 	}
 
