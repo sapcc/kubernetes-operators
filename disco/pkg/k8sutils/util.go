@@ -43,7 +43,7 @@ func HasDeletionTimestamp(obj runtime.Object) (bool, error) {
 
 func isIngressNeedsUpdate(old, new *extensionsv1beta1.Ingress) bool {
 	// Ingress needs update if spec or annotations changed or deletionTimestamp was added.
-	if !reflect.DeepEqual(old.Spec, new.Spec) || !reflect.DeepEqual(old.GetAnnotations(), new.GetAnnotations()) || !reflect.DeepEqual(old.GetDeletionTimestamp(), new.GetDeletionTimestamp()) {
+	if !reflect.DeepEqual(old.Spec, new.Spec) || !reflect.DeepEqual(old.GetAnnotations(), new.GetAnnotations()) || !reflect.DeepEqual(old.GetDeletionTimestamp(), new.GetDeletionTimestamp()) || !reflect.DeepEqual(old.GetFinalizers(), new.GetFinalizers()) {
 		return true
 	}
 	return false
@@ -51,14 +51,14 @@ func isIngressNeedsUpdate(old, new *extensionsv1beta1.Ingress) bool {
 
 func isServiceNeedsUpdate(old, new *coreV1.Service) bool {
 	// Service needs update if spec or annotations changed or deletionTimestamp was added.
-	if !reflect.DeepEqual(old.Spec, new.Spec) || !reflect.DeepEqual(old.GetAnnotations(), new.GetAnnotations()) || !reflect.DeepEqual(old.GetDeletionTimestamp(), new.GetDeletionTimestamp()) {
+	if !reflect.DeepEqual(old.Spec, new.Spec) || !reflect.DeepEqual(old.GetAnnotations(), new.GetAnnotations()) || !reflect.DeepEqual(old.GetDeletionTimestamp(), new.GetDeletionTimestamp()) || !reflect.DeepEqual(old.GetFinalizers(), new.GetFinalizers()) {
 		return true
 	}
 	return false
 }
 
 func isDiscoRecordNeedsUpdate(old, new *v1.Record) bool {
-	if !reflect.DeepEqual(old.Spec, new.Spec) || !reflect.DeepEqual(old.GetAnnotations(), new.GetAnnotations()) || !reflect.DeepEqual(old.GetDeletionTimestamp(), new.GetDeletionTimestamp()) {
+	if !reflect.DeepEqual(old.Spec, new.Spec) || !reflect.DeepEqual(old.GetAnnotations(), new.GetAnnotations()) || !reflect.DeepEqual(old.GetDeletionTimestamp(), new.GetDeletionTimestamp()) || !reflect.DeepEqual(old.GetFinalizers(), new.GetFinalizers()) {
 		return true
 	}
 	return false

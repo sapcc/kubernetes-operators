@@ -409,14 +409,6 @@ func (disco *Operator) isTakeCareOfService(service *v1.Service) bool {
 }
 
 func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error {
-	var err error
-	defer func() {
-		if err != nil {
-			// Just emit the event here. The error is logged in he processNextWorkItem.
-			disco.k8sFramework.Eventf(discoRecord.object, v1.EventTypeNormal, updateEvent, "create recordset on %s %s failed", discoRecord.getKind(), discoRecord.getKey())
-		}
-	}()
-
 	labels := prometheus.Labels{
 		"kind": discoRecord.getKind(),
 		"key":  discoRecord.getKey(),
@@ -430,7 +422,6 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 	}
 
 	disco.logger.LogDebug("ensuring record", "host", host, "type", discoRecord.recordType, "record", strings.Join(discoRecord.records, ","), "zone", zoneName)
-
 	zone, err := disco.getZoneByName(zoneName)
 	if err != nil {
 		return err
@@ -469,6 +460,11 @@ func (disco *Operator) checkRecord(discoRecord *recordHelper, host string) error
 	if recordsetID != "" {
 		disco.logger.LogDebug("recordset already exists", "host", host, "zone", zone.Name)
 		return nil
+	}
+
+	// Ensure the finalizer exists before creating a record.
+	if err := disco.k8sFramework.EnsureDiscoFinalizerExists(discoRecord.object); err != nil {
+		return err
 	}
 
 	records := strings.FieldsFunc(disco.Record, splitFunc)

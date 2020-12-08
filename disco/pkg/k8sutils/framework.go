@@ -138,6 +138,7 @@ func NewK8sFramework(options config.Options, logger log.Logger) (*K8sFramework, 
 
 	return &K8sFramework{
 		Clientset:               clientset,
+		finalizer:               options.Finalizer,
 		kubeConfig:              config,
 		eventRecorder:           eventRecorder,
 		ingressInformer:         ingressInformer,
@@ -375,57 +376,57 @@ func (k8s *K8sFramework) EnsureDiscoFinalizerExists(obj runtime.Object) error {
 	}
 
 	// Add finalizer if not present and ingress was not deleted.
-	if !hasDiscoFinalizer(obj, k8s.finalizer) && !isHasDeletionTimestamp {
-		newObj := obj.DeepCopyObject()
-
-		objMeta, err := meta.Accessor(obj)
-		if err != nil {
-			return err
-		}
-
-		finalizers := objMeta.GetFinalizers()
-		if finalizers == nil {
-			finalizers = []string{}
-		}
-
-		switch t := obj.(type) {
-		case *extensionsv1beta1.Ingress:
-			ing := newObj.(*extensionsv1beta1.Ingress)
-			ing.Finalizers = append(finalizers, k8s.finalizer)
-			newObj = ing
-
-		case *coreV1.Service:
-			svc := newObj.(*coreV1.Service)
-			svc.Finalizers = append(finalizers, k8s.finalizer)
-			newObj = svc
-
-		case *discov1.Record:
-			rec := newObj.(*discov1.Record)
-			rec.Finalizers = append(finalizers, k8s.finalizer)
-			newObj = rec
-
-		default:
-			return fmt.Errorf("unknown type: %q", t)
-		}
-
-		k8s.logger.LogDebug("adding finalizer", "key", fmt.Sprintf("%s/%s/%s", obj.GetObjectKind(), objMeta.GetNamespace(), objMeta.GetName()), "finalizer", k8s.finalizer)
-
-		return k8s.UpdateObjectAndWait(
-			obj, newObj,
-			func(event apimachineryWatch.Event) (bool, error) {
-				switch event.Type {
-				case apimachineryWatch.Deleted:
-					return false, apiErrors.NewNotFound(schema.GroupResource{Resource: obj.GetObjectKind().GroupVersionKind().Kind}, objMeta.GetName())
-				}
-				switch o := event.Object.(type) {
-				case *extensionsv1beta1.Ingress, *coreV1.Service, *discov1.Record:
-					return hasDiscoFinalizer(o, k8s.finalizer), nil
-				}
-				return false, nil
-			},
-		)
+	if isHasDeletionTimestamp || hasDiscoFinalizer(obj, k8s.finalizer) {
+		return nil
 	}
-	return nil
+
+	newObj := obj.DeepCopyObject()
+	objMeta, err := meta.Accessor(obj)
+	if err != nil {
+		return err
+	}
+
+	finalizers := objMeta.GetFinalizers()
+	if finalizers == nil {
+		finalizers = []string{}
+	}
+
+	switch t := obj.(type) {
+	case *extensionsv1beta1.Ingress:
+		ing := newObj.(*extensionsv1beta1.Ingress)
+		ing.Finalizers = append(finalizers, k8s.finalizer)
+		newObj = ing
+
+	case *coreV1.Service:
+		svc := newObj.(*coreV1.Service)
+		svc.Finalizers = append(finalizers, k8s.finalizer)
+		newObj = svc
+
+	case *discov1.Record:
+		rec := newObj.(*discov1.Record)
+		rec.Finalizers = append(finalizers, k8s.finalizer)
+		newObj = rec
+
+	default:
+		return fmt.Errorf("unknown type: %q", t)
+	}
+
+	k8s.logger.LogDebug("adding finalizer", "key", fmt.Sprintf("%s/%s/%s", obj.GetObjectKind(), objMeta.GetNamespace(), objMeta.GetName()), "finalizer", k8s.finalizer)
+
+	return k8s.UpdateObjectAndWait(
+		obj, newObj,
+		func(event apimachineryWatch.Event) (bool, error) {
+			switch event.Type {
+			case apimachineryWatch.Deleted:
+				return false, apiErrors.NewNotFound(schema.GroupResource{Resource: obj.GetObjectKind().GroupVersionKind().Kind}, objMeta.GetName())
+			}
+			switch o := event.Object.(type) {
+			case *extensionsv1beta1.Ingress, *coreV1.Service, *discov1.Record:
+				return hasDiscoFinalizer(o, k8s.finalizer), nil
+			}
+			return false, nil
+		},
+	)
 }
 
 // EnsureDiscoFinalizerRemoved ensure the finalizer is removed from an existing Object.
