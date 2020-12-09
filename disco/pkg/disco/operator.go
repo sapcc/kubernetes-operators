@@ -75,6 +75,15 @@ func New(options config.Options, logger log.Logger) (*Operator, error) {
 
 	dnsV2Client, err := NewDNSV2ClientFromAuthOpts(discoConfig.AuthOpts, logger)
 	if err != nil {
+		logger.LogWarn("failed create dns v2 client",
+			"authURL", discoConfig.AuthOpts.AuthURL,
+			"regionName", discoConfig.AuthOpts.RegionName,
+			"username", discoConfig.AuthOpts.Username,
+			"userDomainName", discoConfig.AuthOpts.UserDomainName,
+			"password", strings.Repeat("*", len(discoConfig.AuthOpts.Password)),
+			"projectName", discoConfig.AuthOpts.ProjectName,
+			"projectDomainName", discoConfig.AuthOpts.ProjectDomainName,
+		)
 		return nil, err
 	}
 
