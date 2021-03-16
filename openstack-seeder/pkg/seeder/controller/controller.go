@@ -123,10 +123,22 @@ func (c *SeederController) Run(ctx context.Context) error {
 }
 
 func (c *SeederController) watchOpenstackSeeds(ctx context.Context) (cache.Controller, error) {
+
+        var namespaces string = ""
+
+        if c.Options.OnlyNamespace != "" {
+                namespaces += c.Options.OnlyNamespace
+        } else if c.Options.IgnoreNamespace != "" {
+                // remove the ignored namespace
+                namespaces += strings.ReplaceAll(apiv1.NamespaceAll, c.Options.IgnoreNamespace, "")
+        } else {
+                namespaces += apiv1.NamespaceAll
+        }
+
 	source := cache.NewListWatchFromClient(
 		c.SeederClient,
 		seederv1.OpenstackSeedResourcePlural,
-		apiv1.NamespaceAll,
+		namespaces,
 		fields.Everything())
 
 	informer := cache.NewSharedIndexInformer(
