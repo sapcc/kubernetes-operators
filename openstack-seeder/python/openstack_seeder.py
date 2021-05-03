@@ -2080,12 +2080,10 @@ def seed_flavor(flavor, args, sess):
             'id', 'name', 'ram', 'disk', 'vcpus', 'swap', 'rxtx_factor',
             'is_public', 'disabled', 'ephemeral'))
         if 'name' not in flavor or not flavor['name']:
-            logging.warn(
-                "skipping flavor '%s', since it has no name" % flavor)
+            logging.warn("skipping flavor '%s', since it has no name" % flavor)
             return
         if 'id' not in flavor or not flavor['id']:
-            logging.warn(
-                "skipping flavor '%s', since its id is missing" % flavor)
+            logging.warn("skipping flavor '%s', since its id is missing" % flavor)
             return
 
         # wtf, flavors has no update(): needs to be dropped and re-created instead
@@ -2097,16 +2095,11 @@ def seed_flavor(flavor, args, sess):
             # 'rename' some attributes, since api and internal representation differ
             flavor_cmp = flavor.copy()
             if 'is_public' in flavor_cmp:
-                flavor_cmp[
-                    'os-flavor-access:is_public'] = flavor_cmp.pop(
-                    'is_public')
+                flavor_cmp['os-flavor-access:is_public'] = flavor_cmp.pop('is_public')
             if 'disabled' in flavor_cmp:
-                flavor_cmp['OS-FLV-DISABLED:disabled'] = flavor_cmp.pop(
-                    'disabled')
+                flavor_cmp['OS-FLV-DISABLED:disabled'] = flavor_cmp.pop('disabled')
             if 'ephemeral' in flavor_cmp:
-                flavor_cmp[
-                    'OS-FLV-EXT-DATA:ephemeral'] = flavor_cmp.pop(
-                    'ephemeral')
+                flavor_cmp['OS-FLV-EXT-DATA:ephemeral'] = flavor_cmp.pop('ephemeral')
 
             # check for delta
             for attr in list(flavor_cmp.keys()):
