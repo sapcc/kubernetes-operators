@@ -60,6 +60,7 @@ group_members = {}
 role_assignments = []
 
 resource_classes = set()
+traits = set()
 
 
 # todo: role.domainId ?
@@ -2002,8 +2003,17 @@ def seed_resource_class(resource_class, args, sess):
         logging.error("Failed to seed resource-class %s: %s" % (resource_class, e))
 
 
+def seed_trait(trait, args, sess):
+    try:
+        ks_filter = {'service_type': 'placement', 'interface': args.interface}
+        http = placementclient(session=sess, ks_filter=ks_filter)
+        http.request('PUT', '/traits/{}'.format(trait))
+    except Exception as e:
+        logging.error("Failed to seed trait %s: %s" % (trait, e))
+
+
 def seed_flavor(flavor, args, sess):
-    global resource_classes
+    global resource_classes, traits
     logging.debug("seeding flavor %s" % flavor)
 
     try:
@@ -2021,6 +2031,10 @@ def seed_flavor(flavor, args, sess):
                     if k.startswith('resources:CUSTOM_'):
                         resource_classes.add(k.split(':', 2)[-1])
                         logging.info("got resource_classes: {}".format(resource_classes))
+                    if k.startswith('trait:CUSTOM_'):
+                        traits.add(k.split(':', 2)[-1])
+                        logging.info("got traits: {}".format(traits))
+
 
         flavor = sanitize(flavor, (
             'id', 'name', 'ram', 'disk', 'vcpus', 'swap', 'rxtx_factor',
@@ -2378,7 +2392,7 @@ def seed_quota_class_sets(quota_class_set, sess):
 
 
 def seed_config(config, args, sess):
-    global group_members, role_assignments, resource_classes
+    global group_members, role_assignments, resource_classes, traits
 
     # reset
     group_members = {}
@@ -2417,6 +2431,12 @@ def seed_config(config, args, sess):
 
     for resource_class in resource_classes:
         seed_resource_class(resource_class, args, sess)
+
+    if 'traits' in config:
+        traits.update(config['traits'])
+
+    for trait in traits:
+        seed_trait(trait, args, sess)
 
     if 'domains' in config:
         for domain in config['domains']:
