@@ -2002,7 +2002,7 @@ def seed_resource_class(resource_class, args, sess):
         logging.error("Failed to seed resource-class %s: %s" % (resource_class, e))
 
 
-def seed_flavor(flavor, args, sess, config):
+def seed_flavor(flavor, args, sess):
     global resource_classes
     logging.debug("seeding flavor %s" % flavor)
 
@@ -2416,7 +2416,7 @@ def seed_config(config, args, sess):
 
     if 'flavors' in config:
         for flavor in config['flavors']:
-            seed_flavor(flavor, args, sess, config)
+            seed_flavor(flavor, args, sess)
 
     # Run it after seed_flavor, as we collect resource_classes there
     if 'resource_classes' in config:
