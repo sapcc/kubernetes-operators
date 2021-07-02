@@ -2060,7 +2060,7 @@ def seed_resource_class(resource_class, args, sess):
 def seed_trait(trait, args, sess):
     try:
         ks_filter = {'service_type': 'placement', 'interface': args.interface}
-        http = placementclient(session=sess, ks_filter=ks_filter)
+        http = placementclient(session=sess, ks_filter=ks_filter, api_version='1.6')
         http.request('PUT', '/traits/{}'.format(trait))
     except Exception as e:
         logging.error("Failed to seed trait %s: %s" % (trait, e))
