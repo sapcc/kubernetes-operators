@@ -261,7 +261,7 @@ func (op *Operator) syncHandler(_ interface{}) error {
 	// Make sure we keep stats for the top-level chains, if they existed
 	// (which most should have because we created them above).
 	if chain, ok := existingFilterChains[kubeExternalIPChain]; ok {
-		writeLine(filterChains, utiliptables.MakeChainLine(utiliptables.Chain(chain)))
+		writeBytesLine(filterChains, chain)
 	} else {
 		writeLine(filterChains, utiliptables.MakeChainLine(kubeExternalIPChain))
 	}
@@ -429,9 +429,23 @@ func (op *Operator) endpointsUpdate(cur, old interface{}) {
 	op.queue.Add(true)
 }
 
-// Join all words with spaces, terminate with newline and write to buf.
+// WriteLine join all words with spaces, terminate with newline and write to buff.
 func writeLine(buf *bytes.Buffer, words ...string) {
-	buf.WriteString(strings.Join(words, " ") + "\n")
+	// We avoid strings.Join for performance reasons.
+	for i := range words {
+		buf.WriteString(words[i])
+		if i < len(words)-1 {
+			buf.WriteByte(' ')
+		} else {
+			buf.WriteByte('\n')
+		}
+	}
+}
+
+// WriteBytesLine write bytes to buffer, terminate with newline
+func writeBytesLine(buf *bytes.Buffer, bytes []byte) {
+	buf.Write(bytes)
+	buf.WriteByte('\n')
 }
 
 func (op *Operator) removeIP(ip string) error {
