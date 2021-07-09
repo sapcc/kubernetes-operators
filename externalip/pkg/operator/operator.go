@@ -246,7 +246,7 @@ func (op *Operator) syncHandler(_ interface{}) error {
 
 	// Get iptables-save output so we can check for existing chains and rules.
 	// This will be a map of chain name to chain with rules as stored in iptables-save/iptables-restore
-	existingFilterChains := make(map[utiliptables.Chain]string)
+	existingFilterChains := make(map[utiliptables.Chain][]byte)
 	iptablesSaveRaw := bytes.NewBuffer(nil)
 	err = op.iptables.SaveInto(table, iptablesSaveRaw)
 	if err != nil { // if we failed to get any rules
@@ -261,7 +261,7 @@ func (op *Operator) syncHandler(_ interface{}) error {
 	// Make sure we keep stats for the top-level chains, if they existed
 	// (which most should have because we created them above).
 	if chain, ok := existingFilterChains[kubeExternalIPChain]; ok {
-		writeLine(filterChains, chain)
+		writeLine(filterChains, utiliptables.MakeChainLine(utiliptables.Chain(chain)))
 	} else {
 		writeLine(filterChains, utiliptables.MakeChainLine(kubeExternalIPChain))
 	}
