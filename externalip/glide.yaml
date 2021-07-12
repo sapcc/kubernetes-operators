@@ -1,9 +1,0 @@
-package: github.com/sapcc/kubernetes-operators/externalip
-import:
-- package: github.com/spf13/pflag
-- package: k8s.io/client-go
-  version: release-6.0 
-- package: k8s.io/kubernetes
-  version: release-1.9
-  subpackages:
-    - util/iptables
