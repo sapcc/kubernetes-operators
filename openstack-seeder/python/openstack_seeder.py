@@ -2104,7 +2104,7 @@ def check_seedable_flavors_and_resourceclasses_and_traits(flavors, sess, args):
     for flavor in flavors:
         extra_specs = None
         if 'extra_specs' in flavor:
-            extra_specs = flavor.pop('extra_specs', None)
+            extra_specs = flavor['extra_specs']
             if not isinstance(extra_specs, dict):
                 logging.warn("skipping flavor '{}', since it has invalid extra_specs"
                              .format(flavor))
