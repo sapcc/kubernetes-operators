@@ -2172,6 +2172,11 @@ def seed_flavor(flavor, args, sess):
         nova = novaclient.Client("2.1", session=sess,
                                  endpoint_type=args.interface + 'URL')
 
+        # we need to pop the extra_specs, because Nova handles them at their
+        # own endpoint and does not understand us posting them with the rest of
+        # the flavor
+        extra_specs = flavor.pop('extra_specs', None)
+
         # wtf, flavors has no update(): needs to be dropped and re-created instead
         create = False
         resource = None
@@ -2206,7 +2211,6 @@ def seed_flavor(flavor, args, sess):
             resource = nova.flavors.create(**flavor)
 
         # take care of the flavors extra specs
-        extra_specs = flavor.pop('extra_specs', None)
         if extra_specs and resource:
             set_extra_specs = False
             try:
