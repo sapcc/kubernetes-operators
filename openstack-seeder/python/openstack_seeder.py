@@ -2098,45 +2098,56 @@ def check_seedable_flavors_and_resourceclasses_and_traits(flavors, sess, args):
     newly created traits on one or more resource providers, and then seeding flavors
     again, with the flavor now succeeding, since the trait is present and providable.
     """
-    flavor_required_traits:dict[str, set[str]] = defaultdict(set)
     required_resource_classes = set()
     mentioned_traits = set()
+    sanitized_flavors = []
     for flavor in flavors:
-        extra_specs = None
+        flavor = sanitize(flavor, (
+            'id', 'name', 'ram', 'disk', 'vcpus', 'swap', 'rxtx_factor',
+            'is_public', 'disabled', 'ephemeral', 'extra_specs'))
+        if 'name' not in flavor or not flavor['name']:
+            logging.warn("skipping flavor '{}', since it has no name".format(flavor))
+            continue
+        if 'id' not in flavor or not flavor['id']:
+            logging.warn("skipping flavor '{}', since its id is missing".format(flavor))
+            continue
+        required_traits = set()
         if 'extra_specs' in flavor:
             extra_specs = flavor['extra_specs']
             if not isinstance(extra_specs, dict):
                 logging.warn("skipping flavor '{}', since it has invalid extra_specs"
                              .format(flavor))
-            else:
-                for k in extra_specs:
-                    if k.startswith('resources:CUSTOM_'):
-                        resource_class = k.split(':', 1)[-1]
-                        required_resource_classes.add(resource_class)
-                    if k.startswith('trait:CUSTOM_'):
-                        trait = k.split(':', 1)[-1]
-                        if extra_specs[k] == "required":
-                            flavor_required_traits[flavor['id']].add(trait)
-                        mentioned_traits.add(trait)
-        flavor = sanitize(flavor, (
-            'id', 'name', 'ram', 'disk', 'vcpus', 'swap', 'rxtx_factor',
-            'is_public', 'disabled', 'ephemeral'))
-        if 'name' not in flavor or not flavor['name']:
-            logging.warn("skipping flavor '{}', since it has no name".format(flavor))
-            return
-        if 'id' not in flavor or not flavor['id']:
-            logging.warn("skipping flavor '{}', since its id is missing".format(flavor))
-            return
+                continue
+
+            for k, v in extra_specs.items():
+                if k.startswith('resources:CUSTOM_'):
+                    resource_class = k.split(':', 1)[-1]
+                    required_resource_classes.add(resource_class)
+                if k.startswith('trait:CUSTOM_'):
+                    trait = k.split(':', 1)[-1]
+                    mentioned_traits.add(trait)
+                    if v == "required":
+                        required_traits.add(trait)
+
+        sanitized_flavors.append((flavor, required_traits))
+
+    associated_traits = set(_get_traits(sess, args, only_associated=True))
 
     seedable_flavors = []
     unseedable_flavorids_by_trait = defaultdict(set)
-    associated_traits = set(_get_traits(sess, args, only_associated=True))
-    for flavorid, required_traits in flavor_required_traits.items():
-        if len(required_traits - associated_traits) == 0:
-            seedable_flavors += [f for f in flavors if f['id'] == flavorid]
-        else:
-            for trait in required_traits:
-                unseedable_flavorids_by_trait[trait].add(flavorid)
+    for flavor, required_traits in sanitized_flavors:
+        if not required_traits:
+            seedable_flavors.append(flavor)
+            continue
+
+        missing_traits = required_traits - associated_traits
+        if not missing_traits:
+            seedable_flavors.append(flavor)
+            continue
+
+        for trait in missing_traits:
+            unseedable_flavorids_by_trait[trait].add(flavor['id'])
+
     if unseedable_flavorids_by_trait:
         for trait, flavorids in unseedable_flavorids_by_trait.items():
             logging.warn("Flavors {} need a resource provider with trait '{}' and will"
@@ -2145,11 +2156,14 @@ def check_seedable_flavors_and_resourceclasses_and_traits(flavors, sess, args):
                      "    'openstack resource provider trait set --trait <TRAIT>"
                      " <RP-UUID>'\n"
                      "and then wait for the seeder to run again.")
+
     missing_traits = list(mentioned_traits - set(_get_traits(sess, args)))
     if missing_traits:
-        logging.info("Missing traits {} will now be created".format(missing_traits))
+        logging.info("Found traits mentioned in flavors missing in Nova: {}".format(missing_traits))
+
     logging.info("Found resource classes: {}".format(list(required_resource_classes)))
     return seedable_flavors, required_resource_classes, missing_traits
+
 
 def seed_flavor(flavor, args, sess):
     logging.debug("seeding flavor %s" % flavor)
