@@ -338,9 +338,9 @@ func (e *DomainSpec) MergeGroups(domain DomainSpec) {
 	if e.Groups == nil {
 		e.Groups = make([]GroupSpec, 0)
 	}
-	for i, group := range domain.Groups {
+	for _, group := range domain.Groups {
 		found := false
-		for _, v := range e.Groups {
+		for i, v := range e.Groups {
 			if v.Name == group.Name {
 				glog.V(2).Info("merge group ", group)
 				utils.MergeStructFields(&v, group)
