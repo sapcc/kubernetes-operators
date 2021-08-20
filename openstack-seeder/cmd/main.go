@@ -82,7 +82,7 @@ func main() {
 	go kubeInformerFactory.Start(stopCh)
 	go seederInformerFactory.Start(stopCh)
 
-	if err = controller.Run(1, stopCh); err != nil {
+	if err = controller.Run(options.Threadiness, stopCh); err != nil {
 		glog.Fatalf("Error running controller: %s", err.Error())
 	}
 
@@ -97,5 +97,6 @@ func init() {
 	pflag.DurationVar(&options.ResyncPeriod, "resync", time.Hour*24, "Resync period")
 	pflag.StringVar(&options.IgnoreNamespace, "ignorenamespace", "", "Ignore seeds from a certain k8s Namespace.")
 	pflag.StringVar(&options.OnlyNamespace, "onlynamespace", "", "Only apply seeds from a certain k8s Namespace.")
+	pflag.IntVar(&options.Threadiness, "threadiness", 1, "Operator threadiness.")
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 }

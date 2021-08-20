@@ -72,6 +72,7 @@ type Options struct {
 	ResyncPeriod    time.Duration
 	IgnoreNamespace string
 	OnlyNamespace   string
+	Threadiness     int
 }
 
 // Controller is the controller implementation for OpenstackSeed resources
