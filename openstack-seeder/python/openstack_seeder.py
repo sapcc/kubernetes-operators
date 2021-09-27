@@ -703,6 +703,8 @@ def seed_projects(domain, projects, args, sess):
 
         share_types = project.pop('share_types', None)
 
+        bgpvpns = project.pop('bgpvpns', None)
+
         project = sanitize(project,
                            ('name', 'description', 'enabled', 'parent'))
 
@@ -831,6 +833,9 @@ def seed_projects(domain, projects, args, sess):
         if share_types:
             seed_project_share_types(resource, share_types, args, sess)
 
+        if bgpvpns:
+            seed_project_bgpvpns(resource, bgpvpns, args)
+
 
 def seed_project_flavors(project, flavors, args, sess):
     """
@@ -923,7 +928,7 @@ def seed_project_network_quota(project, quota, args, sess):
         'loadbalancer',
         'network', 'pool', 'port', 'rbac_policy', 'router',
         'security_group',
-        'security_group_rule', 'subnet', 'subnetpool'))
+        'security_group_rule', 'subnet', 'subnetpool', 'bgpvpn'))
 
     body = {'quota': quota.copy()}
     result = neutron.show_quota(project.id)
@@ -943,6 +948,75 @@ def seed_project_network_quota(project, quota, args, sess):
                 new_quota[attr] = quota[attr]
         if len(new_quota):
             neutron.update_quota(project.id, {'quota': new_quota})
+
+
+def seed_project_bgpvpns(project, bgpvpns, args, sess):
+    """
+    seed a projects neutron BGPVPNs and dependent objects
+    :param project: the project for which the resources are being created
+    :param bgpvpns: the list of resources that sould be created
+    :param args: optional arguments for Neutron client
+    :param sess: keystone session for Neutron client
+    """
+
+    logging.debug("seeding bgpvpns of project %s" % project.name)
+
+    # grab a neutron client
+    neutron = neutronclient.Client(session=sess,
+                                   interface=args.interface)
+
+    for bgpvpn in bgpvpns:
+        try:
+            bgpvpn = sanitize(bgpvpn, ('name', 'import_targets',
+                                       'export_targets', 'route_targets'))
+            # check required parameters
+            if not bgpvpn.get('name'):
+                logging.warn(
+                    "skipping bgpvpn '%s/%s', since it is misconfigured in "
+                    "option 'name'" % (project.name, bgpvpn))
+                continue
+            if isinstance(bgpvpn.get('import_targets', []), list):
+                logging.warn(
+                    "skipping bgpvpn '%s/%s', since it is misconfigured in "
+                    "option 'import_targets'" % (project.name, bgpvpn))
+                continue
+            if isinstance(bgpvpn.get('export_targets', []), list):
+                logging.warn(
+                    "skipping bgpvpn '%s/%s', since it is misconfigured in "
+                    "option 'export_targets'" % (project.name, bgpvpn))
+                continue
+            if isinstance(bgpvpn.get('route_targets', []), list):
+                logging.warn(
+                    "skipping bgpvpn '%s/%s', since it is misconfigured in "
+                    "option 'route_targets'" % (project.name, bgpvpn))
+                continue
+
+            body = {'bgpvpn': bgpvpn.copy()}
+            body['bgpvpn']['tenant_id'] = project.id
+
+            # check if the bgpvpn already exists
+            query = {'tenant_id': project.id, 'name': bgpvpn['name']}
+            result = neutron.list_bgpvpns(retrieve_all=True, **query)
+            if not result or not result['bgpvpns']:
+                logging.info(
+                    "create bgpvpn '%s/%s'" % (project.name, bgpvpn['name']))
+                result = neutron.create_bgpvpn(body)
+                resource = result['bgpvpn']
+            else:
+                resource = result['bgpvpn'][0]
+                for attr in list(bgpvpn.keys()):
+                    if bgpvpn[attr] != resource.get(attr, ''):
+                        logging.info(
+                            "%s differs. update bgpvpn '%s/%s'" % (
+                                attr, project.name, bgpvpn['name']))
+                        # drop read-only attributes
+                        body['bgpvpn'].pop('tenant_id', None)
+                        neutron.update_bgpvpn(resource['id'], body)
+                        break
+        except Exception as e:
+            logging.error("could not seed bgpvpn %s/%s: %s" % (
+                project.name, bgpvpn['name'], e))
+            raise
 
 
 def seed_project_address_scopes(project, address_scopes, args, sess):
@@ -991,7 +1065,7 @@ def seed_project_address_scopes(project, address_scopes, args, sess):
                 for attr in list(scope.keys()):
                     if scope[attr] != resource.get(attr, ''):
                         logging.info(
-                            "%s differs. update address-cope'%s/%s'" % (
+                            "%s differs. update address-scope '%s/%s'" % (
                                 attr, project.name, scope['name']))
                         # drop read-only attributes
                         body['address_scope'].pop('tenant_id', None)

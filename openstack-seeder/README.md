@@ -28,10 +28,11 @@ Seeding currently only supports creating or updating of entities (upserts).
     - projects
         - project-role-assignments
         - project-endpoints
-        - network quotas
-        - address scopes
+        - network_quota
+        - address_scopes
             - subnet pools
-        - subnet pools
+        - subnet_pools
+        - bgpvpns
         - networks
             - tags
             - subnets
