@@ -173,10 +173,12 @@ func (op *Operator) handler(key *v1.SentryProject) error {
 			return fmt.Errorf("Failed to create client key for project %s: %s", project.Spec.Name, err)
 		}
 		secretData := map[string]string{
-			fmt.Sprintf("%s.DSN", project.Spec.Name):               clientKey.DSN.Secret,
-			fmt.Sprintf("%s.DSN.public", project.Spec.Name):        clientKey.DSN.Public,
-			fmt.Sprintf("%s.DSN.python", project.Spec.Name):        fmt.Sprintf("requests+%s?verify_ssl=0", clientKey.DSN.Secret),
-			fmt.Sprintf("%s.DSN.public.python", project.Spec.Name): fmt.Sprintf("requests+%s?verify_ssl=0", clientKey.DSN.Public),
+			fmt.Sprintf("%s.DSN", project.Spec.Name):                       clientKey.DSN.Secret,
+			fmt.Sprintf("%s.DSN.public", project.Spec.Name):                clientKey.DSN.Public,
+			fmt.Sprintf("%s.DSN.python", project.Spec.Name):                fmt.Sprintf("requests+%s?verify_ssl=0", clientKey.DSN.Secret),
+			fmt.Sprintf("%s.DSN.public.python", project.Spec.Name):         fmt.Sprintf("requests+%s?verify_ssl=0", clientKey.DSN.Public),
+			fmt.Sprintf("%s.DSN.no_ssl_verify", project.Spec.Name):         fmt.Sprintf("%s?verify_ssl=0", clientKey.DSN.Secret),
+			fmt.Sprintf("%s.DSN.public.no_ssl_verify", project.Spec.Name):  fmt.Sprintf("%s?verify_ssl=0", clientKey.DSN.Public),
 		}
 
 		secret, err := op.clientset.CoreV1().Secrets(project.Namespace).Get("sentry", metav1.GetOptions{})
