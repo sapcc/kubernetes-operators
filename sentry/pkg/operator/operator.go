@@ -61,7 +61,8 @@ func New(options Options) *Operator {
 		glog.Fatalf("Couldn't create CRD client: %s", err)
 	}
 
-	sentryClient, err := sentry.NewClient(options.SentryToken, &options.SentryEndpoint, nil)
+	var timeout int = 10
+	sentryClient, err := sentry.NewClient(options.SentryToken, &options.SentryEndpoint, &timeout)
 	if err != nil {
 		glog.Fatalf("Failed to setup sentry api client: %s", err)
 	}
