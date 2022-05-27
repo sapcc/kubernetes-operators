@@ -1,6 +1,7 @@
 package operator
 
 import (
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -9,7 +10,9 @@ import (
 
 func newClientConfig(options Options) *rest.Config {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	overrides := &clientcmd.ConfigOverrides{}
+	overrides := &clientcmd.ConfigOverrides{
+		CurrentContext: options.KubeContext,
+	}
 
 	if options.KubeConfig != "" {
 		rules.ExplicitPath = options.KubeConfig
