@@ -31,6 +31,33 @@ func EnsureCRD(clientset apiextensionsclient.Interface) error {
 				Name:    v1.SchemeGroupVersion.Version,
 				Served:  true,
 				Storage: true,
+				Schema: &apiextensionsv1.CustomResourceValidation{
+					OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
+						Type: "object",
+						Properties: map[string]apiextensionsv1.JSONSchemaProps{
+							"spec": {
+								Type: "object",
+								Properties: map[string]apiextensionsv1.JSONSchemaProps{
+									"name": {
+										Type: "string",
+									},
+									"team": {
+										Type: "string",
+									},
+								}},
+							"status": {
+								Type: "object",
+								Properties: map[string]apiextensionsv1.JSONSchemaProps{
+									"state": {
+										Type: "string",
+									},
+									"message": {
+										Type: "string",
+									},
+								}},
+						},
+					},
+				},
 			}},
 			Scope: apiextensionsv1.NamespaceScoped,
 			Names: apiextensionsv1.CustomResourceDefinitionNames{
