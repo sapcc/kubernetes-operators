@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sync"
@@ -8,7 +9,7 @@ import (
 
 	sentry "github.com/atlassian/go-sentry-api"
 	"github.com/golang/glog"
-	"github.com/sapcc/kubernetes-operators/sentry/pkg/apis/sentry/v1"
+	v1 "github.com/sapcc/kubernetes-operators/sentry/pkg/apis/sentry/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -179,10 +180,10 @@ func (op *Operator) handler(key *v1.SentryProject) error {
 			fmt.Sprintf("%s.DSN.public.python", project.Spec.Name): fmt.Sprintf("requests+%s?verify_ssl=0", clientKey.DSN.Public),
 		}
 
-		secret, err := op.clientset.CoreV1().Secrets(project.Namespace).Get("sentry", metav1.GetOptions{})
+		secret, err := op.clientset.CoreV1().Secrets(project.Namespace).Get(context.TODO(), "sentry", metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
 			glog.Infof("Creating secret %s/%s", "sentry", project.Namespace)
-			_, err := op.clientset.CoreV1().Secrets(project.Namespace).Create(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "sentry"}, StringData: secretData})
+			_, err := op.clientset.CoreV1().Secrets(project.Namespace).Create(context.TODO(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "sentry"}, StringData: secretData}, metav1.CreateOptions{})
 			if err != nil {
 				op.updateStatus(project, v1.SentryProjectError, err.Error())
 			}
@@ -201,7 +202,7 @@ func (op *Operator) handler(key *v1.SentryProject) error {
 		if updated {
 			glog.Infof("Updating key %s in secret %s/%s", project.Spec.Name, "sentry", project.Namespace)
 			secret.StringData = secretData
-			if _, err := op.clientset.CoreV1().Secrets(project.Namespace).Update(secret); err != nil {
+			if _, err := op.clientset.CoreV1().Secrets(project.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
 				op.updateStatus(project, v1.SentryProjectError, err.Error())
 				return err
 			}
@@ -237,6 +238,6 @@ func (op *Operator) updateStatus(project *v1.SentryProject, state v1.SentryProje
 	project.Status.Message = message
 	project.Status.State = state
 
-	_, err := op.sentryClientset.SentryV1().SentryProjects(project.Namespace).Update(project)
+	_, err := op.sentryClientset.SentryV1().SentryProjects(project.Namespace).Update(context.TODO(), project, metav1.UpdateOptions{})
 	return err
 }

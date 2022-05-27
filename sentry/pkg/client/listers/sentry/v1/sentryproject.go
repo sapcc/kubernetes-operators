@@ -26,8 +26,10 @@ import (
 )
 
 // SentryProjectLister helps list SentryProjects.
+// All objects returned here must be treated as read-only.
 type SentryProjectLister interface {
 	// List lists all SentryProjects in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.SentryProject, err error)
 	// SentryProjects returns an object that can list and get SentryProjects.
 	SentryProjects(namespace string) SentryProjectNamespaceLister
@@ -58,10 +60,13 @@ func (s *sentryProjectLister) SentryProjects(namespace string) SentryProjectName
 }
 
 // SentryProjectNamespaceLister helps list and get SentryProjects.
+// All objects returned here must be treated as read-only.
 type SentryProjectNamespaceLister interface {
 	// List lists all SentryProjects in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.SentryProject, err error)
 	// Get retrieves the SentryProject from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.SentryProject, error)
 	SentryProjectNamespaceListerExpansion
 }

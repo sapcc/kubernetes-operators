@@ -19,9 +19,12 @@ limitations under the License.
 package v1
 
 import (
+	"context"
+	"time"
+
 	v1 "github.com/sapcc/kubernetes-operators/sentry/pkg/apis/sentry/v1"
 	scheme "github.com/sapcc/kubernetes-operators/sentry/pkg/client/clientset/versioned/scheme"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
@@ -35,15 +38,15 @@ type SentryProjectsGetter interface {
 
 // SentryProjectInterface has methods to work with SentryProject resources.
 type SentryProjectInterface interface {
-	Create(*v1.SentryProject) (*v1.SentryProject, error)
-	Update(*v1.SentryProject) (*v1.SentryProject, error)
-	UpdateStatus(*v1.SentryProject) (*v1.SentryProject, error)
-	Delete(name string, options *meta_v1.DeleteOptions) error
-	DeleteCollection(options *meta_v1.DeleteOptions, listOptions meta_v1.ListOptions) error
-	Get(name string, options meta_v1.GetOptions) (*v1.SentryProject, error)
-	List(opts meta_v1.ListOptions) (*v1.SentryProjectList, error)
-	Watch(opts meta_v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.SentryProject, err error)
+	Create(ctx context.Context, sentryProject *v1.SentryProject, opts metav1.CreateOptions) (*v1.SentryProject, error)
+	Update(ctx context.Context, sentryProject *v1.SentryProject, opts metav1.UpdateOptions) (*v1.SentryProject, error)
+	UpdateStatus(ctx context.Context, sentryProject *v1.SentryProject, opts metav1.UpdateOptions) (*v1.SentryProject, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.SentryProject, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1.SentryProjectList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.SentryProject, err error)
 	SentryProjectExpansion
 }
 
@@ -62,113 +65,131 @@ func newSentryProjects(c *SentryV1Client, namespace string) *sentryProjects {
 }
 
 // Get takes name of the sentryProject, and returns the corresponding sentryProject object, and an error if there is any.
-func (c *sentryProjects) Get(name string, options meta_v1.GetOptions) (result *v1.SentryProject, err error) {
+func (c *sentryProjects) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.SentryProject, err error) {
 	result = &v1.SentryProject{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("sentryprojects").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of SentryProjects that match those selectors.
-func (c *sentryProjects) List(opts meta_v1.ListOptions) (result *v1.SentryProjectList, err error) {
+func (c *sentryProjects) List(ctx context.Context, opts metav1.ListOptions) (result *v1.SentryProjectList, err error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
 	result = &v1.SentryProjectList{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("sentryprojects").
 		VersionedParams(&opts, scheme.ParameterCodec).
-		Do().
+		Timeout(timeout).
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested sentryProjects.
-func (c *sentryProjects) Watch(opts meta_v1.ListOptions) (watch.Interface, error) {
+func (c *sentryProjects) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
 	opts.Watch = true
 	return c.client.Get().
 		Namespace(c.ns).
 		Resource("sentryprojects").
 		VersionedParams(&opts, scheme.ParameterCodec).
-		Watch()
+		Timeout(timeout).
+		Watch(ctx)
 }
 
 // Create takes the representation of a sentryProject and creates it.  Returns the server's representation of the sentryProject, and an error, if there is any.
-func (c *sentryProjects) Create(sentryProject *v1.SentryProject) (result *v1.SentryProject, err error) {
+func (c *sentryProjects) Create(ctx context.Context, sentryProject *v1.SentryProject, opts metav1.CreateOptions) (result *v1.SentryProject, err error) {
 	result = &v1.SentryProject{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("sentryprojects").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(sentryProject).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a sentryProject and updates it. Returns the server's representation of the sentryProject, and an error, if there is any.
-func (c *sentryProjects) Update(sentryProject *v1.SentryProject) (result *v1.SentryProject, err error) {
+func (c *sentryProjects) Update(ctx context.Context, sentryProject *v1.SentryProject, opts metav1.UpdateOptions) (result *v1.SentryProject, err error) {
 	result = &v1.SentryProject{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("sentryprojects").
 		Name(sentryProject.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(sentryProject).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-
-func (c *sentryProjects) UpdateStatus(sentryProject *v1.SentryProject) (result *v1.SentryProject, err error) {
+func (c *sentryProjects) UpdateStatus(ctx context.Context, sentryProject *v1.SentryProject, opts metav1.UpdateOptions) (result *v1.SentryProject, err error) {
 	result = &v1.SentryProject{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("sentryprojects").
 		Name(sentryProject.Name).
 		SubResource("status").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(sentryProject).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the sentryProject and deletes it. Returns an error if one occurs.
-func (c *sentryProjects) Delete(name string, options *meta_v1.DeleteOptions) error {
+func (c *sentryProjects) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("sentryprojects").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *sentryProjects) DeleteCollection(options *meta_v1.DeleteOptions, listOptions meta_v1.ListOptions) error {
+func (c *sentryProjects) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
+	var timeout time.Duration
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
+	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("sentryprojects").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
-		Body(options).
-		Do().
+		VersionedParams(&listOpts, scheme.ParameterCodec).
+		Timeout(timeout).
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched sentryProject.
-func (c *sentryProjects) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.SentryProject, err error) {
+func (c *sentryProjects) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.SentryProject, err error) {
 	result = &v1.SentryProject{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("sentryprojects").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

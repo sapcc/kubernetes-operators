@@ -1,10 +1,11 @@
 package operator
 
 import (
+	"context"
 	"reflect"
 	"time"
 
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,44 +14,50 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/sapcc/kubernetes-operators/sentry/pkg/apis/sentry"
-	"github.com/sapcc/kubernetes-operators/sentry/pkg/apis/sentry/v1"
+	v1 "github.com/sapcc/kubernetes-operators/sentry/pkg/apis/sentry/v1"
 )
 
 func EnsureCRD(clientset apiextensionsclient.Interface) error {
+
+	ctx := context.TODO()
 	klusterCRDName := v1.SentryProjectResourcePlural + "." + sentry.GroupName
-	crd := &apiextensionsv1beta1.CustomResourceDefinition{
+	crd := &apiextensionsv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: klusterCRDName,
 		},
-		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-			Group:   sentry.GroupName,
-			Version: v1.SchemeGroupVersion.Version,
-			Scope:   apiextensionsv1beta1.NamespaceScoped,
-			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
+		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
+			Group: sentry.GroupName,
+			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{{
+				Name:    v1.SchemeGroupVersion.Version,
+				Served:  true,
+				Storage: true,
+			}},
+			Scope: apiextensionsv1.NamespaceScoped,
+			Names: apiextensionsv1.CustomResourceDefinitionNames{
 				Plural: v1.SentryProjectResourcePlural,
 				Kind:   reflect.TypeOf(v1.SentryProject{}).Name(),
 			},
 		},
 	}
-	_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
+	_, err := clientset.ApiextensionsV1().CustomResourceDefinitions().Create(ctx, crd, metav1.CreateOptions{})
 	//TODO: Should this error if it already exit?
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return err
 	}
 	// wait for CRD being established
 	err = wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-		crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(klusterCRDName, metav1.GetOptions{})
+		crd, err = clientset.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, klusterCRDName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
 		for _, cond := range crd.Status.Conditions {
 			switch cond.Type {
-			case apiextensionsv1beta1.Established:
-				if cond.Status == apiextensionsv1beta1.ConditionTrue {
+			case apiextensionsv1.Established:
+				if cond.Status == apiextensionsv1.ConditionTrue {
 					return true, err
 				}
-			case apiextensionsv1beta1.NamesAccepted:
-				if cond.Status == apiextensionsv1beta1.ConditionFalse {
+			case apiextensionsv1.NamesAccepted:
+				if cond.Status == apiextensionsv1.ConditionFalse {
 					glog.Errorf("name conflict while ensuring CRD: %s", cond.Reason)
 				}
 			}
@@ -58,7 +65,7 @@ func EnsureCRD(clientset apiextensionsclient.Interface) error {
 		return false, err
 	})
 	if err != nil {
-		deleteErr := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(klusterCRDName, nil)
+		deleteErr := clientset.ApiextensionsV1().CustomResourceDefinitions().Delete(ctx, klusterCRDName, metav1.DeleteOptions{})
 		if deleteErr != nil {
 			return apiutilerrors.NewAggregate([]error{err, deleteErr})
 		}

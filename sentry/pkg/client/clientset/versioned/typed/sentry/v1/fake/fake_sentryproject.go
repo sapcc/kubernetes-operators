@@ -19,7 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	sentry_v1 "github.com/sapcc/kubernetes-operators/sentry/pkg/apis/sentry/v1"
+	"context"
+
+	sentryv1 "github.com/sapcc/kubernetes-operators/sentry/pkg/apis/sentry/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -39,20 +41,20 @@ var sentryprojectsResource = schema.GroupVersionResource{Group: "sentry.sap.cc",
 var sentryprojectsKind = schema.GroupVersionKind{Group: "sentry.sap.cc", Version: "v1", Kind: "SentryProject"}
 
 // Get takes name of the sentryProject, and returns the corresponding sentryProject object, and an error if there is any.
-func (c *FakeSentryProjects) Get(name string, options v1.GetOptions) (result *sentry_v1.SentryProject, err error) {
+func (c *FakeSentryProjects) Get(ctx context.Context, name string, options v1.GetOptions) (result *sentryv1.SentryProject, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(sentryprojectsResource, c.ns, name), &sentry_v1.SentryProject{})
+		Invokes(testing.NewGetAction(sentryprojectsResource, c.ns, name), &sentryv1.SentryProject{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*sentry_v1.SentryProject), err
+	return obj.(*sentryv1.SentryProject), err
 }
 
 // List takes label and field selectors, and returns the list of SentryProjects that match those selectors.
-func (c *FakeSentryProjects) List(opts v1.ListOptions) (result *sentry_v1.SentryProjectList, err error) {
+func (c *FakeSentryProjects) List(ctx context.Context, opts v1.ListOptions) (result *sentryv1.SentryProjectList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(sentryprojectsResource, sentryprojectsKind, c.ns, opts), &sentry_v1.SentryProjectList{})
+		Invokes(testing.NewListAction(sentryprojectsResource, sentryprojectsKind, c.ns, opts), &sentryv1.SentryProjectList{})
 
 	if obj == nil {
 		return nil, err
@@ -62,8 +64,8 @@ func (c *FakeSentryProjects) List(opts v1.ListOptions) (result *sentry_v1.Sentry
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &sentry_v1.SentryProjectList{ListMeta: obj.(*sentry_v1.SentryProjectList).ListMeta}
-	for _, item := range obj.(*sentry_v1.SentryProjectList).Items {
+	list := &sentryv1.SentryProjectList{ListMeta: obj.(*sentryv1.SentryProjectList).ListMeta}
+	for _, item := range obj.(*sentryv1.SentryProjectList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -72,69 +74,69 @@ func (c *FakeSentryProjects) List(opts v1.ListOptions) (result *sentry_v1.Sentry
 }
 
 // Watch returns a watch.Interface that watches the requested sentryProjects.
-func (c *FakeSentryProjects) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeSentryProjects) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(sentryprojectsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a sentryProject and creates it.  Returns the server's representation of the sentryProject, and an error, if there is any.
-func (c *FakeSentryProjects) Create(sentryProject *sentry_v1.SentryProject) (result *sentry_v1.SentryProject, err error) {
+func (c *FakeSentryProjects) Create(ctx context.Context, sentryProject *sentryv1.SentryProject, opts v1.CreateOptions) (result *sentryv1.SentryProject, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(sentryprojectsResource, c.ns, sentryProject), &sentry_v1.SentryProject{})
+		Invokes(testing.NewCreateAction(sentryprojectsResource, c.ns, sentryProject), &sentryv1.SentryProject{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*sentry_v1.SentryProject), err
+	return obj.(*sentryv1.SentryProject), err
 }
 
 // Update takes the representation of a sentryProject and updates it. Returns the server's representation of the sentryProject, and an error, if there is any.
-func (c *FakeSentryProjects) Update(sentryProject *sentry_v1.SentryProject) (result *sentry_v1.SentryProject, err error) {
+func (c *FakeSentryProjects) Update(ctx context.Context, sentryProject *sentryv1.SentryProject, opts v1.UpdateOptions) (result *sentryv1.SentryProject, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(sentryprojectsResource, c.ns, sentryProject), &sentry_v1.SentryProject{})
+		Invokes(testing.NewUpdateAction(sentryprojectsResource, c.ns, sentryProject), &sentryv1.SentryProject{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*sentry_v1.SentryProject), err
+	return obj.(*sentryv1.SentryProject), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeSentryProjects) UpdateStatus(sentryProject *sentry_v1.SentryProject) (*sentry_v1.SentryProject, error) {
+func (c *FakeSentryProjects) UpdateStatus(ctx context.Context, sentryProject *sentryv1.SentryProject, opts v1.UpdateOptions) (*sentryv1.SentryProject, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(sentryprojectsResource, "status", c.ns, sentryProject), &sentry_v1.SentryProject{})
+		Invokes(testing.NewUpdateSubresourceAction(sentryprojectsResource, "status", c.ns, sentryProject), &sentryv1.SentryProject{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*sentry_v1.SentryProject), err
+	return obj.(*sentryv1.SentryProject), err
 }
 
 // Delete takes name of the sentryProject and deletes it. Returns an error if one occurs.
-func (c *FakeSentryProjects) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeSentryProjects) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(sentryprojectsResource, c.ns, name), &sentry_v1.SentryProject{})
+		Invokes(testing.NewDeleteAction(sentryprojectsResource, c.ns, name), &sentryv1.SentryProject{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeSentryProjects) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(sentryprojectsResource, c.ns, listOptions)
+func (c *FakeSentryProjects) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(sentryprojectsResource, c.ns, listOpts)
 
-	_, err := c.Fake.Invokes(action, &sentry_v1.SentryProjectList{})
+	_, err := c.Fake.Invokes(action, &sentryv1.SentryProjectList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched sentryProject.
-func (c *FakeSentryProjects) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *sentry_v1.SentryProject, err error) {
+func (c *FakeSentryProjects) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *sentryv1.SentryProject, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(sentryprojectsResource, c.ns, name, data, subresources...), &sentry_v1.SentryProject{})
+		Invokes(testing.NewPatchSubresourceAction(sentryprojectsResource, c.ns, name, pt, data, subresources...), &sentryv1.SentryProject{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*sentry_v1.SentryProject), err
+	return obj.(*sentryv1.SentryProject), err
 }
