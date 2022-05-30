@@ -35,10 +35,13 @@ func CreateCustomResourceDefinition(clientset apiextensionsclient.Interface) (*a
 	glog.Infof("Checking CustomResourceDefinition %s", openstackseedCRDName)
 
 	//validation := crdvalidation.GetCustomResourceValidation("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.OpenstackSeed", seederv1.GetOpenAPIDefinitions)
+	schema := apiextensionsv1.CustomResourceValidation{
+		OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{},
+	}
 	version := apiextensionsv1.CustomResourceDefinitionVersion{
 		Name:    seederv1.SchemeGroupVersion.Version,
 		Storage: true,
-		//Schema: validation,
+		Schema:  &schema,
 	}
 
 	crd := &apiextensionsv1.CustomResourceDefinition{
