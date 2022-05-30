@@ -19,10 +19,9 @@ import (
 
 	seederv1 "github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1"
 
-	crdvalidation "github.com/ant31/crd-validation/pkg"
 	"github.com/golang/glog"
 	"github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,39 +31,42 @@ import (
 
 const openstackseedCRDName = seederv1.OpenstackSeedResourcePlural + "." + seeder.GroupName
 
-func CreateCustomResourceDefinition(clientset apiextensionsclient.Interface) (*apiextensionsv1beta1.CustomResourceDefinition, error) {
+func CreateCustomResourceDefinition(clientset apiextensionsclient.Interface) (*apiextensionsv1.CustomResourceDefinition, error) {
 	glog.Infof("Checking CustomResourceDefinition %s", openstackseedCRDName)
 
-	validation := crdvalidation.GetCustomResourceValidation("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.OpenstackSeed", seederv1.GetOpenAPIDefinitions)
+	//validation := crdvalidation.GetCustomResourceValidation("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.OpenstackSeed", seederv1.GetOpenAPIDefinitions)
+	version := apiextensionsv1.CustomResourceDefinitionVersion{
+		Name: seederv1.SchemeGroupVersion.Version,
+		//Schema: validation,
+	}
 
-	crd := &apiextensionsv1beta1.CustomResourceDefinition{
+	crd := &apiextensionsv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: openstackseedCRDName,
 		},
-		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-			Group:   seeder.GroupName,
-			Version: seederv1.SchemeGroupVersion.Version,
-			Scope:   apiextensionsv1beta1.NamespaceScoped,
-			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
+		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
+			Group:    seeder.GroupName,
+			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{version},
+			Scope:    apiextensionsv1.NamespaceScoped,
+			Names: apiextensionsv1.CustomResourceDefinitionNames{
 				Plural: seederv1.OpenstackSeedResourcePlural,
 				Kind:   reflect.TypeOf(seederv1.OpenstackSeed{}).Name(),
 			},
-			Validation: validation,
 		},
 	}
 
-	_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(context.TODO(), crd, metav1.CreateOptions{})
+	_, err := clientset.ApiextensionsV1().CustomResourceDefinitions().Create(context.TODO(), crd, metav1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			// check if the (new) CRD validation has been put in place yet
-			crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(context.TODO(), openstackseedCRDName, metav1.GetOptions{})
+			crd, err = clientset.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), openstackseedCRDName, metav1.GetOptions{})
 			if err != nil {
 				glog.Errorf("Get CustomResourceDefinition %s failed: %v", openstackseedCRDName, err)
 				return nil, err
 			}
 			glog.Infof("Updating validation for CustomResourceDefinition %s", openstackseedCRDName)
-			crd.Spec.Validation = validation
-			crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Update(context.TODO(), crd, metav1.UpdateOptions{})
+			crd.Spec.Versions = []apiextensionsv1.CustomResourceDefinitionVersion{version}
+			crd, err = clientset.ApiextensionsV1().CustomResourceDefinitions().Update(context.TODO(), crd, metav1.UpdateOptions{})
 			if err != nil {
 				glog.Errorf("Validation update of CustomResourceDefinition %s failed: %v", openstackseedCRDName, err)
 				return nil, err
@@ -78,19 +80,19 @@ func CreateCustomResourceDefinition(clientset apiextensionsclient.Interface) (*a
 	// wait for CRD being established
 	glog.Info("Waiting for CustomResourceDefinition")
 	err = wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-		crd, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(context.TODO(), openstackseedCRDName, metav1.GetOptions{})
+		crd, err = clientset.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), openstackseedCRDName, metav1.GetOptions{})
 		if err != nil {
 			glog.Errorf("Wait for CustomResourceDefinition failed %v", err)
 			return false, err
 		}
 		for _, cond := range crd.Status.Conditions {
 			switch cond.Type {
-			case apiextensionsv1beta1.Established:
-				if cond.Status == apiextensionsv1beta1.ConditionTrue {
+			case apiextensionsv1.Established:
+				if cond.Status == apiextensionsv1.ConditionTrue {
 					return true, err
 				}
-			case apiextensionsv1beta1.NamesAccepted:
-				if cond.Status == apiextensionsv1beta1.ConditionFalse {
+			case apiextensionsv1.NamesAccepted:
+				if cond.Status == apiextensionsv1.ConditionFalse {
 					glog.Errorf("Name conflict: %v", cond.Reason)
 				}
 			}
