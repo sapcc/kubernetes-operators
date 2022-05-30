@@ -27,21 +27,31 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/pointer"
 )
 
 const openstackseedCRDName = seederv1.OpenstackSeedResourcePlural + "." + seeder.GroupName
+
+// AllowAllSchema doesn't enforce any schema restrictions
+func AllowAllSchema() *apiextensionsv1.CustomResourceValidation {
+	return &apiextensionsv1.CustomResourceValidation{
+		OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
+			XPreserveUnknownFields: pointer.BoolPtr(true),
+			Type:                   "object",
+		},
+	}
+}
 
 func CreateCustomResourceDefinition(clientset apiextensionsclient.Interface) (*apiextensionsv1.CustomResourceDefinition, error) {
 	glog.Infof("Checking CustomResourceDefinition %s", openstackseedCRDName)
 
 	//validation := crdvalidation.GetCustomResourceValidation("github.com/sapcc/kubernetes-operators/openstack-seeder/pkg/apis/seeder/v1.OpenstackSeed", seederv1.GetOpenAPIDefinitions)
-	schema := apiextensionsv1.CustomResourceValidation{
-		OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{},
-	}
+
 	version := apiextensionsv1.CustomResourceDefinitionVersion{
 		Name:    seederv1.SchemeGroupVersion.Version,
 		Storage: true,
-		Schema:  &schema,
+		Served:  true,
+		Schema:  AllowAllSchema(),
 	}
 
 	crd := &apiextensionsv1.CustomResourceDefinition{
