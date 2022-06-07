@@ -22,7 +22,7 @@ bin/%/$(BINARY): GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 bin/%/$(BINARY): $(GOFILES) Makefile
 	GOOS=$* GOARCH=amd64 go build\
 		-ldflags "-s -w -X github.com/sapcc/kubernetes-operators/disco/pkg/version.Revision=$(GIT_REVISION) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.Branch=$(GIT_BRANCH) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.BuildDate=$(BUILD_DATE) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.Version=$(VERSION)"\
-		-v -i -o bin/$*/$(BINARY) ./cmd/$(BINARY)
+		-v -o bin/$*/$(BINARY) ./cmd/$(BINARY)
 
 docker-build: bin/linux/$(BINARY)
 	docker build -t $(IMAGE):$(VERSION) .

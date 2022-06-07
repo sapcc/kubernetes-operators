@@ -22,6 +22,7 @@
 package v1
 
 import (
+	"context"
 	time "time"
 
 	discov1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
@@ -58,19 +59,20 @@ func NewRecordInformer(client versioned.Interface, namespace string, resyncPerio
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredRecordInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	ctx := context.TODO()
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.DiscoV1().Records(namespace).List(options)
+				return client.DiscoV1().Records(namespace).List(ctx, options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.DiscoV1().Records(namespace).Watch(options)
+				return client.DiscoV1().Records(namespace).Watch(ctx, options)
 			},
 		},
 		&discov1.Record{},

@@ -233,22 +233,23 @@ func (k8s *K8sFramework) Eventf(object runtime.Object, eventType, reason, messag
 
 // CreateDiscoRecordCRDAndWaitUntilReady creates the CRDs used by this operator and waits until they are ready or the operation times out.
 func (k8s *K8sFramework) CreateDiscoRecordCRDAndWaitUntilReady() error {
+	ctx := context.TODO()
 	crd := NewDiscoRecordCRD()
 	crdClient := k8s.CRDclientset.ApiextensionsV1beta1().CustomResourceDefinitions()
-	oldCRD, err := crdClient.Get(crd.Name, metaV1.GetOptions{})
+	oldCRD, err := crdClient.Get(ctx, crd.Name, metaV1.GetOptions{})
 	if err != nil && !apiErrors.IsNotFound(err) {
 		return errors.Wrapf(err, "error getting crd")
 	}
 	if apiErrors.IsNotFound(err) {
 		k8s.logger.LogInfo("creating CRD", "group", crd.GetObjectKind().GroupVersionKind().Group, "name", crd.GetName())
-		if _, err := crdClient.Create(crd); err != nil {
+		if _, err := crdClient.Create(ctx, crd, metaV1.CreateOptions{}); err != nil {
 			return errors.Wrap(err, "error creating crd")
 		}
 	}
 	if err == nil {
 		k8s.logger.LogInfo("updating CRD", "group", crd.GetObjectKind().GroupVersionKind().Group, "name", crd.GetName())
 		crd.ResourceVersion = oldCRD.GetResourceVersion()
-		if _, err := crdClient.Update(crd); err != nil {
+		if _, err := crdClient.Update(ctx, crd, metaV1.UpdateOptions{}); err != nil {
 			return errors.Wrap(err, "error updating crd")
 		}
 	}
@@ -258,11 +259,13 @@ func (k8s *K8sFramework) CreateDiscoRecordCRDAndWaitUntilReady() error {
 
 // GetIngress returns the ingress or an error.
 func (k8s *K8sFramework) GetIngress(namespace, name string) (*extensionsv1beta1.Ingress, error) {
-	return k8s.ExtensionsV1beta1().Ingresses(namespace).Get(name, metaV1.GetOptions{})
+	ctx := context.TODO()
+	return k8s.ExtensionsV1beta1().Ingresses(namespace).Get(ctx, name, metaV1.GetOptions{})
 }
 
 // UpdateIngressAndWait updates an existing Ingress and waits until the operation times out or is completed.
 func (k8s *K8sFramework) UpdateIngressAndWait(oldIngress, newIngress *extensionsv1beta1.Ingress, conditionFuncs ...watch.ConditionFunc) error {
+	ctx := context.TODO()
 	oldIngress, err := k8s.GetIngress(oldIngress.GetNamespace(), oldIngress.GetName())
 	if err != nil {
 		return err
@@ -273,7 +276,7 @@ func (k8s *K8sFramework) UpdateIngressAndWait(oldIngress, newIngress *extensions
 		return nil
 	}
 
-	updatedIngress, err := k8s.ExtensionsV1beta1().Ingresses(oldIngress.GetNamespace()).Update(newIngress)
+	updatedIngress, err := k8s.ExtensionsV1beta1().Ingresses(oldIngress.GetNamespace()).Update(ctx, newIngress, metaV1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -289,11 +292,13 @@ func (k8s *K8sFramework) UpdateIngressAndWait(oldIngress, newIngress *extensions
 
 // GetService returns the service or an error.
 func (k8s *K8sFramework) GetService(namespace, name string) (*coreV1.Service, error) {
-	return k8s.CoreV1().Services(namespace).Get(name, metaV1.GetOptions{})
+	ctx := context.TODO()
+	return k8s.CoreV1().Services(namespace).Get(ctx, name, metaV1.GetOptions{})
 }
 
 // UpdateServiceAndWait updates an existing Service and waits until the operation times out or is completed.
 func (k8s *K8sFramework) UpdateServiceAndWait(oldService, newService *coreV1.Service, conditionFuncs ...watch.ConditionFunc) error {
+	ctx := context.TODO()
 	oldService, err := k8s.GetService(oldService.GetNamespace(), oldService.GetName())
 	if err != nil {
 		return err
@@ -304,7 +309,7 @@ func (k8s *K8sFramework) UpdateServiceAndWait(oldService, newService *coreV1.Ser
 		return nil
 	}
 
-	updatedService, err := k8s.CoreV1().Services(oldService.GetNamespace()).Update(newService)
+	updatedService, err := k8s.CoreV1().Services(oldService.GetNamespace()).Update(ctx, newService, metaV1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -320,11 +325,12 @@ func (k8s *K8sFramework) UpdateServiceAndWait(oldService, newService *coreV1.Ser
 
 // GetDiscoRecord returns the Record or an error.
 func (k8s *K8sFramework) GetDiscoRecord(namespace, name string) (*discov1.Record, error) {
-	return k8s.DiscoCRDClientset.Records(namespace).Get(name, metaV1.GetOptions{})
+	return k8s.DiscoCRDClientset.Records(namespace).Get(context.TODO(), name, metaV1.GetOptions{})
 }
 
 // UpdateDiscoRecordAndWait updates the given Record and waits until successfully completed or errored.
 func (k8s *K8sFramework) UpdateDiscoRecordAndWait(oldDiscoRecord, newDiscoRecord *discov1.Record, conditionFuncs ...watch.ConditionFunc) error {
+	ctx := context.TODO()
 	oldDiscoRecord, err := k8s.GetDiscoRecord(oldDiscoRecord.GetNamespace(), oldDiscoRecord.GetName())
 	if err != nil {
 		return err
@@ -334,7 +340,7 @@ func (k8s *K8sFramework) UpdateDiscoRecordAndWait(oldDiscoRecord, newDiscoRecord
 		return nil
 	}
 
-	updatedDiscoRecord, err := k8s.DiscoCRDClientset.Records(oldDiscoRecord.GetNamespace()).Update(newDiscoRecord)
+	updatedDiscoRecord, err := k8s.DiscoCRDClientset.Records(oldDiscoRecord.GetNamespace()).Update(ctx, newDiscoRecord)
 	if err != nil {
 		return err
 	}
@@ -499,10 +505,10 @@ func (k8s *K8sFramework) waitForUpstreamIngress(ingress *extensionsv1beta1.Ingre
 		ctx,
 		&cache.ListWatch{
 			ListFunc: func(options metaV1.ListOptions) (object runtime.Object, e error) {
-				return k8s.ExtensionsV1beta1().Ingresses(ingress.GetNamespace()).List(metaV1.SingleObject(metaV1.ObjectMeta{Name: ingress.GetName()}))
+				return k8s.ExtensionsV1beta1().Ingresses(ingress.GetNamespace()).List(ctx, metaV1.SingleObject(metaV1.ObjectMeta{Name: ingress.GetName()}))
 			},
 			WatchFunc: func(options metaV1.ListOptions) (i apimachineryWatch.Interface, e error) {
-				return k8s.ExtensionsV1beta1().Ingresses(ingress.GetNamespace()).Watch(metaV1.SingleObject(metaV1.ObjectMeta{Name: ingress.GetName()}))
+				return k8s.ExtensionsV1beta1().Ingresses(ingress.GetNamespace()).Watch(ctx, metaV1.SingleObject(metaV1.ObjectMeta{Name: ingress.GetName()}))
 			},
 		},
 		ingress,
@@ -519,10 +525,10 @@ func (k8s *K8sFramework) waitForUpstreamService(service *coreV1.Service, conditi
 		ctx,
 		&cache.ListWatch{
 			ListFunc: func(options metaV1.ListOptions) (object runtime.Object, e error) {
-				return k8s.CoreV1().Services(service.GetNamespace()).List(metaV1.SingleObject(metaV1.ObjectMeta{Name: service.GetName()}))
+				return k8s.CoreV1().Services(service.GetNamespace()).List(ctx, metaV1.SingleObject(metaV1.ObjectMeta{Name: service.GetName()}))
 			},
 			WatchFunc: func(options metaV1.ListOptions) (i apimachineryWatch.Interface, e error) {
-				return k8s.CoreV1().Services(service.GetNamespace()).Watch(metaV1.SingleObject(metaV1.ObjectMeta{Name: service.GetName()}))
+				return k8s.CoreV1().Services(service.GetNamespace()).Watch(ctx, metaV1.SingleObject(metaV1.ObjectMeta{Name: service.GetName()}))
 			},
 		},
 		service,
@@ -538,10 +544,10 @@ func (k8s *K8sFramework) waitForUpstreamDiscoRecord(discoRecord *discov1.Record,
 		ctx,
 		&cache.ListWatch{
 			ListFunc: func(options metaV1.ListOptions) (object runtime.Object, e error) {
-				return k8s.DiscoCRDClientset.Records(discoRecord.GetNamespace()).List(metaV1.SingleObject(metaV1.ObjectMeta{Name: discoRecord.GetName()}))
+				return k8s.DiscoCRDClientset.Records(discoRecord.GetNamespace()).List(ctx, metaV1.SingleObject(metaV1.ObjectMeta{Name: discoRecord.GetName()}))
 			},
 			WatchFunc: func(options metaV1.ListOptions) (i apimachineryWatch.Interface, e error) {
-				return k8s.DiscoCRDClientset.Records(discoRecord.GetNamespace()).Watch(metaV1.SingleObject(metaV1.ObjectMeta{Name: discoRecord.GetName()}))
+				return k8s.DiscoCRDClientset.Records(discoRecord.GetNamespace()).Watch(ctx, metaV1.SingleObject(metaV1.ObjectMeta{Name: discoRecord.GetName()}))
 			},
 		},
 		discoRecord,
@@ -557,10 +563,10 @@ func (k8s *K8sFramework) waitForUpstreamCRD(crd *extensionsobj.CustomResourceDef
 		ctx,
 		&cache.ListWatch{
 			ListFunc: func(options metaV1.ListOptions) (object runtime.Object, e error) {
-				return k8s.CRDclientset.ApiextensionsV1beta1().CustomResourceDefinitions().List(metaV1.SingleObject(metaV1.ObjectMeta{Name: crd.Name}))
+				return k8s.CRDclientset.ApiextensionsV1beta1().CustomResourceDefinitions().List(ctx, metaV1.SingleObject(metaV1.ObjectMeta{Name: crd.Name}))
 			},
 			WatchFunc: func(options metaV1.ListOptions) (i apimachineryWatch.Interface, e error) {
-				return k8s.CRDclientset.ApiextensionsV1beta1().CustomResourceDefinitions().Watch(metaV1.SingleObject(metaV1.ObjectMeta{Name: crd.Name}))
+				return k8s.CRDclientset.ApiextensionsV1beta1().CustomResourceDefinitions().Watch(ctx, metaV1.SingleObject(metaV1.ObjectMeta{Name: crd.Name}))
 			},
 		},
 		crd,

@@ -22,6 +22,7 @@
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/sapcc/kubernetes-operators/disco/pkg/apis/disco/v1"
@@ -40,14 +41,14 @@ type RecordsGetter interface {
 
 // RecordInterface has methods to work with Record resources.
 type RecordInterface interface {
-	Create(*v1.Record) (*v1.Record, error)
-	Update(*v1.Record) (*v1.Record, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.Record, error)
-	List(opts metav1.ListOptions) (*v1.RecordList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.Record, err error)
+	Create(context.Context, *v1.Record) (*v1.Record, error)
+	Update(context.Context, *v1.Record) (*v1.Record, error)
+	Delete(ctx context.Context, name string, options *metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
+	Get(ctx context.Context, name string, options metav1.GetOptions) (*v1.Record, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1.RecordList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.Record, err error)
 	RecordExpansion
 }
 
@@ -66,20 +67,20 @@ func newRecords(c *DiscoV1Client, namespace string) *records {
 }
 
 // Get takes name of the record, and returns the corresponding record object, and an error if there is any.
-func (c *records) Get(name string, options metav1.GetOptions) (result *v1.Record, err error) {
+func (c *records) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.Record, err error) {
 	result = &v1.Record{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("records").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of Records that match those selectors.
-func (c *records) List(opts metav1.ListOptions) (result *v1.RecordList, err error) {
+func (c *records) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RecordList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -90,13 +91,13 @@ func (c *records) List(opts metav1.ListOptions) (result *v1.RecordList, err erro
 		Resource("records").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested records.
-func (c *records) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *records) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -107,47 +108,47 @@ func (c *records) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 		Resource("records").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a record and creates it.  Returns the server's representation of the record, and an error, if there is any.
-func (c *records) Create(record *v1.Record) (result *v1.Record, err error) {
+func (c *records) Create(ctx context.Context, record *v1.Record) (result *v1.Record, err error) {
 	result = &v1.Record{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("records").
 		Body(record).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a record and updates it. Returns the server's representation of the record, and an error, if there is any.
-func (c *records) Update(record *v1.Record) (result *v1.Record, err error) {
+func (c *records) Update(ctx context.Context, record *v1.Record) (result *v1.Record, err error) {
 	result = &v1.Record{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("records").
 		Name(record.Name).
 		Body(record).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the record and deletes it. Returns an error if one occurs.
-func (c *records) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *records) Delete(ctx context.Context, name string, options *metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("records").
 		Name(name).
 		Body(options).
-		Do().
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *records) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *records) DeleteCollection(ctx context.Context, options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
 	var timeout time.Duration
 	if listOptions.TimeoutSeconds != nil {
 		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
@@ -158,12 +159,12 @@ func (c *records) DeleteCollection(options *metav1.DeleteOptions, listOptions me
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Timeout(timeout).
 		Body(options).
-		Do().
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched record.
-func (c *records) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.Record, err error) {
+func (c *records) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.Record, err error) {
 	result = &v1.Record{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
@@ -171,7 +172,7 @@ func (c *records) Patch(name string, pt types.PatchType, data []byte, subresourc
 		SubResource(subresources...).
 		Name(name).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
