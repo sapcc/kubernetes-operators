@@ -1,16 +1,34 @@
-FROM golang:1.13.1-alpine3.10 as builder
-WORKDIR /go/src/github.com/sapcc/kubernetes-operators/disco
-RUN apk add --no-cache make
-COPY . .
-ARG VERSION
-RUN make all
+# Build the manager binary
+FROM golang:1.18 as builder
 
-FROM alpine:3.10
-MAINTAINER Arno Uhlig <arno.uhlig@@sap.com>
-LABEL source_repository="https://github.com/sapcc/kubernetes-operators"
+RUN go install golang.org/x/tools/cmd/goimports@latest
 
-RUN apk add --no-cache ca-certificates curl tini
-COPY --from=builder /go/src/github.com/sapcc/kubernetes-operators/disco/bin/linux/disco /usr/local/bin/
-RUN ["disco", "--version"]
-ENTRYPOINT ["tini", "--"]
-CMD ["disco"]
+WORKDIR /workspace
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
+
+# Miscellaneous
+COPY Makefile Makefile
+COPY hack/ hack/
+
+# Copy the go source
+COPY main.go main.go
+COPY api/ api/
+COPY controllers/ controllers/
+COPY pkg/ pkg/
+
+# Build
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make build
+
+# Use distroless as minimal base image to package the manager binary
+# Refer to https://github.com/GoogleContainerTools/distroless for more details
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/bin/linux/disco .
+USER 65532:65532
+
+ENTRYPOINT ["/disco"]

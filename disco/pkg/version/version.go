@@ -21,7 +21,7 @@ var versionInfoTmpl = `
   go version:       {{.goVersion}}
 `
 
-// Print returns version information.
+// Print returns the version information.
 func Print(program string) string {
 	m := map[string]string{
 		"program":   program,

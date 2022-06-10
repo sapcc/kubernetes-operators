@@ -1,0 +1,10 @@
+generatorOptions:
+  disableNameSuffixHash: true
+
+resources:
+- manager.yaml
+
+secretGenerator:
+  - name: disco
+    envs:
+      - config.env

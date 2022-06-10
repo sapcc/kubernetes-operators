@@ -1,0 +1,6 @@
+apiVersion: disco.stable.sap.cc/v1
+kind: Record
+metadata:
+  name: record-sample
+spec:
+  # TODO(user): Add fields here

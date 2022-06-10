@@ -1,21 +1,20 @@
-# Designate IngresS Cname Operator (DISCO) 
+# Designate IngresS Cname Operator (DISCO)
 
 [![Docker Repository](https://img.shields.io/docker/pulls/sapcc/disco.svg?maxAge=604800)](https://hub.docker.com/r/sapcc/disco/)
 
-
-The DISCO operator automatically discovers Ingresses in the Kubernetes cluster and creates corresponding CNAMEs in OpenStack Desginate. 
+The DISCO operator automatically discovers Ingresses in the Kubernetes cluster and creates corresponding CNAMEs in OpenStack Desginate.
 
 ## Features
 
-  - Discovers required CNAMEs via Kubernetes API  
-  - Automatically creates CNAMEs via OpenStack Designate API
-  - Periodically verifies CNAMEs
-  - Automatically deletes CNAMEs when the Ingress is deleted
-  - Exposes Prometheus metrics 
+- Discovers required CNAMEs via Kubernetes API
+- Automatically creates CNAMEs via OpenStack Designate API
+- Periodically verifies CNAMEs
+- Automatically deletes CNAMEs when the Ingress is deleted
+- Exposes Prometheus metrics
 
 ## Requirements
 
-  - go 1.11
+- go 1.18
 
 ## Installation
 
@@ -29,25 +28,20 @@ metadata:
 
 ## Configuration
 
-To be able to authenticate with OpenStack the operator requires the following parameters in the configuration:
+The DISCO is configured via environment variables:
 ```
-auth_url:             <OS_AUTH_URL>
-region_name:          <OS_REGION_NAME>
-username:             <OS_USERNAME>
-user_domain_name:     <OS_USER_DOMAIN_NAME>
-password:             <OS_PASSWORD>
-project_name:         <OS_PROJECT_NAME>
-project_domain_name:  <OS_PROJECT_DOMAIN_NAME>
-```
+# Openstack configurations.
+OS_AUTH_URL:
+OS_REGION_NAME:
+OS_USERNAME:
+OS_PASSWORD:
+OS_USER_DOMAIN_NAME:
+OS_PROJECT_NAME:
+OS_PROJECT_DOMAIN_NAME:
 
-The `OS_PASSWORD` can also be provided via environment.
-
-Moreover the following parameters need to be set:
-```
-Usage of disco:
-  --config string                    Path to operator config file (default "/etc/disco/disco.conf")
-  --record string                    Default record data used for the CNAME
-  --zone-name string                 Name of the zone in which the recordset will be created
+# Operator specifics.
+DEFAULT_DNS_ZONE_NAME:
+DEFAULT_DNS_RECORD:
 ```
 
 ## Usage
@@ -105,7 +99,7 @@ the operator would create the following A record in the configured zone in OpenS
 +-----------------------+-------+----------------+
 ```
 
-**Fine-tuning:**  
+**Fine-tuning:**
 
 The operator has to be configured with a default record.
 However, this can also be set on the ingress using the following annotation:
@@ -146,7 +140,7 @@ Usage of disco:
       --zone-name string            Name of the openstack zone in which the recordset will be created
 ```
 
-**Note**: 
+**Note**:
 The DISCO operator uses [finalizers](https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#finalizers)
 to ensure the deletion of Designate CNAMEs when the deletion of the corresponding ingress is triggered.
 Removing the finalizer manually will cause a left-over CNAME in Designate.
@@ -172,3 +166,82 @@ spec:
           servicePort: 80
         path: /
 ```
+
+## Getting Started
+
+You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
+**Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
+
+### Running on the cluster
+1. Install Instances of Custom Resources:
+
+```sh
+kubectl apply -f config/samples/
+```
+
+2. Build and push your image to the location specified by `IMG`:
+	
+```sh
+make docker-build docker-push IMG=<some-registry>/disco:tag
+```
+	
+3. Deploy the controller to the cluster with the image specified by `IMG`:
+
+```sh
+make deploy IMG=<some-registry>/disco:tag
+```
+
+### Uninstall CRDs
+To delete the CRDs from the cluster:
+
+```sh
+make uninstall
+```
+
+### Undeploy controller
+UnDeploy the controller to the cluster:
+
+```sh
+make undeploy
+```
+
+## Contributing
+// TODO(user): Add detailed information on how you would like others to contribute to this project
+
+### How it works
+This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
+
+It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/) 
+which provides a reconcile function responsible for synchronizing resources untile the desired state is reached on the cluster 
+
+### Test It Out
+1. Install the CRDs into the cluster:
+
+```sh
+make install
+```
+
+2. Run your controller (this will run in the foreground, so switch to a new terminal if you want to leave it running):
+
+```sh
+make run
+```
+
+**NOTE:** You can also run this in one step by running: `make install run`
+
+## License
+
+Copyright 2022 SAP SE.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
