@@ -33,11 +33,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+// headersForAllDesignateRequests are headers set on all designate requests.
 var headersForAllDesignateRequests = map[string]string{
+	// Is required to manage all zones and recordsets regardless of the project they and the service user reside in.
 	"X-Auth-All-Projects": "true",
 }
 
-// DNSV2Client ...
+// DNSV2Client encapsulates a Designate v2 client.
 type DNSV2Client struct {
 	client *gophercloud.ServiceClient
 }
