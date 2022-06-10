@@ -48,7 +48,6 @@ const (
 // RecordReconciler reconciles a Record object
 type RecordReconciler struct {
 	ReconciliationInterval time.Duration
-	DefaultDNSZoneName     string
 	logger                 logr.Logger
 	c                      client.Client
 	scheme                 *runtime.Scheme
@@ -63,9 +62,6 @@ type RecordReconciler struct {
 func (r *RecordReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.ReconciliationInterval == 0 {
 		return errors.New("reconciliation interval must not be 0")
-	}
-	if r.DefaultDNSZoneName == "" {
-		return errors.New("default DNS zone name must not be empty")
 	}
 
 	dnsV2Client, err := disco.NewDNSV2ClientFromENV()
@@ -135,7 +131,7 @@ func (r *RecordReconciler) removeFinalizer(ctx context.Context, record *discov1.
 }
 
 func (r *RecordReconciler) reconcileRecord(ctx context.Context, record *discov1.Record) error {
-	zone, err := r.dnsV2Client.GetZoneByName(ctx, r.getDNSZoneNameForRecord(record))
+	zone, err := r.dnsV2Client.GetZoneByName(ctx, record.Spec.ZoneName)
 	if err != nil {
 		return err
 	}
@@ -176,7 +172,7 @@ func (r *RecordReconciler) reconcileStatus(ctx context.Context, record *discov1.
 }
 
 func (r *RecordReconciler) cleanupRecordset(ctx context.Context, record *discov1.Record) error {
-	zone, err := r.dnsV2Client.GetZoneByName(ctx, r.getDNSZoneNameForRecord(record))
+	zone, err := r.dnsV2Client.GetZoneByName(ctx, record.Spec.ZoneName)
 	if err != nil {
 		return err
 	}
@@ -196,7 +192,7 @@ func (r *RecordReconciler) getReadyConditionForRecord(ctx context.Context, recor
 		Message:            "",
 	}
 
-	zone, err := r.dnsV2Client.GetZoneByName(ctx, r.getDNSZoneNameForRecord(record))
+	zone, err := r.dnsV2Client.GetZoneByName(ctx, record.Spec.ZoneName)
 	if err != nil {
 		readyCondition.Status = metav1.ConditionFalse
 		readyCondition.Reason = "failed to get dns zone"
@@ -220,14 +216,6 @@ func (r *RecordReconciler) getReadyConditionForRecord(ctx context.Context, recor
 	readyCondition.Reason = "recordset is ready"
 	readyCondition.Message = fmt.Sprintf("recordset is in status %s", recordset.Status)
 	return readyCondition
-}
-
-// TODO: This should be defaulted via webhook instead of injecting it here.
-func (r *RecordReconciler) getDNSZoneNameForRecord(record *discov1.Record) string {
-	if zone := record.Spec.ZoneName; zone != "" {
-		return zone
-	}
-	return r.DefaultDNSZoneName
 }
 
 func setCondition(curConditions []discov1.RecordCondition, conditionToSet *discov1.RecordCondition) []discov1.RecordCondition {

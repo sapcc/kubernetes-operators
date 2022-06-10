@@ -47,7 +47,7 @@ func NewDNSV2ClientFromENV() (*DNSV2Client, error) {
 		IdentityEndpoint: os.Getenv("OS_AUTH_URL"),
 		Username:         os.Getenv("OS_USERNAME"),
 		Password:         os.Getenv("OS_PASSWORD"),
-		DomainName:       os.Getenv("OS_DOMAIN_NAME"),
+		DomainName:       os.Getenv("OS_USER_DOMAIN_NAME"),
 		AllowReauth:      true,
 		Scope: tokens.Scope{
 			ProjectName: os.Getenv("OS_PROJECT_NAME"),
@@ -70,6 +70,9 @@ func NewDNSV2ClientFromENV() (*DNSV2Client, error) {
 		provider,
 		gophercloud.EndpointOpts{Region: os.Getenv("OS_REGION_NAME"), Availability: gophercloud.AvailabilityPublic},
 	)
+	if c.MoreHeaders == nil {
+		c.MoreHeaders = make(map[string]string, 0)
+	}
 	for k, v := range headersForAllDesignateRequests {
 		c.MoreHeaders[k] = v
 	}

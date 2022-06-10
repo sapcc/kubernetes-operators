@@ -22,6 +22,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -32,6 +34,7 @@ import (
 
 	discov1 "github.com/sapcc/kubernetes-operators/disco/api/v1"
 	"github.com/sapcc/kubernetes-operators/disco/controllers"
+	"github.com/sapcc/kubernetes-operators/disco/pkg/disco"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/version"
 	//+kubebuilder:scaffold:imports
 )
@@ -55,6 +58,9 @@ func main() {
 	var annotation string
 	flag.StringVar(&annotation, "annotation", "disco",
 		"Handle ingress' and services with this annotation.")
+
+	flag.StringVar(&disco.DefaultDNSZoneName, "default-dns-zone-name", os.Getenv("DEFAULT_DNS_ZONE_NAME"),
+		"The name of the default DNS zone.")
 
 	var metricsAddr string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080",
@@ -82,13 +88,22 @@ func main() {
 		os.Exit(0)
 	}
 
+	if disco.DefaultDNSZoneName == "" {
+		setupLog.Error(
+			errors.New("must provide default DNS zone name via --default-dns-zone-name or DEFAULT_DNS_ZONE_NAME"),
+			"unable to start disco",
+		)
+		os.Exit(1)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         true,
-		LeaderElectionID:       "disco.controller",
+		Scheme:                  scheme,
+		MetricsBindAddress:      metricsAddr,
+		Port:                    9443,
+		HealthProbeBindAddress:  probeAddr,
+		LeaderElection:          true,
+		LeaderElectionID:        "disco.controller",
+		LeaderElectionNamespace: getEnvOrDefault("NAMESPACE", "kube-system"),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -97,9 +112,13 @@ func main() {
 
 	if err = (&controllers.RecordReconciler{
 		ReconciliationInterval: reconciliationInterval,
-		DefaultDNSZoneName:     os.Getenv("DEFAULT_ZONE_NAME"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Record")
+		os.Exit(1)
+	}
+
+	if err = (&discov1.Record{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Record")
 		os.Exit(1)
 	}
 
@@ -134,4 +153,11 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func getEnvOrDefault(envKey, defaultValue string) string {
+	if v, ok := os.LookupEnv(envKey); ok {
+		return v
+	}
+	return defaultValue
 }

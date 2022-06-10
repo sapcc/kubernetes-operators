@@ -26,3 +26,6 @@ const (
 	// AnnotationRecordZoneName allows creating a record in a different DNS zone.
 	AnnotationRecordZoneName = "zone-name"
 )
+
+// DefaultDNSZoneName is the name of the default DNS zone.
+var DefaultDNSZoneName string

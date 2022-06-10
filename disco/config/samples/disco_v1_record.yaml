@@ -3,4 +3,9 @@ kind: Record
 metadata:
   name: record-sample
 spec:
-  # TODO(user): Add fields here
+  type: A
+  record: 1.2.3.4
+  zoneName: zone.cluster
+  hosts:
+    - ingress.zone.cluster
+

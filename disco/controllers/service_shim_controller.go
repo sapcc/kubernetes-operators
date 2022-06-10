@@ -87,7 +87,7 @@ func (r *ServiceShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	recordsetType := "A"
-	if v, ok := r.getAnnotationValue(disco.AnnotationRecord, svc); ok {
+	if v, ok := r.getAnnotationValue(disco.AnnotationRecordType, svc); ok {
 		recordsetType = v
 	}
 

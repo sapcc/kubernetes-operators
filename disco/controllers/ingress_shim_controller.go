@@ -89,7 +89,7 @@ func (r *IngressShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	recordsetType := "CNAME"
-	if v, ok := r.getAnnotationValue(disco.AnnotationRecord, ingress); ok {
+	if v, ok := r.getAnnotationValue(disco.AnnotationRecordType, ingress); ok {
 		recordsetType = v
 	}
 

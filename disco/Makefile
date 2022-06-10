@@ -65,13 +65,12 @@ test: manifests generate fmt vet envtest ## Run tests.
 
 .PHONY: build
 build: GIT_BRANCH  = $(shell git rev-parse --abbrev-ref HEAD)
-build: GIT_VERSION = $(shell git describe --tags --match=$*/* | cut -f2 -d/| sed -E 's/-([0-9a-z]+)$$/.\1/')
 build: GIT_COMMIT  = $(shell git rev-parse --short HEAD)
 build: GIT_STATE   = $(shell if git diff --quiet; then echo clean; else echo dirty; fi)
 build: BUILD_DATE  = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 build: generate fmt vet ## Build disco binary.
 	@mkdir -p bin/$(OS)
-	go build -mod=readonly -ldflags "-s -w -X github.com/sapcc/kubernetes-operators/disco/pkg/version.GitBranch=$(GIT_BRANCH) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.Version=$(GIT_VERSION) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.GitCommit=$(GIT_COMMIT) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.GitState=$(GIT_STATE) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.BuildDate=$(BUILD_DATE)" -o bin/$(OS)/disco main.go
+	go build -mod=readonly -ldflags "-s -w -X github.com/sapcc/kubernetes-operators/disco/pkg/version.GitBranch=$(GIT_BRANCH) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.GitCommit=$(GIT_COMMIT) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.GitState=$(GIT_STATE) -X github.com/sapcc/kubernetes-operators/disco/pkg/version.BuildDate=$(BUILD_DATE)" -o bin/$(OS)/disco main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
