@@ -4,18 +4,18 @@ metadata:
   name: controller-manager
   namespace: system
   labels:
-    control-plane: controller-manager
+    app: disco
 spec:
   selector:
     matchLabels:
-      control-plane: controller-manager
+      app: disco
   replicas: 1
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
-        control-plane: controller-manager
+        app: disco
     spec:
       securityContext:
         runAsNonRoot: true
@@ -31,7 +31,7 @@ spec:
                 fieldPath: metadata.namespace
         envFrom:
           - secretRef:
-              name: disco
+              name: config
         securityContext:
           allowPrivilegeEscalation: false
         livenessProbe:
