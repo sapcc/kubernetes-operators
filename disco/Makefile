@@ -1,5 +1,8 @@
 # Image URL to use all building/pushing image targets
-IMG ?= sapcc/disco:latest
+IMG_REPO ?= sapcc/disco
+IMG_TAG ?= latest
+IMG ?= ${IMG_REPO}:${IMG_TAG}
+
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.23
 
@@ -77,12 +80,15 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: docker-build
+docker-build: GIT_COMMIT  = $(shell git rev-parse --short HEAD)
 docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	docker build -t ${IMG_REPO}:${GIT_COMMIT} .
 
 .PHONY: docker-push
+docker-build: GIT_COMMIT  = $(shell git rev-parse --short HEAD)
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+	docker push ${IMG_REPO}:${GIT_COMMIT}
+	docker tag ${IMG_REPO}:${GIT_COMMIT} ${IMG_REPO}:latest && docker push ${IMG_REPO}:latest
 
 ##@ Deployment
 

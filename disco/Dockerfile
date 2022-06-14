@@ -27,7 +27,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make build
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
-LABEL source_repository="https://github.com/sapcc/kubernetes-operators"
+LABEL source_repository="https://github.com/sapcc/kubernetes-operators/disco"
 WORKDIR /
 COPY --from=builder /workspace/bin/linux/disco .
 USER 65532:65532
