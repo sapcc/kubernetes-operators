@@ -1,6 +1,8 @@
 # Build the manager binary
 FROM golang:1.18 as builder
 
+LABEL source_repository="https://github.com/sapcc/kubernetes-operators"
+
 RUN go install golang.org/x/tools/cmd/goimports@latest
 
 WORKDIR /workspace
