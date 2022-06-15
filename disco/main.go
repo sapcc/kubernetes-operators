@@ -124,7 +124,7 @@ func main() {
 
 	if err = (&controllers.IngressShimReconciler{
 		AnnotationKey: annotation,
-		DefaultRecord: os.Getenv("DEFAULT_RECORD"),
+		DefaultRecord: os.Getenv("DEFAULT_DNS_RECORD"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ingress-shim")
 		os.Exit(1)
