@@ -84,6 +84,11 @@ docker-build: GIT_COMMIT  = $(shell git rev-parse --short HEAD)
 docker-build: test ## Build docker image with the manager.
 	docker build -t ${IMG_REPO}:${GIT_COMMIT} .
 
+.PHONY: docker-push-mac
+docker-push-mac: GIT_COMMIT  = $(shell git rev-parse --short HEAD)
+docker-push-mac: test ## Build docker image with the manager.
+	docker buildx build --platform linux/amd64 -t ${IMG_REPO}:${GIT_COMMIT} . --push
+
 .PHONY: docker-push
 docker-build: GIT_COMMIT  = $(shell git rev-parse --short HEAD)
 docker-push: ## Push docker image with the manager.
