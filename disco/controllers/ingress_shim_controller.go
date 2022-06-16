@@ -93,7 +93,7 @@ func (r *IngressShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		recordsetType = v
 	}
 
-	hosts := make([]string, 0)
+	hosts := make([]string, len(ingress.Spec.Rules))
 	for idx, host := range ingress.Spec.Rules {
 		hosts[idx] = host.Host
 	}
