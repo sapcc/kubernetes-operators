@@ -95,7 +95,7 @@ func (r *IngressShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	hosts := make([]string, len(ingress.Spec.Rules))
 	for idx, host := range ingress.Spec.Rules {
-		hosts[idx] = host.Host
+		hosts[idx] = ensureFQDN(host.Host)
 	}
 
 	var record = new(discov1.Record)
