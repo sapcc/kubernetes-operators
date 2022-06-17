@@ -179,7 +179,7 @@ func (c *DNSV2Client) listZones(ctx context.Context, listOpts zones.ListOpts) ([
 func (c *DNSV2Client) listRecordsets(ctx context.Context, zoneID, recordsetName string) ([]recordsets.RecordSet, error) {
 	log.FromContext(ctx).V(5).Info("listing recordsets", "zoneID", zoneID, "name", recordsetName)
 	recordsetList := make([]recordsets.RecordSet, 0)
-	pager := recordsets.ListByZone(c.client, zoneID, recordsets.ListOpts{ZoneID: zoneID, Name: recordsetName})
+	pager := recordsets.ListByZone(c.client, zoneID, recordsets.ListOpts{ZoneID: zoneID, Name: ensureFQDN(recordsetName)})
 	if err := pager.EachPage(func(page pagination.Page) (bool, error) {
 		recordsetsPerPage, err := recordsets.ExtractRecordSets(page)
 		if err != nil {
