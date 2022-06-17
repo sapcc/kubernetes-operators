@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG_REPO ?= sapcc/disco
+IMG_REPO ?= keppel.eu-de-1.cloud.sap/ccloud/disco
 IMG_TAG ?= latest
 IMG ?= ${IMG_REPO}:${IMG_TAG}
 
