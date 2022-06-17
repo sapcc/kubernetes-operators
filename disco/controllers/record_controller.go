@@ -135,25 +135,34 @@ func (r *RecordReconciler) reconcileRecord(ctx context.Context, record *discov1.
 	if err != nil {
 		return err
 	}
-	recordset, isFound, err := r.dnsV2Client.GetRecordsetByZoneAndName(ctx, zone.ID, record.Spec.Record)
-	if err != nil {
-		return err
+
+	records := strings.FieldsFunc(ensureFQDN(record.Spec.Record), splitFunc)
+	if rec := records; len(rec) > 0 {
+		records = rec
 	}
 
-	// Create the recordset if it cannot be found.
-	if !isFound {
-		log.FromContext(ctx).Info("record does not exist in designate. creating it",
-			"zone", zone.Name, "name", record.Spec.Record, "type", record.Spec.Type, "records", strings.Join(record.Spec.Hosts, ","), "ttl", defaultRecordTTL)
-		err := r.dnsV2Client.CreateRecordset(ctx, zone.ID, record.Spec.Record, record.Spec.Type, record.Spec.Description, record.Spec.Hosts, defaultRecordTTL)
-		return err
-	}
+	for _, host := range record.Spec.Hosts {
+		recordset, isFound, err := r.dnsV2Client.GetRecordsetByZoneAndName(ctx, zone.ID, host)
+		if err != nil {
+			return err
+		}
 
-	// The recordset exists but needs updating.
-	if !isDesignateRecordsetEqualToRecord(recordset, record) {
-		log.FromContext(ctx).Info("updating record in designate",
-			"zone", zone.Name, "name", record.Spec.Record, "type", record.Spec.Type, "records", strings.Join(record.Spec.Hosts, ","), "ttl", defaultRecordTTL)
-		err := r.dnsV2Client.UpdateRecordset(recordset.ZoneID, recordset.ID, record.Spec.Description, defaultRecordTTL, record.Spec.Hosts)
-		return err
+		// Create the recordset if it cannot be found.
+		if !isFound {
+			log.FromContext(ctx).Info("record does not exist in designate. creating it",
+				"zone", zone.Name, "name", host, "type", record.Spec.Type, "records", records[0], "ttl", defaultRecordTTL)
+			err := r.dnsV2Client.CreateRecordset(ctx, zone.ID, host, record.Spec.Type, record.Spec.Description, records, defaultRecordTTL)
+			return err
+		}
+
+		// The recordset exists but needs updating.
+		if !isDesignateRecordsetEqualToRecord(recordset, record) {
+			log.FromContext(ctx).Info("updating record in designate",
+				"zone", zone.Name, "name", host, "type", record.Spec.Type, "records", records[0], "ttl", defaultRecordTTL)
+			err := r.dnsV2Client.UpdateRecordset(recordset.ZoneID, recordset.ID, record.Spec.Description, defaultRecordTTL, record.Spec.Hosts)
+			return err
+		}
+
 	}
 
 	return nil
@@ -176,8 +185,10 @@ func (r *RecordReconciler) cleanupRecordset(ctx context.Context, record *discov1
 	if err != nil {
 		return err
 	}
-	if err := r.dnsV2Client.DeleteRecordsetByZoneAndNameIgnoreNotFound(ctx, zone.ID, record.Spec.Record); err != nil {
-		return err
+	for _, host := range record.Spec.Hosts {
+		if err := r.dnsV2Client.DeleteRecordsetByZoneAndNameIgnoreNotFound(ctx, zone.ID, host); err != nil {
+			return err
+		}
 	}
 	return nil
 }

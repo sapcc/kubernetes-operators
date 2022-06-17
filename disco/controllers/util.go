@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -34,4 +35,8 @@ func ensureFQDN(s string) string {
 		return s + "."
 	}
 	return s
+}
+
+func splitFunc(c rune) bool {
+	return !unicode.IsLetter(c) && !unicode.IsNumber(c) && c != '.' && c != '_' && c != '-'
 }
