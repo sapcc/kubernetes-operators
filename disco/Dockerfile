@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:experimental
 # Build the manager binary
 FROM golang:1.18 as builder
 
@@ -22,7 +23,9 @@ COPY controllers/ controllers/
 COPY pkg/ pkg/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make build
+RUN --mount=type=cache,target=/go/pkg/mod \
+	  --mount=type=cache,target=/root/.cache/go-build \
+		CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make build
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
