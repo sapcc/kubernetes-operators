@@ -83,6 +83,7 @@ const (
 //+kubebuilder:printcolumn:name="Zone",type="string",JSONPath=".spec.zoneName"
 //+kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type"
 //+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // Record is the Schema for the records API
 type Record struct {
