@@ -38,6 +38,7 @@ import (
 	discov1 "github.com/sapcc/kubernetes-operators/disco/api/v1"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/clientutil"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/disco"
+	util "github.com/sapcc/kubernetes-operators/disco/pkg/util"
 )
 
 const (
@@ -136,10 +137,9 @@ func (r *RecordReconciler) reconcileRecord(ctx context.Context, record *discov1.
 		return err
 	}
 
-	// For an A record, it's an IP to which we don't want to add a trailing dot.
 	rec := record.Spec.Record
-	if record.Spec.Type != "A" {
-		rec = ensureFQDN(rec)
+	if record.Spec.Type == discov1.RecordTypeCNAME {
+		rec = util.EnsureFQDN(rec)
 	}
 
 	records := strings.FieldsFunc(rec, splitFunc)
@@ -157,7 +157,7 @@ func (r *RecordReconciler) reconcileRecord(ctx context.Context, record *discov1.
 		if !isFound {
 			log.FromContext(ctx).Info("record does not exist in designate. creating it",
 				"zone", zone.Name, "name", host, "type", record.Spec.Type, "records", records[0], "ttl", defaultRecordTTL)
-			err := r.dnsV2Client.CreateRecordset(ctx, zone.ID, host, record.Spec.Type, record.Spec.Description, records, defaultRecordTTL)
+			err := r.dnsV2Client.CreateRecordset(ctx, zone.ID, host, string(record.Spec.Type), record.Spec.Description, records, defaultRecordTTL)
 			return err
 		}
 
@@ -253,7 +253,7 @@ func setCondition(curConditions []discov1.RecordCondition, conditionToSet *disco
 
 func isDesignateRecordsetEqualToRecord(designateRecordset recordsets.RecordSet, record *discov1.Record, host string) bool {
 	return designateRecordset.Name == host &&
-		designateRecordset.Type == record.Spec.Type &&
+		designateRecordset.Type == string(record.Spec.Type) &&
 		isStringSlicesEqual(designateRecordset.Records, []string{record.Spec.Record})
 }
 

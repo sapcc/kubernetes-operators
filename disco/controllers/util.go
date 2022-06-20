@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"fmt"
-	"strings"
 	"unicode"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,14 +26,6 @@ func appendIfNotContains(theStringSlice []string, theString string) []string {
 		}
 	}
 	return append(theStringSlice, theString)
-}
-
-// ensureFQDN ensures the recordset name ends with '.'
-func ensureFQDN(s string) string {
-	if !strings.HasSuffix(s, ".") {
-		return s + "."
-	}
-	return s
 }
 
 func splitFunc(c rune) bool {

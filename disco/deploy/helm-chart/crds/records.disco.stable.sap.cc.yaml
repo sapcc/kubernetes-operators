@@ -30,6 +30,9 @@ spec:
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1
     schema:
       openAPIV3Schema:
@@ -57,13 +60,19 @@ spec:
                 description: List of hostnames.
                 items:
                   type: string
+                minItems: 1
                 type: array
               record:
                 description: The record to use.
+                minLength: 2
                 type: string
               type:
-                description: Type of the DNS record. Currently supported are A, CNAME,
-                  SOA, NS records.
+                description: Type of the DNS record.
+                enum:
+                - A
+                - CNAME
+                - SOA
+                - NS
                 type: string
               zoneName:
                 description: Optional DNS zone for the record.

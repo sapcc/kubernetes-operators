@@ -35,6 +35,7 @@ import (
 	discov1 "github.com/sapcc/kubernetes-operators/disco/api/v1"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/clientutil"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/disco"
+	util "github.com/sapcc/kubernetes-operators/disco/pkg/util"
 )
 
 // IngressShimReconciler reconciles an ingress object
@@ -90,7 +91,7 @@ func (r *IngressShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		rec = v
 	}
 
-	recordsetType := "CNAME"
+	recordsetType := discov1.RecordTypeCNAME
 	if v, ok := r.getAnnotationValue(disco.AnnotationRecordType, ingress); ok {
 		recordsetType = v
 	}
@@ -98,7 +99,7 @@ func (r *IngressShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	hosts := make([]string, 0)
 	for _, host := range ingress.Spec.Rules {
 		if host.Host != "" {
-			hosts = append(hosts, ensureFQDN(host.Host))
+			hosts = append(hosts, util.EnsureFQDN(host.Host))
 		}
 	}
 	if len(hosts) == 0 {
@@ -112,7 +113,7 @@ func (r *IngressShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	result, err := clientutil.CreateOrPatch(ctx, r.c, record, func() error {
 		record.Spec.Record = rec
-		record.Spec.Type = recordsetType
+		record.Spec.Type = discov1.RecordType(recordsetType)
 		record.Spec.Hosts = hosts
 		record.Spec.Description = fmt.Sprintf("Created for ingress %s/%s.", ingress.Namespace, ingress.Name)
 		if v, ok := r.getAnnotationValue(disco.AnnotationRecordZoneName, ingress); ok {

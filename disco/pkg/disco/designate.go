@@ -31,6 +31,8 @@ import (
 	"github.com/pkg/errors"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	util "github.com/sapcc/kubernetes-operators/disco/pkg/util"
 )
 
 // headersForAllDesignateRequests are headers set on all designate requests.
@@ -82,7 +84,7 @@ func NewDNSV2ClientFromENV() (*DNSV2Client, error) {
 }
 
 func (c *DNSV2Client) GetZoneByName(ctx context.Context, zoneName string) (zones.Zone, error) {
-	zoneName = ensureFQDN(zoneName)
+	zoneName = util.EnsureFQDN(zoneName)
 	zoneList, err := c.listZones(ctx, zones.ListOpts{Name: zoneName})
 	if err != nil {
 		return zones.Zone{}, err
@@ -114,7 +116,7 @@ func (c *DNSV2Client) CreateRecordset(ctx context.Context, zoneID, name, rsType,
 	log.FromContext(ctx).V(5).Info("creating recordset",
 		"zoneID", zoneID, "name", name, "type", rsType, "records", strings.Join(records, ","))
 	_, err := recordsets.Create(c.client, zoneID, recordsets.CreateOpts{
-		Name:        ensureFQDN(name),
+		Name:        util.EnsureFQDN(name),
 		Description: description,
 		Records:     records,
 		TTL:         recordsetTTL,
@@ -179,7 +181,7 @@ func (c *DNSV2Client) listZones(ctx context.Context, listOpts zones.ListOpts) ([
 func (c *DNSV2Client) listRecordsets(ctx context.Context, zoneID, recordsetName string) ([]recordsets.RecordSet, error) {
 	log.FromContext(ctx).V(5).Info("listing recordsets", "zoneID", zoneID, "name", recordsetName)
 	recordsetList := make([]recordsets.RecordSet, 0)
-	pager := recordsets.ListByZone(c.client, zoneID, recordsets.ListOpts{ZoneID: zoneID, Name: ensureFQDN(recordsetName)})
+	pager := recordsets.ListByZone(c.client, zoneID, recordsets.ListOpts{ZoneID: zoneID, Name: util.EnsureFQDN(recordsetName)})
 	if err := pager.EachPage(func(page pagination.Page) (bool, error) {
 		recordsetsPerPage, err := recordsets.ExtractRecordSets(page)
 		if err != nil {

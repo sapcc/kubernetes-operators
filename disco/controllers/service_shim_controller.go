@@ -90,7 +90,7 @@ func (r *ServiceShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
-	recordsetType := "A"
+	recordsetType := discov1.RecordTypeA
 	if v, ok := r.getAnnotationValue(disco.AnnotationRecordType, svc); ok {
 		recordsetType = v
 	}
@@ -117,7 +117,7 @@ func (r *ServiceShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 		result, err := clientutil.CreateOrPatch(ctx, r.c, record, func() error {
 			record.Spec.Record = ip
-			record.Spec.Type = recordsetType
+			record.Spec.Type = discov1.RecordType(recordsetType)
 			record.Spec.Hosts = []string{rec}
 			record.Spec.Description = fmt.Sprintf("Created for svc %s/%s.", svc.Namespace, svc.Name)
 			if v, ok := r.getAnnotationValue(disco.AnnotationRecordZoneName, svc); ok {

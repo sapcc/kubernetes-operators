@@ -28,7 +28,7 @@ spec:
         envFrom:
         - secretRef:
             name: disco-config
-        image: sapcc/disco:latest
+        image: keppel.eu-de-1.cloud.sap/ccloud/disco:latest
         livenessProbe:
           httpGet:
             path: /healthz

@@ -22,13 +22,15 @@ import (
 
 // RecordSpec defines the desired state of Record
 type RecordSpec struct {
-	// Type of the DNS record. Currently supported are A, CNAME, SOA, NS records.
-	Type string `json:"type"`
+	// Type of the DNS record.
+	Type RecordType `json:"type"`
 
 	// List of hostnames.
+	// +kubebuilder:validation:MinItems=1
 	Hosts []string `json:"hosts"`
 
 	// The record to use.
+	// +kubebuilder:validation:MinLength=2
 	Record string `json:"record"`
 
 	// Optional DNS zone for the record.
@@ -37,6 +39,24 @@ type RecordSpec struct {
 	// Optional description for the record.
 	Description string `json:"description,omitempty"`
 }
+
+// RecordType is the type of the DNS record.
+// +kubebuilder:validation:Enum=A;CNAME;SOA;NS
+type RecordType string
+
+const (
+	// RecordTypeA specifies an A record.
+	RecordTypeA = "A"
+
+	// RecordTypeCNAME specifies a CNAME record.
+	RecordTypeCNAME = "CNAME"
+
+	// RecordTypeSOA specifies a SOA record.
+	RecordTypeSOA = "SOA"
+
+	// RecordTypeNS specifies a SOA record.
+	RecordTypeNS = "NS"
+)
 
 // RecordStatus defines the observed state of a Record.
 type RecordStatus struct {
