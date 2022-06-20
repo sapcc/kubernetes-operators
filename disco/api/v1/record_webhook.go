@@ -37,7 +37,7 @@ var _ webhook.Defaulter = &Record{}
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *Record) Default() {
 	if r.Spec.ZoneName == "" {
-		r.Spec.ZoneName = disco.DefaultDNSZoneName
+		r.Spec.ZoneName = util.EnsureFQDN(disco.DefaultDNSZoneName)
 	}
 
 	// Ensure a FQDN for CNAME records.
