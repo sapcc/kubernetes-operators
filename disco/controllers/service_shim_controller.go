@@ -81,6 +81,8 @@ func (r *ServiceShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
+	// TODO: This is confusing as the record is the IP and the host is specified via annotation.
+	// In case of services specify AnnotationHosts or similar.
 	rec, ok := r.getAnnotationValue(disco.AnnotationRecord, svc)
 	if !ok {
 		log.FromContext(ctx).Info("ignoring service with missing annotation",
@@ -93,43 +95,45 @@ func (r *ServiceShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		recordsetType = v
 	}
 
-	ips := make([]string, 0)
+	ipList := make([]string, 0)
 	if lbIP := svc.Spec.LoadBalancerIP; lbIP != "" {
-		ips = appendIfNotContains(ips, lbIP)
+		ipList = appendIfNotContains(ipList, lbIP)
 	}
 	if extIPList := svc.Spec.ExternalIPs; extIPList != nil {
 		for _, extIP := range extIPList {
-			ips = appendIfNotContains(ips, extIP)
+			ipList = appendIfNotContains(ipList, extIP)
 		}
 	}
 	if ingEPList := svc.Status.LoadBalancer.Ingress; ingEPList != nil {
 		for _, ingEP := range ingEPList {
-			ips = appendIfNotContains(ips, ingEP.IP)
+			ipList = appendIfNotContains(ipList, ingEP.IP)
 		}
 	}
 
-	var record = new(discov1.Record)
-	record.Name = svc.Name
-	record.Namespace = svc.Namespace
+	for _, ip := range ipList {
+		var record = new(discov1.Record)
+		record.Name = fmt.Sprintf("%s-%s", svc.Name, ip)
+		record.Namespace = svc.Namespace
 
-	result, err := clientutil.CreateOrPatch(ctx, r.c, record, func() error {
-		record.Spec.Record = rec
-		record.Spec.Type = recordsetType
-		record.Spec.Hosts = ips
-		record.Spec.Description = fmt.Sprintf("Created for svc %s/%s.", svc.Namespace, svc.Name)
-		if v, ok := r.getAnnotationValue(disco.AnnotationRecordZoneName, svc); ok {
-			record.Spec.ZoneName = v
+		result, err := clientutil.CreateOrPatch(ctx, r.c, record, func() error {
+			record.Spec.Record = ip
+			record.Spec.Type = recordsetType
+			record.Spec.Hosts = []string{rec}
+			record.Spec.Description = fmt.Sprintf("Created for svc %s/%s.", svc.Namespace, svc.Name)
+			if v, ok := r.getAnnotationValue(disco.AnnotationRecordZoneName, svc); ok {
+				record.Spec.ZoneName = v
+			}
+			return controllerutil.SetOwnerReference(svc, record, r.scheme)
+		})
+		if err != nil {
+			return ctrl.Result{}, err
 		}
-		return controllerutil.SetOwnerReference(svc, record, r.scheme)
-	})
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	switch result {
-	case clientutil.OperationResultCreated:
-		log.FromContext(ctx).Info("created record", "namespace", record.Namespace, "name", record.Name)
-	case clientutil.OperationResultUpdated:
-		log.FromContext(ctx).Info("updated record", "namespace", record.Namespace, "name", record.Name)
+		switch result {
+		case clientutil.OperationResultCreated:
+			log.FromContext(ctx).Info("created record", "namespace", record.Namespace, "name", record.Name)
+		case clientutil.OperationResultUpdated:
+			log.FromContext(ctx).Info("updated record", "namespace", record.Namespace, "name", record.Name)
+		}
 	}
 	return ctrl.Result{}, nil
 }

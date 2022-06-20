@@ -136,7 +136,13 @@ func (r *RecordReconciler) reconcileRecord(ctx context.Context, record *discov1.
 		return err
 	}
 
-	records := strings.FieldsFunc(ensureFQDN(record.Spec.Record), splitFunc)
+	// For an A record, it's an IP to which we don't want to add a trailing dot.
+	rec := record.Spec.Record
+	if record.Spec.Type != "A" {
+		rec = ensureFQDN(rec)
+	}
+
+	records := strings.FieldsFunc(rec, splitFunc)
 	if rec := records; len(rec) > 0 {
 		records = rec
 	}
