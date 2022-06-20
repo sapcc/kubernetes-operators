@@ -162,7 +162,7 @@ func (r *RecordReconciler) reconcileRecord(ctx context.Context, record *discov1.
 		}
 
 		// The recordset exists but needs updating.
-		if !isDesignateRecordsetEqualToRecord(recordset, record) {
+		if !isDesignateRecordsetEqualToRecord(recordset, record, host) {
 			log.FromContext(ctx).Info("updating record in designate",
 				"zone", zone.Name, "name", host, "type", record.Spec.Type, "records", records[0], "ttl", defaultRecordTTL)
 			err := r.dnsV2Client.UpdateRecordset(recordset.ZoneID, recordset.ID, record.Spec.Description, defaultRecordTTL, records)
@@ -251,10 +251,10 @@ func setCondition(curConditions []discov1.RecordCondition, conditionToSet *disco
 	return curConditions
 }
 
-func isDesignateRecordsetEqualToRecord(designateRecordset recordsets.RecordSet, record *discov1.Record) bool {
-	return designateRecordset.Name == record.Spec.Record &&
+func isDesignateRecordsetEqualToRecord(designateRecordset recordsets.RecordSet, record *discov1.Record, host string) bool {
+	return designateRecordset.Name == host &&
 		designateRecordset.Type == record.Spec.Type &&
-		isStringSlicesEqual(designateRecordset.Records, record.Spec.Hosts)
+		isStringSlicesEqual(designateRecordset.Records, []string{record.Spec.Record})
 }
 
 func isStringSlicesEqual(a, b []string) bool {
