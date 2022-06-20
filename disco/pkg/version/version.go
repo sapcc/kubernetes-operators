@@ -8,26 +8,26 @@ import (
 )
 
 var (
-	Version   string
-	Revision  string
-	Branch    string
+	GitCommit string
+	GitState  string
+	GitBranch string
 	BuildDate string
 	GoVersion = runtime.Version()
 )
 
 var versionInfoTmpl = `
-{{.program}}, version {{.version}} (branch: {{.branch}}, revision: {{.revision}})
+{{.program}}, branch: {{.branch}}, revision: {{.revision}} ({{.state}})
   build date:       {{.buildDate}}
   go version:       {{.goVersion}}
 `
 
-// Print returns version information.
+// Print returns the version information.
 func Print(program string) string {
 	m := map[string]string{
 		"program":   program,
-		"version":   Version,
-		"revision":  Revision,
-		"branch":    Branch,
+		"branch":    GitBranch,
+		"revision":  GitCommit,
+		"state":     GitState,
 		"buildDate": BuildDate,
 		"goVersion": GoVersion,
 	}

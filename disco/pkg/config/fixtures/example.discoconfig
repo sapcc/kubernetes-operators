@@ -1,7 +1,0 @@
-auth_url:             "https://localhost:5000/v3"
-region_name:          "local"
-username:             "foo"
-user_domain_name:     "default"
-password:             "bar"
-project_name:         "foobar"
-project_domain_name:  "default"

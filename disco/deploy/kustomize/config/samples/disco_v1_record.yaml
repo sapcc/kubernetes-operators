@@ -1,0 +1,11 @@
+apiVersion: disco.stable.sap.cc/v1
+kind: Record
+metadata:
+  name: record-sample
+spec:
+  type: A
+  record: 1.2.3.4
+  zoneName: zone.cluster
+  hosts:
+    - ingress.zone.cluster
+

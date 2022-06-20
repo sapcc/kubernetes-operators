@@ -1,209 +1,194 @@
-/*******************************************************************************
-*
-* Copyright 2019 SAP SE
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You should have received a copy of the License along with this
-* program. If not, you may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*
-*******************************************************************************/
+/*
+Copyright 2022 SAP SE.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package disco
 
 import (
+	"context"
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/tokens"
 	"github.com/gophercloud/gophercloud/pagination"
 	"github.com/pkg/errors"
-	"github.com/sapcc/kubernetes-operators/disco/pkg/config"
-	"github.com/sapcc/kubernetes-operators/disco/pkg/log"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// RecordsetType defines the types of recordsets
-var RecordsetType = struct {
-	CNAME,
-	NS,
-	SOA,
-	A string
-}{
-	"CNAME",
-	"NS",
-	"SOA",
-	"A",
+// headersForAllDesignateRequests are headers set on all designate requests.
+var headersForAllDesignateRequests = map[string]string{
+	// Is required to manage all zones and recordsets regardless of the project they and the service user reside in.
+	"X-Auth-All-Projects": "true",
 }
 
-func stringToRecordsetType(recType string) string {
-	switch recType {
-	case RecordsetType.A:
-		return RecordsetType.A
-	case RecordsetType.NS:
-		return RecordsetType.NS
-	case RecordsetType.SOA:
-		return RecordsetType.SOA
-	case RecordsetType.CNAME:
-	default:
-		return RecordsetType.CNAME
-	}
-	return RecordsetType.CNAME
-}
-
-// Status ...
-var Status = struct {
-	ACTIVE string
-}{
-	"ACTIVE",
-}
-
-// DNSV2Client ...
+// DNSV2Client encapsulates a Designate v2 client.
 type DNSV2Client struct {
-	client      *gophercloud.ServiceClient
-	moreHeaders map[string]string
-	logger      log.Logger
+	client *gophercloud.ServiceClient
 }
 
-// NewDNSV2ClientFromAuthOpts returns a new dns v2 client using provided auth options or an error
-func NewDNSV2ClientFromAuthOpts(authOpts config.AuthOpts, logger log.Logger) (*DNSV2Client, error) {
-	client, err := NewOpenStackDesignateClient(authOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	return &DNSV2Client{
-		client: client,
-		moreHeaders: map[string]string{
-			"X-Auth-All-Projects": "true",
+func NewDNSV2ClientFromENV() (*DNSV2Client, error) {
+	opts := &tokens.AuthOptions{
+		IdentityEndpoint: os.Getenv("OS_AUTH_URL"),
+		Username:         os.Getenv("OS_USERNAME"),
+		Password:         os.Getenv("OS_PASSWORD"),
+		DomainName:       os.Getenv("OS_USER_DOMAIN_NAME"),
+		AllowReauth:      true,
+		Scope: tokens.Scope{
+			ProjectName: os.Getenv("OS_PROJECT_NAME"),
+			DomainName:  os.Getenv("OS_PROJECT_DOMAIN_NAME"),
 		},
-		logger: log.NewLoggerWith(logger, "component", "dnsv2client"),
-	}, nil
-}
-
-func (c *DNSV2Client) listDesignateZones(listOpts zones.ListOpts) ([]zones.Zone, error) {
-	url := c.client.ServiceURL("zones")
-
-	listOptsString, err := listOpts.ToZoneListQuery()
+	}
+	provider, err := openstack.NewClient(opts.IdentityEndpoint)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "could not initialize openstack client")
 	}
-	url += listOptsString
+	provider.UseTokenLock()
 
-	opts := gophercloud.RequestOpts{
-		MoreHeaders: c.moreHeaders,
+	if err := openstack.AuthenticateV3(provider, opts, gophercloud.EndpointOpts{}); err != nil {
+		return nil, errors.Wrap(err, "openstack authentication failed")
 	}
-
-	var res gophercloud.Result
-	var resData struct {
-		Zones []zones.Zone `json:"zones"`
+	if provider.TokenID == "" {
+		return nil, errors.New("token is empty. openstack authentication failed")
 	}
-
-	_, res.Err = c.client.Get(url, &res.Body, &opts)
-	if err := res.ExtractInto(&resData); err != nil {
-		return nil, errors.Wrapf(err, "failed to list zones from %v, options: %#v", url, opts)
+	c, err := openstack.NewDNSV2(
+		provider,
+		gophercloud.EndpointOpts{Region: os.Getenv("OS_REGION_NAME"), Availability: gophercloud.AvailabilityPublic},
+	)
+	if c.MoreHeaders == nil {
+		c.MoreHeaders = make(map[string]string, 0)
 	}
-
-	c.logger.LogDebug("list designate zones with filter", "filter", listOptsString, "foundZones", zoneListToString(resData.Zones))
-	return resData.Zones, nil
+	for k, v := range headersForAllDesignateRequests {
+		c.MoreHeaders[k] = v
+	}
+	return &DNSV2Client{client: c}, nil
 }
 
-func (c *DNSV2Client) getDesignateZoneByName(zoneName string) (zones.Zone, error) {
-	// Add trailing `.` if not already present.
+func (c *DNSV2Client) GetZoneByName(ctx context.Context, zoneName string) (zones.Zone, error) {
 	zoneName = ensureFQDN(zoneName)
-
-	zoneList, err := c.listDesignateZones(
-		zones.ListOpts{Name: zoneName},
-	)
+	zoneList, err := c.listZones(ctx, zones.ListOpts{Name: zoneName})
 	if err != nil {
 		return zones.Zone{}, err
 	}
-
-	switch len := len(zoneList); {
-	case len == 1:
-		return zoneList[0], nil
-	case len > 1:
-		return zones.Zone{}, errors.Errorf("multiple zones with name %s found", zoneName)
-	default:
-		return zones.Zone{}, errors.Errorf("no zone with name %s found", zoneName)
-	}
-}
-
-func (c *DNSV2Client) listDesignateRecordsetsForZone(zone zones.Zone, recordsetName string) (recordsetList []recordsets.RecordSet, err error) {
-	opts := recordsets.ListOpts{}
-	if recordsetName != "" {
-		opts.Name = ensureFQDN(recordsetName)
-	}
-
-	pager := recordsets.ListByZone(c.client, zone.ID, opts)
-	pager.Headers = mergeMaps(c.moreHeaders, pager.Headers)
-
-	pages := 0
-	err = pager.EachPage(func(page pagination.Page) (bool, error) {
-		pages++
-		r, err := recordsets.ExtractRecordSets(page)
-		if err != nil {
-			return false, err
+	for _, zone := range zoneList {
+		if zone.Name == zoneName {
+			return zone, nil
 		}
-		recordsetList = r
-		return true, nil
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list recordsets in zone %s.", zone.ID)
 	}
-	c.logger.LogDebug("list designate recordsets", "zone", zone.Name, "recordsetName", recordsetName, "foundRecords", recordSetListToString(recordsetList))
-	return recordsetList, nil
+	return zones.Zone{}, fmt.Errorf("no zone with name found: %s", zoneName)
 }
 
-func (c *DNSV2Client) createDesignateRecordset(zoneID, rsName string, records []string, rsTTL int, rsType, description string) error {
-	url := c.client.ServiceURL("zones", zoneID, "recordsets")
-	opts := gophercloud.RequestOpts{
-		OkCodes:     []int{201, 202},
-		MoreHeaders: c.moreHeaders,
+func (c *DNSV2Client) GetRecordsetByZoneAndName(ctx context.Context, zoneID, recordsetName string) (recordsets.RecordSet, bool, error) {
+	recordsetList, err := c.listRecordsets(ctx, zoneID, recordsetName)
+	if err != nil {
+		return recordsets.RecordSet{}, false, err
 	}
+	switch len(recordsetList) {
+	case 0:
+		return recordsets.RecordSet{}, false, nil
+	case 1:
+		return recordsetList[0], true, nil
+	default:
+		return recordsets.RecordSet{}, true, fmt.Errorf("multiple recordsset found in zone %s, name %s", zoneID, recordsetName)
+	}
+}
 
-	rec, err := recordsets.CreateOpts{
-		Name:        ensureFQDN(rsName),
-		Records:     records,
-		TTL:         rsTTL,
-		Type:        rsType,
+func (c *DNSV2Client) CreateRecordset(ctx context.Context, zoneID, name, rsType, description string, records []string, recordsetTTL int) error {
+	log.FromContext(ctx).V(5).Info("creating recordset",
+		"zoneID", zoneID, "name", name, "type", rsType, "records", strings.Join(records, ","))
+	_, err := recordsets.Create(c.client, zoneID, recordsets.CreateOpts{
+		Name:        ensureFQDN(name),
 		Description: description,
-	}.ToRecordSetCreateMap()
+		Records:     records,
+		TTL:         recordsetTTL,
+		Type:        rsType,
+	}).Extract()
+	return err
+}
+
+func (c *DNSV2Client) DeleteRecordsetByZoneAndNameIgnoreNotFound(ctx context.Context, zoneID, recordsetName string) error {
+	recordsetList, err := c.listRecordsets(ctx, zoneID, recordsetName)
 	if err != nil {
 		return err
 	}
-
-	var (
-		res gophercloud.Result
-		rs  recordsets.RecordSet
-	)
-
-	_, res.Err = c.client.Post(url, &rec, &res.Body, &opts)
-	err = res.ExtractInto(&rs)
-	if err != nil {
-		return errors.Wrapf(err, "could not create recordset name: %s, type: %s, records: %v, ttl: %v in zone %s", rsName, rsType, records, rsTTL, zoneID)
+	allErrs := make([]error, 0)
+	for _, record := range recordsetList {
+		log.FromContext(ctx).Info("deleting record",
+			"zone", record.ZoneName, "name", record.Name, "type", record.Type, "id", record.ID)
+		if err := c.deleteRecordsetIgnoreNotFound(ctx, zoneID, record.ID).ExtractErr(); err != nil {
+			allErrs = append(allErrs, err)
+		}
 	}
-	c.logger.LogInfo("created recordset", "name", rs.Name, "id", rs.ID, "type", rs.Type, "records", strings.Join(rs.Records, ", "), "zoneName", rs.ZoneName, "zoneID", rs.ZoneID)
+	if len(allErrs) > 0 {
+		return utilerrors.NewAggregate(allErrs)
+	}
 	return nil
 }
 
-func (c *DNSV2Client) deleteDesignateRecordset(host, recordsetID, zoneID string) error {
-	url := c.client.ServiceURL("zones", zoneID, "recordsets", recordsetID)
-	opts := gophercloud.RequestOpts{
-		OkCodes:     []int{202},
-		MoreHeaders: c.moreHeaders,
+func (c *DNSV2Client) deleteRecordsetIgnoreNotFound(_ context.Context, zoneID string, rrsetID string) (r recordsets.DeleteResult) {
+	resp, err := c.client.Delete(c.client.ServiceURL("zones", zoneID, "recordsets", rrsetID), &gophercloud.RequestOpts{
+		OkCodes: []int{202, 404},
+	})
+	_, r.Header, r.Err = gophercloud.ParseResponse(resp, err)
+	return
+}
+
+func (c *DNSV2Client) UpdateRecordset(zoneID, recordsetID, description string, recordsetTTL int, records []string) error {
+	_, err := recordsets.Update(c.client, zoneID, recordsetID, recordsets.UpdateOpts{
+		Description: &description,
+		TTL:         &recordsetTTL,
+		Records:     records,
+	}).Extract()
+	return err
+}
+
+func (c *DNSV2Client) listZones(ctx context.Context, listOpts zones.ListOpts) ([]zones.Zone, error) {
+	log.FromContext(ctx).V(5).Info("listing zones", "listOpts", listOpts)
+	zoneList := make([]zones.Zone, 0)
+	pager := zones.List(c.client, listOpts)
+	if err := pager.EachPage(func(page pagination.Page) (bool, error) {
+		zonesPerPage, err := zones.ExtractZones(page)
+		if err != nil {
+			return false, err
+		}
+		zoneList = append(zoneList, zonesPerPage...)
+		return true, nil
+	}); err != nil {
+		return nil, err
 	}
-	if _, err := c.client.Delete(url, &opts); err != nil {
-		return errors.Wrapf(err, "could not delete recordset %s with uid %v in zone uid %v", host, recordsetID, zoneID)
+	return zoneList, nil
+}
+
+func (c *DNSV2Client) listRecordsets(ctx context.Context, zoneID, recordsetName string) ([]recordsets.RecordSet, error) {
+	log.FromContext(ctx).V(5).Info("listing recordsets", "zoneID", zoneID, "name", recordsetName)
+	recordsetList := make([]recordsets.RecordSet, 0)
+	pager := recordsets.ListByZone(c.client, zoneID, recordsets.ListOpts{ZoneID: zoneID, Name: ensureFQDN(recordsetName)})
+	if err := pager.EachPage(func(page pagination.Page) (bool, error) {
+		recordsetsPerPage, err := recordsets.ExtractRecordSets(page)
+		if err != nil {
+			return false, err
+		}
+		recordsetList = append(recordsetList, recordsetsPerPage...)
+		return true, nil
+	}); err != nil {
+		return nil, err
 	}
-	c.logger.LogInfo("deleted recordset", "host", host, "recordsetID", recordsetID, "zoneID", zoneID)
-	return nil
+	return recordsetList, nil
 }

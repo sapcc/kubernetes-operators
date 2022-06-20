@@ -13,3 +13,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+package disco
+
+const (
+	// AnnotationRecord allows setting a different record than the default per ingress or service.
+	AnnotationRecord = "record"
+
+	// AnnotationRecordType allows setting the record type. Must be CNAME, A, NS, SOA. Default: CNAME.
+	AnnotationRecordType = "record-type"
+
+	// AnnotationRecordZoneName allows creating a record in a different DNS zone.
+	AnnotationRecordZoneName = "zone-name"
+)
+
+// DefaultDNSZoneName is the name of the default DNS zone.
+var DefaultDNSZoneName string

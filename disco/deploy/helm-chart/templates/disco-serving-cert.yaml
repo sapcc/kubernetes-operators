@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: disco-serving-cert
+  namespace: kube-system
+spec:
+  dnsNames:
+  - disco-webhook-service.kube-system.svc
+  - disco-webhook-service.kube-system.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: disco-selfsigned-issuer
+  secretName: webhook-server-cert
