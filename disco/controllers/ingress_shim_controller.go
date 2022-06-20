@@ -80,7 +80,7 @@ func (r *IngressShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if !isHandleObject(r.AnnotationKey, ingress) {
-		log.FromContext(ctx).Info("ignoring ingress with missing annotation",
+		log.FromContext(ctx).V(5).Info("ignoring ingress with missing annotation",
 			"annotation", r.AnnotationKey)
 		return ctrl.Result{}, nil
 	}
@@ -95,9 +95,15 @@ func (r *IngressShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		recordsetType = v
 	}
 
-	hosts := make([]string, len(ingress.Spec.Rules))
-	for idx, host := range ingress.Spec.Rules {
-		hosts[idx] = ensureFQDN(host.Host)
+	hosts := make([]string, 0)
+	for _, host := range ingress.Spec.Rules {
+		if host.Host != "" {
+			hosts = append(hosts, ensureFQDN(host.Host))
+		}
+	}
+	if len(hosts) == 0 {
+		log.FromContext(ctx).Info("ignoring ingress without hosts")
+		return ctrl.Result{}, nil
 	}
 
 	var record = new(discov1.Record)
