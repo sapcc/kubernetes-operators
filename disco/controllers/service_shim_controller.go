@@ -75,7 +75,9 @@ func (r *ServiceShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if isHandleObject(r.AnnotationKey, svc) {
+	if !isHandleObject(r.AnnotationKey, svc) {
+		log.FromContext(ctx).Info("ignoring service with missing annotation",
+			"annotation", r.AnnotationKey)
 		return ctrl.Result{}, nil
 	}
 

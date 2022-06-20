@@ -79,7 +79,9 @@ func (r *IngressShimReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if isHandleObject(r.AnnotationKey, ingress) {
+	if !isHandleObject(r.AnnotationKey, ingress) {
+		log.FromContext(ctx).Info("ignoring ingress with missing annotation",
+			"annotation", r.AnnotationKey)
 		return ctrl.Result{}, nil
 	}
 
