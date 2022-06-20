@@ -159,7 +159,7 @@ func (r *RecordReconciler) reconcileRecord(ctx context.Context, record *discov1.
 		if !isDesignateRecordsetEqualToRecord(recordset, record) {
 			log.FromContext(ctx).Info("updating record in designate",
 				"zone", zone.Name, "name", host, "type", record.Spec.Type, "records", records[0], "ttl", defaultRecordTTL)
-			err := r.dnsV2Client.UpdateRecordset(recordset.ZoneID, recordset.ID, record.Spec.Description, defaultRecordTTL, record.Spec.Hosts)
+			err := r.dnsV2Client.UpdateRecordset(recordset.ZoneID, recordset.ID, record.Spec.Description, defaultRecordTTL, records)
 			return err
 		}
 
