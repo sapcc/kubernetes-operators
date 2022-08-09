@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -56,7 +55,7 @@ func main() {
 		"The interval after which records are checked in Designate again regardless of whether the Kubernetes resource changed.")
 
 	var annotation string
-	flag.StringVar(&annotation, "annotation", "disco",
+	flag.StringVar(&annotation, "annotation", getEnvOrDefault("ANNOTATION", "disco"),
 		"Handle ingress' and services with this annotation.")
 
 	flag.StringVar(&disco.DefaultDNSZoneName, "default-dns-zone-name", os.Getenv("DEFAULT_DNS_ZONE_NAME"),
