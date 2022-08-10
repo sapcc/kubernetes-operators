@@ -47,7 +47,7 @@ type IngressShimReconciler struct {
 	scheme        *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingress,verbs=get;list;watch
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch
 //+kubebuilder:rbac:groups=disco.stable.sap.cc,resources=records,verbs=get;list;watch;create;update;patch;delete
 
 // SetupWithManager sets up the controller with the Manager.

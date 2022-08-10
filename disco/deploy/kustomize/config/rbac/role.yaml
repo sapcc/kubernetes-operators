@@ -8,7 +8,7 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - service
+  - services
   verbs:
   - get
   - list
@@ -42,7 +42,7 @@ rules:
 - apiGroups:
   - networking.k8s.io
   resources:
-  - ingress
+  - ingresses
   verbs:
   - get
   - list

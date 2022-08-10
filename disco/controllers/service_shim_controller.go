@@ -45,7 +45,7 @@ type ServiceShimReconciler struct {
 	scheme        *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups="",resources=service,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
 //+kubebuilder:rbac:groups=disco.stable.sap.cc,resources=records,verbs=get;list;watch;create;update;patch;delete
 
 // SetupWithManager sets up the controller with the Manager.
