@@ -1,6 +1,6 @@
-VERSION=0.4.3
+VERSION=0.5.0
 LDFLAGS=-X github.com/sapcc/kubernetes-operators/externalip/pkg/operator.VERSION=$(VERSION)
-IMAGE   ?= sapcc/kube-externalip
+IMAGE   ?= keppel.eu-de-1.cloud.sap/ccloud/kube-externalip
 GOOS    ?= darwin
 
 GOFLAGS := -ldflags "$(LDFLAGS)"
@@ -27,6 +27,9 @@ build: bin/linux/externalip
 
 push:
 	docker push $(IMAGE):$(VERSION)
+
+docker-push-mac: bin/linux/externalip
+	docker buildx build  --platform linux/amd64 . -t ${IMAGE}:${VERSION} --push
 
 clean:
 	rm -rf bin/*

@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
-	utildbus "k8s.io/kubernetes/pkg/util/dbus"
 	utiliptables "k8s.io/kubernetes/pkg/util/iptables"
 	utilexec "k8s.io/utils/exec"
 )
@@ -74,7 +73,7 @@ func New(options Options) *Operator {
 		Options:           options,
 		clientset:         clientset,
 		queue:             workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		iptables:          utiliptables.New(utilexec.New(), utildbus.New(), utiliptables.ProtocolIpv4),
+		iptables:          utiliptables.New(utilexec.New(), utiliptables.ProtocolIPv4),
 		serviceInformer:   informers_core_v1.NewServiceInformer(clientset, "", resyncPeriod, nil),
 		endpointsInformer: informers_core_v1.NewEndpointsInformer(clientset, "", resyncPeriod, nil),
 	}
