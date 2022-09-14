@@ -1210,7 +1210,8 @@ def seed_project_networks(project, networks, args, sess):
                 'provider:network_type', 'provider:physical_network',
                 'provider:segmentation_id', 'qos_policy_id',
                 'router:external',
-                'shared', 'vlan_transparent', 'description'))
+                'shared', 'vlan_transparent', 'description',
+                'availability_zone_hints'))
 
             if 'name' not in network or not network['name']:
                 logging.warn(
