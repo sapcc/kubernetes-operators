@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2019 SAP SE
+* Copyright 2022 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"time"
@@ -97,7 +98,6 @@ func New(opts config.Options, logger log.Logger) (*Controller, error) {
 			}
 		},
 	)
-
 	return c, nil
 }
 
@@ -157,6 +157,8 @@ func (c *Controller) processNextItem() bool {
 }
 
 func (c *Controller) syncHandler(key string) error {
+	ctx := context.Background()
+
 	node, exists, err := c.k8sFramework.GetNodeFromIndexerByKey(key)
 	if err != nil {
 		level.Error(c.logger).Log("msg", "failed to get object from store", "err", err)
@@ -212,7 +214,7 @@ func (c *Controller) syncHandler(key string) error {
 
 	// Add the FIP to the node as label.
 	err = c.k8sFramework.AddLabelsToNode(
-		node,
+		ctx, node,
 		map[string]string{
 			labelExternalIP: fip.FloatingIP,
 		},

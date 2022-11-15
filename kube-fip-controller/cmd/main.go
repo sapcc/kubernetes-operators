@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2019 SAP SE
+* Copyright 2022 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -33,7 +34,12 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-var opts config.Options
+var (
+	opts config.Options
+
+	BuildCommit,
+	BuildDate string
+)
 
 func init() {
 	kingpin.Flag("kubeconfig", "Absolute path to kubeconfig").StringVar(&opts.KubeConfig)
@@ -45,6 +51,7 @@ func init() {
 	kingpin.Flag("default-floating-network", "Name of the default Floating IP network.").Required().StringVar(&opts.DefaultFloatingNetwork)
 	kingpin.Flag("default-floating-subnet", "Name of the default Floating IP subnet.").Required().StringVar(&opts.DefaultFloatingSubnet)
 	kingpin.Flag("config", "Absolute path to configuration file.").Required().StringVar(&opts.ConfigPath)
+	kingpin.Version(fmt.Sprintf("%s (%s)", BuildCommit, BuildDate))
 }
 
 func main() {

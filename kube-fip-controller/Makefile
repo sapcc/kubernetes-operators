@@ -4,9 +4,6 @@ VERSION = v$(DATE)
 GOOS    ?= $(shell go env | grep GOOS | cut -d'"' -f2)
 BINARY  := controller
 
-LDFLAGS := -X github.com/sapcc/kubernetes-operators/kube-fip-controller/pkg/controller.VERSION=$(VERSION)
-GOFLAGS := -ldflags "$(LDFLAGS)"
-
 SRCDIRS  := cmd pkg
 PACKAGES := $(shell find $(SRCDIRS) -type d)
 GO_PKG	 := github.com/sapcc/kubernetes-operators/kube-fip-controller
@@ -17,10 +14,12 @@ GOFILES  := $(wildcard $(GOFILES))
 
 all: bin/$(GOOS)/$(BINARY)
 
+bin/%/$(BINARY): GIT_COMMIT  = $(shell git rev-parse --short HEAD)
+bin/%/$(BINARY): BUILD_DATE  = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 bin/%/$(BINARY): $(GOFILES) Makefile
-	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -mod vendor -v -i -o bin/$*/$(BINARY) ./cmd/main.go && chmod +x bin/$*/$(BINARY)
+	GOOS=$* GOARCH=amd64 go build -ldflags '-X github.com/sapcc/kubernetes-operators/kube-fip-controller/cmd.BuildCommit=$(GIT_COMMIT) -X github.com/sapcc/kubernetes-operators/kube-fip-controller/cmd.BuildDate=$(BUILD_DATE)' -mod vendor -v -o bin/$*/$(BINARY) ./cmd/main.go && chmod +x bin/$*/$(BINARY)
 
-build: bin/linux/$(BINARY)
+build:
 	docker build -t $(IMAGE):$(VERSION) .
 
 static-check:

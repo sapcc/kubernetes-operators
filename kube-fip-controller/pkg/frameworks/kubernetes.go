@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright 2019 SAP SE
+* Copyright 2022 SAP SE
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -98,24 +98,24 @@ func (k8s *K8sFramework) WaitForCacheToSync(stopCh <-chan struct{}) bool {
 }
 
 // GetNode gets a node by name and returns it or an error.
-func (k8s *K8sFramework) GetNode(name string) (*corev1.Node, error) {
-	return k8s.CoreV1().Nodes().Get(name, metav1.GetOptions{})
+func (k8s *K8sFramework) GetNode(ctx context.Context, name string) (*corev1.Node, error) {
+	return k8s.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
 }
 
 // AddLabelsToNode adds a set of labels to a node and waits until the operation is done or times out.
-func (k8s *K8sFramework) AddLabelsToNode(node *corev1.Node, labels map[string]string) error {
+func (k8s *K8sFramework) AddLabelsToNode(ctx context.Context, node *corev1.Node, labels map[string]string) error {
 	if labels == nil {
 		return nil
 	}
 
-	oldNode, err := k8s.GetNode(node.GetName())
+	oldNode, err := k8s.GetNode(ctx, node.GetName())
 	if err != nil {
 		return err
 	}
 
 	newNode := oldNode.DeepCopy()
 	existingLabels := newNode.GetLabels()
-	if existingLabels== nil {
+	if existingLabels == nil {
 		existingLabels = make(map[string]string)
 	}
 
@@ -124,7 +124,7 @@ func (k8s *K8sFramework) AddLabelsToNode(node *corev1.Node, labels map[string]st
 	}
 	newNode.SetLabels(existingLabels)
 
-	updatedNode, err := k8s.CoreV1().Nodes().Update(newNode)
+	updatedNode, err := k8s.CoreV1().Nodes().Update(ctx, newNode, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -149,10 +149,10 @@ func (k8s *K8sFramework) waitForNode(node *corev1.Node, conditionFuncs ...watch.
 		ctx,
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (object runtime.Object, e error) {
-				return k8s.CoreV1().Nodes().List(metav1.SingleObject(metav1.ObjectMeta{Name: node.GetName()}))
+				return k8s.CoreV1().Nodes().List(context.Background(), metav1.SingleObject(metav1.ObjectMeta{Name: node.GetName()}))
 			},
 			WatchFunc: func(options metav1.ListOptions) (i apimachinerywatch.Interface, e error) {
-				return k8s.CoreV1().Nodes().Watch(metav1.SingleObject(metav1.ObjectMeta{Name: node.GetName()}))
+				return k8s.CoreV1().Nodes().Watch(context.Background(), metav1.SingleObject(metav1.ObjectMeta{Name: node.GetName()}))
 			},
 		},
 		node,
@@ -171,5 +171,4 @@ func isNodeModified(event apimachinerywatch.Event) (bool, error) {
 	default:
 		return false, nil
 	}
-	return false, nil
 }
