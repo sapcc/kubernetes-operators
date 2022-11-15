@@ -61,6 +61,8 @@ group_members = {}
 role_assignments = []
 
 # todo: role.domainId ?
+
+
 def get_role_id(name, keystone):
     """ get a (cached) role-id for a role name """
     result = None
@@ -238,7 +240,8 @@ def seed_role(role, keystone):
 
     # todo: role.domainId ?
     if 'domainId' in role:
-        result = keystone.roles.list(name=role['name'], domain=role['domainId'])
+        result = keystone.roles.list(
+            name=role['name'], domain=role['domainId'])
     else:
         result = keystone.roles.list(name=role['name'])
     if not result:
@@ -289,7 +292,8 @@ def seed_volume_type(volume_type, args, sess):
     logging.debug("seeding volume-type %s" % volume_type)
     # intialize cinder client
     try:
-        cinder = cinderclient.Client(session=sess, interface=args.interface, api_version="3.50")
+        cinder = cinderclient.Client(
+            session=sess, interface=args.interface, api_version="3.50")
     except Exception as e:
         logging.error("Fail to initialize cinder client: %s" % e)
         raise
@@ -302,15 +306,18 @@ def seed_volume_type(volume_type, args, sess):
 
     def update_type(vtype, volume_type):
         logging.debug("updating volume-type '%s'", volume_type['name'])
-        cinder.volume_types.update(vtype, volume_type['name'], volume_type['description'], volume_type['is_public'])
+        cinder.volume_types.update(
+            vtype, volume_type['name'], volume_type['description'], volume_type['is_public'])
 
     def create_type(volume_type):
         logging.debug("updating volume-type '%s'", volume_type['name'])
-        vtype = cinder.volume_types.create(volume_type['name'], volume_type['description'], volume_type['is_public'])
+        vtype = cinder.volume_types.create(
+            volume_type['name'], volume_type['description'], volume_type['is_public'])
         if 'extra_specs' in volume_type:
             extra_specs = volume_type.pop('extra_specs', None)
             if not isinstance(extra_specs, dict):
-                logging.warn("skipping volume-type '%s', since it has invalid extra_specs" % volume_type)
+                logging.warn(
+                    "skipping volume-type '%s', since it has invalid extra_specs" % volume_type)
             else:
                 vtype.set_keys(extra_specs)
 
@@ -319,13 +326,15 @@ def seed_volume_type(volume_type, args, sess):
         try:
             update_type(vtype, volume_type)
         except Exception as e:
-            logging.error("Failed to update volume type %s: %s" % (volume_type, e))
+            logging.error("Failed to update volume type %s: %s" %
+                          (volume_type, e))
             raise
     else:
         try:
             create_type(volume_type)
         except Exception as e:
-            logging.error("Failed to create volume type %s: %s" % (volume_type, e))
+            logging.error("Failed to create volume type %s: %s" %
+                          (volume_type, e))
             raise
 
 
@@ -784,7 +793,7 @@ def seed_projects(domain, projects, args, sess):
             # only seed network quota if limes is not available
             if not len(limes):
                 seed_project_network_quota(resource, network_quota, args,
-                                       sess)
+                                           sess)
 
         # seed the projects network address scopes
         if address_scopes:
@@ -888,7 +897,8 @@ def seed_project_share_types(project, share_types, args, sess):
 
     for t in share_types:
         if t not in validated_type_names:
-            logging.warn('Share type `%s` does not exists or is not private', t)
+            logging.warn(
+                'Share type `%s` does not exists or is not private', t)
 
     logging.info('Assign %s to project %s', validated_types, project.id)
 
@@ -1095,6 +1105,7 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess,
                                    interface=args.interface)
 
     for subnet_pool in subnet_pools:
+        tags = subnet_pool.pop('subnet_pools', None)
         try:
             subnet_pool = sanitize(subnet_pool, (
                 'name', 'default_quota', 'prefixes', 'min_prefixlen',
@@ -1109,7 +1120,8 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess,
                 continue
 
             if kvargs:
-                subnet_pool = dict(list(subnet_pool.items()) + list(kvargs.items()))
+                subnet_pool = dict(
+                    list(subnet_pool.items()) + list(kvargs.items()))
 
             body = {'subnetpool': subnet_pool.copy()}
             body['subnetpool']['tenant_id'] = project.id
@@ -1128,6 +1140,7 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess,
                     subnetpool_cache[project.id] = {}
                 subnetpool_cache[project.id][subnet_pool['name']] = \
                     result['subnetpool']['id']
+                resource = result['subnetpool']
             else:
                 resource = result['subnetpools'][0]
                 # cache the subnetpool-id
@@ -1166,6 +1179,8 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess,
                             neutron.update_subnetpool(resource['id'],
                                                       body)
                             break
+                if tags:
+                    seed_neutron_tags('subnetpool', resource, tags, args, sess)
         except Exception as e:
             logging.error("could not seed subnet pool %s/%s: %s" % (
                 project.name, subnet_pool['name'], e))
@@ -1242,7 +1257,7 @@ def seed_project_networks(project, networks, args, sess):
                         break
 
             if tags:
-                seed_network_tags(resource, tags, args, sess)
+                seed_neutron_tags('network', resource, tags, args, sess)
 
             if subnets:
                 seed_network_subnets(resource, subnets, args, sess)
@@ -1325,7 +1340,7 @@ def seed_project_routers(project, routers, args, sess):
                         # network of this project
                         network_id = get_network_id(project.id, router[
                             'external_gateway_info']['network'],
-                                                    neutron)
+                            neutron)
                     if not network_id:
                         logging.warn(
                             "skipping router '%s/%s': external_gateway_info.network %s not found" % (
@@ -1338,7 +1353,7 @@ def seed_project_routers(project, routers, args, sess):
                     router['external_gateway_info'].pop('network', None)
 
                 if 'external_fixed_ips' in router[
-                    'external_gateway_info']:
+                        'external_gateway_info']:
                     for index, efi in enumerate(
                             router['external_gateway_info'][
                                 'external_fixed_ips']):
@@ -1499,9 +1514,9 @@ def seed_router_interfaces(router, interfaces, args, sess):
             interface, router['name']))
 
 
-def seed_network_tags(network, tags, args, sess):
+def seed_neutron_tags(tag_resource, resource, tags, args, sess):
     """
-    seed neutron tags of a network
+    seed neutron tags
     :param network:
     :param tags:
     :param args:
@@ -1509,7 +1524,8 @@ def seed_network_tags(network, tags, args, sess):
     :return:
     """
 
-    logging.debug("seeding tags of network %s" % network['name'])
+    logging.debug("seeding tags of %s %s" %
+                  tag_resource, resource['name'])
 
     # grab a neutron client
     neutron = neutronclient.Client(session=sess,
@@ -1519,14 +1535,14 @@ def seed_network_tags(network, tags, args, sess):
         if not tag or len(tag) > 60:
             logging.warn(
                 "skipping tag '%s/%s', since it is invalid" % (
-                    network['name'], tag))
+                    resource['name'], tag))
             continue
 
-        if tag not in network['tags']:
+        if tag not in resource['tags']:
             logging.info(
                 "adding tag %s to network '%s'" % (
-                    tag, network['name']))
-            neutron.add_tag('networks', network['id'], tag)
+                    tag, resource['name']))
+            neutron.add_tag(tag_resource, resource['id'], tag)
 
 
 def seed_network_subnets(network, subnets, args, sess):
@@ -1632,7 +1648,7 @@ def seed_swift(project, swift, args, sess):
                     interface='admin')
 
             storage_url = swift_endpoint.split('/AUTH_')[
-                              0] + '/AUTH_' + project.id
+                0] + '/AUTH_' + project.id
 
             # Create swiftclient Connection
             conn = swiftclient.Connection(session=sess,
@@ -2123,16 +2139,19 @@ def seed_resource_class(resource_class, args, sess):
         }
 
         # api_version=1.7 -> idempotent resource class creation
-        http = placementclient(session=sess, ks_filter=ks_filter, api_version='1.7')
+        http = placementclient(
+            session=sess, ks_filter=ks_filter, api_version='1.7')
         result = http.request('PUT', PER_CLASS_URL.format(name=resource_class))
     except Exception as e:
-        logging.error("Failed to seed resource-class %s: %s" % (resource_class, e))
+        logging.error("Failed to seed resource-class %s: %s" %
+                      (resource_class, e))
 
 
 def seed_trait(trait, args, sess):
     try:
         ks_filter = {'service_type': 'placement', 'interface': args.interface}
-        http = placementclient(session=sess, ks_filter=ks_filter, api_version='1.6')
+        http = placementclient(
+            session=sess, ks_filter=ks_filter, api_version='1.6')
         http.request('PUT', '/traits/{}'.format(trait))
     except Exception as e:
         logging.error("Failed to seed trait %s: %s" % (trait, e))
@@ -2146,10 +2165,12 @@ def _get_traits(sess, args, only_associated=False):
         params = {'associated': 'true'} if only_associated else {}
         url_params = '&'.join(f'{k}={v}' for k, v in params.items())
         ks_filter = {'service_type': 'placement', 'interface': args.interface}
-        http = placementclient(session=sess, ks_filter=ks_filter, api_version='1.6')
+        http = placementclient(
+            session=sess, ks_filter=ks_filter, api_version='1.6')
         result = http.request('GET', f'/traits?{url_params}')
     except Exception as e:
-        logging.error("Failed checking for trait resource providers: {}".format(e))
+        logging.error(
+            "Failed checking for trait resource providers: {}".format(e))
         return []
     return result.json().get("traits", [])
 
@@ -2181,10 +2202,12 @@ def check_seedable_flavors_and_resourceclasses_and_traits(flavors, sess, args):
             'id', 'name', 'ram', 'disk', 'vcpus', 'swap', 'rxtx_factor',
             'is_public', 'disabled', 'ephemeral', 'extra_specs'))
         if 'name' not in flavor or not flavor['name']:
-            logging.warn("skipping flavor '{}', since it has no name".format(flavor))
+            logging.warn(
+                "skipping flavor '{}', since it has no name".format(flavor))
             continue
         if 'id' not in flavor or not flavor['id']:
-            logging.warn("skipping flavor '{}', since its id is missing".format(flavor))
+            logging.warn(
+                "skipping flavor '{}', since its id is missing".format(flavor))
             continue
         required_traits = set()
         if 'extra_specs' in flavor:
@@ -2234,9 +2257,11 @@ def check_seedable_flavors_and_resourceclasses_and_traits(flavors, sess, args):
 
     missing_traits = list(mentioned_traits - set(_get_traits(sess, args)))
     if missing_traits:
-        logging.info("Found traits mentioned in flavors missing in Nova: {}".format(missing_traits))
+        logging.info(
+            "Found traits mentioned in flavors missing in Nova: {}".format(missing_traits))
 
-    logging.info("Found resource classes: {}".format(list(required_resource_classes)))
+    logging.info("Found resource classes: {}".format(
+        list(required_resource_classes)))
     return seedable_flavors, required_resource_classes, missing_traits
 
 
@@ -2261,11 +2286,14 @@ def seed_flavor(flavor, args, sess):
             # 'rename' some attributes, since api and internal representation differ
             flavor_cmp = flavor.copy()
             if 'is_public' in flavor_cmp:
-                flavor_cmp['os-flavor-access:is_public'] = flavor_cmp.pop('is_public')
+                flavor_cmp['os-flavor-access:is_public'] = flavor_cmp.pop(
+                    'is_public')
             if 'disabled' in flavor_cmp:
-                flavor_cmp['OS-FLV-DISABLED:disabled'] = flavor_cmp.pop('disabled')
+                flavor_cmp['OS-FLV-DISABLED:disabled'] = flavor_cmp.pop(
+                    'disabled')
             if 'ephemeral' in flavor_cmp:
-                flavor_cmp['OS-FLV-EXT-DATA:ephemeral'] = flavor_cmp.pop('ephemeral')
+                flavor_cmp['OS-FLV-EXT-DATA:ephemeral'] = flavor_cmp.pop(
+                    'ephemeral')
 
             # check for delta
             for attr in list(flavor_cmp.keys()):
@@ -2375,13 +2403,15 @@ def seed_share_type(sharetype, args, sess, config):
         try:
             update_type(stype, sharetype['extra_specs'])
         except Exception as e:
-            logging.error("Failed to update share type %s: %s" % (sharetype, e))
+            logging.error("Failed to update share type %s: %s" %
+                          (sharetype, e))
             raise
     else:
         try:
             create_type(sharetype)
         except Exception as e:
-            logging.error("Failed to create share type %s: %s" % (sharetype, e))
+            logging.error("Failed to create share type %s: %s" %
+                          (sharetype, e))
             raise
 
 
@@ -2396,38 +2426,47 @@ def seed_rbac_policy(rbac, args, sess, keystone):
     # grab a neutron client
     neutron = neutronclient.Client(session=sess, interface=args.interface)
 
-    rbac = sanitize(rbac, ('object_type', 'object_name', 'object_id', 'action', 'target_tenant_name', 'target_tenant'))
+    rbac = sanitize(rbac, ('object_type', 'object_name', 'object_id',
+                    'action', 'target_tenant_name', 'target_tenant'))
 
     try:
         if 'object_type' not in rbac or not rbac['object_type'] or rbac['object_type'] != 'network':
-            logging.warn("skipping rbac-policy '%s', since object_type is missing" % rbac)
+            logging.warn(
+                "skipping rbac-policy '%s', since object_type is missing" % rbac)
             return
         if 'object_name' not in rbac or not rbac['object_name']:
-            logging.warn("skipping rbac-policy '%s', since object_name is missing" % rbac)
+            logging.warn(
+                "skipping rbac-policy '%s', since object_name is missing" % rbac)
             return
         # network@project@domain ?
         network_id = None
         match = re.match(object_name_regex, rbac['object_name'])
         if match:
-            project_id = get_project_id(match.group(3), match.group(2), keystone)
+            project_id = get_project_id(
+                match.group(3), match.group(2), keystone)
             if project_id:
-                network_id = get_network_id(project_id, match.group(1), neutron)
+                network_id = get_network_id(
+                    project_id, match.group(1), neutron)
         if not network_id:
-            logging.warn("skipping rbac-policy '%s': could not locate object_name" % rbac)
+            logging.warn(
+                "skipping rbac-policy '%s': could not locate object_name" % rbac)
             return
         rbac['object_id'] = network_id
         rbac.pop('object_name', None)
 
         if 'target_tenant_name' not in rbac or not rbac['target_tenant_name']:
-            logging.warn("skipping rbac-policy '%s', since target_tenant_name is missing" % rbac)
+            logging.warn(
+                "skipping rbac-policy '%s', since target_tenant_name is missing" % rbac)
             return
         # project@domain ?
         project_id = None
         match = re.match(target_name_regex, rbac['target_tenant_name'])
         if match:
-            project_id = get_project_id(match.group(2), match.group(1), keystone)
+            project_id = get_project_id(
+                match.group(2), match.group(1), keystone)
         if not project_id:
-            logging.warn("skipping rbac-policy '%s': could not locate target_tenant_name" % rbac)
+            logging.warn(
+                "skipping rbac-policy '%s': could not locate target_tenant_name" % rbac)
             return
         rbac['target_tenant'] = project_id
         rbac.pop('target_tenant_name', None)
@@ -2546,7 +2585,8 @@ def seed_quota_class_sets(quota_class_set, sess):
                              json=dict({"quota_class_set": quotas}))
             logging.debug("Create/Update os-quota-class-set : %s" % resp.text)
         except Exception as e:
-            logging.error("could not seed quota-class-set %s: %s" % (quota_class, e))
+            logging.error("could not seed quota-class-set %s: %s" %
+                          (quota_class, e))
             raise
 
 
