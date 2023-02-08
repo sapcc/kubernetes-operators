@@ -1,4 +1,4 @@
-FROM golang:1.19.3-alpine3.16 as builder
+FROM golang:1.19-alpine3.16 as builder
 WORKDIR /go/src/github.com/sapcc/kubernetes-operators/kube-fip-controller
 RUN apk add --no-cache make
 COPY . .

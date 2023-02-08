@@ -50,6 +50,12 @@ const (
 
 	//labelFloatingSubnetName controls which floating subnet is used for the FIP.
 	labelFloatingSubnetName = "kube-fip-controller.ccloud.sap.com/floating-subnet-name"
+
+	// labelNodepoolName label used to identify nodepools
+	labelNodepoolName = "ccloud.sap.com/nodepool"
+
+	// labelReuseFIPs indicates if FIPs should be re-used for a certain nodepool
+	labelReuseFIPs = "kube-fip-controller.ccloud.sap.com/reuse-fips"
 )
 
 // Controller ...
@@ -207,7 +213,17 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	fip, err := c.osFramework.GetOrCreateFloatingIP(floatingIP, floatingNetworkID, floatingSubnetID, server.TenantID)
+	nodepool := ""
+	if val, ok := getLabelValue(node, labelNodepoolName); ok {
+		nodepool = val
+	}
+
+	reuseFIPs := false
+	if val, ok := getLabelValue(node, labelReuseFIPs); ok {
+		reuseFIPs = (val == "true")
+	}
+
+	fip, err := c.osFramework.GetOrCreateFloatingIP(floatingIP, floatingNetworkID, floatingSubnetID, server.TenantID, nodepool, reuseFIPs)
 	if err != nil {
 		return err
 	}
