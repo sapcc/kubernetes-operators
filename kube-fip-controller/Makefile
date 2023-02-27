@@ -1,6 +1,6 @@
 DATE    = $(shell date +%Y%m%d%H%M)
 IMAGE   ?= sapcc/kube-fip-controller
-VERSION = v$(DATE)-test
+VERSION = v$(DATE)
 GOOS    ?= $(shell go env | grep GOOS | cut -d'"' -f2)
 BINARY  := controller
 OPTS    ?=
