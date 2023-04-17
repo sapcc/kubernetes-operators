@@ -1105,7 +1105,7 @@ def seed_project_subnet_pools(project, subnet_pools, args, sess,
                                    interface=args.interface)
 
     for subnet_pool in subnet_pools:
-        tags = subnet_pool.pop('subnet_pools', None)
+        tags = subnet_pool.pop('tags', None)
         try:
             subnet_pool = sanitize(subnet_pool, (
                 'name', 'default_quota', 'prefixes', 'min_prefixlen',
@@ -1524,8 +1524,7 @@ def seed_neutron_tags(tag_resource, resource, tags, args, sess):
     :return:
     """
 
-    logging.debug("seeding tags of %s %s" %
-                  tag_resource, resource['name'])
+    logging.debug("seeding tags of {} '{}'".format(tag_resource, resource['name']))
 
     # grab a neutron client
     neutron = neutronclient.Client(session=sess,
@@ -1534,14 +1533,12 @@ def seed_neutron_tags(tag_resource, resource, tags, args, sess):
     for tag in tags:
         if not tag or len(tag) > 60:
             logging.warn(
-                "skipping tag '%s/%s', since it is invalid" % (
-                    resource['name'], tag))
+                "skipping tag '{}/{}', since it is invalid".format(resource['name'], tag))
             continue
 
         if tag not in resource['tags']:
             logging.info(
-                "adding tag %s to network '%s'" % (
-                    tag, resource['name']))
+                "adding tag {} to network '{}'".format(tag, resource['name']))
             neutron.add_tag(tag_resource, resource['id'], tag)
 
 
