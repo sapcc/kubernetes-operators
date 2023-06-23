@@ -1,4 +1,4 @@
-VERSION=0.5.0
+VERSION=1.0.0
 LDFLAGS=-X github.com/sapcc/kubernetes-operators/externalip/pkg/operator.VERSION=$(VERSION)
 IMAGE   ?= keppel.eu-de-1.cloud.sap/ccloud/kube-externalip
 GOOS    ?= darwin
@@ -20,7 +20,7 @@ endif
 all: bin/$(GOOS)/externalip
 
 bin/%/externalip: $(GOFILES) Makefile
-	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -mod vendor -v -i -o bin/$*/externalip ./cmd
+	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -mod vendor -v -o bin/$*/externalip ./cmd
 
 build: bin/linux/externalip
 	docker build $(BUILD_ARGS) -t $(IMAGE):$(VERSION) .
@@ -28,8 +28,8 @@ build: bin/linux/externalip
 push:
 	docker push $(IMAGE):$(VERSION)
 
-docker-push-mac: bin/linux/externalip
-	docker buildx build  --platform linux/amd64 . -t ${IMAGE}:${VERSION} --push
+buildx: bin/linux/externalip
+	docker buildx build --platform linux/amd64 . -t ${IMAGE}:${VERSION} --push
 
 clean:
 	rm -rf bin/*
