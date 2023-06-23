@@ -1,6 +1,6 @@
 module github.com/sapcc/kubernetes-operators/externalip
 
-go 1.19
+go 1.20
 
 require (
 	github.com/golang/glog v1.0.0
