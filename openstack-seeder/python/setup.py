@@ -16,7 +16,7 @@ setup(
         'raven',
         'zipp==3.0.0',
         'pyyaml>=4.2b4',
-        'pyparsing==2.1.0',
+        'pyparsing==2.4.7',
         'oslo.serialization==2.29.2',
         'funcsigs',
         'oslo.config==7.0.0',
