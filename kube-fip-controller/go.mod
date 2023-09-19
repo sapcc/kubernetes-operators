@@ -18,7 +18,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
-	k8s.io/client-go v0.0.0-20190819141724-e14f31a72a77
+	k8s.io/client-go v0.17.16
 )
 
 require (
