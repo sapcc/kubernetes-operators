@@ -23,8 +23,7 @@ require (
 	github.com/sapcc/kubernikus v1.5.0 // indirect
 	github.com/spf13/pflag v1.0.3
 	github.com/stretchr/testify v1.4.0
-	golang.org/x/crypto v0.0.0-20190911031432-227b76d455e7
-	golang.org/x/net v0.0.0-20190912160710-24e19bdeb0f2 // indirect
+	golang.org/x/crypto v0.17.0
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
