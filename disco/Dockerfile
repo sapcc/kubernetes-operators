@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:experimental
 # Build the manager binary
-FROM golang:1.18 as builder
+FROM golang:1.22 as builder
 
 RUN go install golang.org/x/tools/cmd/goimports@latest
 
