@@ -20,7 +20,7 @@ endif
 all: bin/$(GOOS)/externalip
 
 bin/%/externalip: $(GOFILES) Makefile
-	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -mod vendor -v -o bin/$*/externalip ./cmd
+	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -o bin/$*/externalip ./cmd
 
 build: bin/linux/externalip
 	docker build $(BUILD_ARGS) -t $(IMAGE):$(VERSION) .
