@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v1 contains API Schema definitions for the disco v1 API group
-//+kubebuilder:object:generate=true
-//+groupName=disco.stable.sap.cc
+// +kubebuilder:object:generate=true
+// +groupName=disco.stable.sap.cc
 package v1
 
 import (
