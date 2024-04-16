@@ -38,7 +38,11 @@ import (
 	"github.com/sapcc/kubernetes-operators/kube-fip-controller/pkg/metrics"
 )
 
-const statusActive = "ACTIVE"
+const (
+	statusActive                 = "ACTIVE"
+	createFIPDescription         = "Floating IP allocated by kube-fip-controller"
+	createFIPDescriptionNodepool = "Floating IP allocated by kube-fip-controller nodepool=%s"
+)
 
 var allProjectsHeader = map[string]string{"X-Auth-All-Projects": "true"}
 
@@ -193,14 +197,14 @@ func (o *OSFramework) GetSubnetIDByName(name string) (string, error) {
 }
 
 // GetOrCreateFloatingIP gets and existing or create a new neutron floating IP and returns it or an error.
-func (o *OSFramework) GetOrCreateFloatingIP(floatingIP, floatingNetworkID, subnetID, projectID string) (*neutronfip.FloatingIP, error) {
-	fip, err := o.getFloatingIP(floatingIP, projectID)
+func (o *OSFramework) GetOrCreateFloatingIP(floatingIP, floatingNetworkID, subnetID, projectID, nodepool string, reuse bool) (*neutronfip.FloatingIP, error) {
+	fip, err := o.getFloatingIP(floatingIP, projectID, nodepool, reuse)
 	if err == nil {
 		return fip, nil
 	}
 
 	if IsFIPNotFound(err) {
-		return o.createFloatingIP(floatingIP, floatingNetworkID, subnetID, projectID)
+		return o.createFloatingIP(floatingIP, floatingNetworkID, subnetID, projectID, nodepool)
 	}
 
 	return nil, err
@@ -246,12 +250,18 @@ func (o *OSFramework) getPortByID(id string) (*ports.Port, error) {
 	return ports.Get(o.neutronClient, id).Extract()
 }
 
-func (o *OSFramework) createFloatingIP(floatingIP, floatingNetworkID, subnetID, projectID string) (*neutronfip.FloatingIP, error) {
+func (o *OSFramework) createFloatingIP(floatingIP, floatingNetworkID, subnetID, projectID, nodepool string) (*neutronfip.FloatingIP, error) {
+	description := createFIPDescription
+	if nodepool != "" {
+		description = fmt.Sprintf(createFIPDescriptionNodepool, nodepool)
+	}
+
 	createOpts := neutronfip.CreateOpts{
 		FloatingNetworkID: floatingNetworkID,
 		SubnetID:          subnetID,
 		FloatingIP:        floatingIP,
 		ProjectID:         projectID,
+		Description:       description,
 	}
 	fip, err := neutronfip.Create(o.neutronClient, createOpts).Extract()
 	if err != nil {
@@ -263,10 +273,13 @@ func (o *OSFramework) createFloatingIP(floatingIP, floatingNetworkID, subnetID, 
 	return fip, nil
 }
 
-func (o *OSFramework) getFloatingIP(floatingIP, projectID string) (*neutronfip.FloatingIP, error) {
+func (o *OSFramework) getFloatingIP(floatingIP, projectID, nodepool string, reuse bool) (*neutronfip.FloatingIP, error) {
 	listOpts := neutronfip.ListOpts{
 		FloatingIP: floatingIP,
 		ProjectID:  projectID,
+	}
+	if reuse && floatingIP == "" && nodepool != "" {
+		listOpts.Description = fmt.Sprintf(createFIPDescriptionNodepool, nodepool)
 	}
 	allPages, err := neutronfip.List(o.neutronClient, listOpts).AllPages()
 	if err != nil {
@@ -280,6 +293,9 @@ func (o *OSFramework) getFloatingIP(floatingIP, projectID string) (*neutronfip.F
 
 	for _, fip := range allFIPs {
 		if fip.FloatingIP == floatingIP {
+			return &fip, nil
+		}
+		if reuse && floatingIP == "" && nodepool != "" && fip.FixedIP == "" {
 			return &fip, nil
 		}
 	}
