@@ -134,8 +134,11 @@ func (k8s *K8sFramework) AddLabelsToNode(ctx context.Context, node *corev1.Node,
 
 // GetNodeFromIndexerByKey returns a node by key from the informers indexer.
 func (k8s *K8sFramework) GetNodeFromIndexerByKey(key string) (*corev1.Node, bool, error) {
-	obj, exists, err := k8s.nodeInformer.GetIndexer().GetByKey(key)
-	return obj.(*corev1.Node), exists, err
+	obj, _, err := k8s.nodeInformer.GetIndexer().GetByKey(key)
+	if err != nil || obj == nil {
+		return nil, false, err
+	}
+	return obj.(*corev1.Node), true, nil
 }
 
 // GetNodeInformerStore returns the Store of the node informer.

@@ -1,8 +1,9 @@
 DATE    = $(shell date +%Y%m%d%H%M)
-IMAGE   ?= sapcc/kube-fip-controller
+IMAGE   ?= keppel.eu-de-1.cloud.sap/ccloud/kube-fip-controller
 VERSION = v$(DATE)
-GOOS    ?= $(shell go env | grep GOOS | cut -d'"' -f2)
+GOOS    ?= $(shell go env GOOS)
 BINARY  := controller
+OPTS    ?=
 
 SRCDIRS  := cmd pkg
 PACKAGES := $(shell find $(SRCDIRS) -type d)
@@ -20,7 +21,7 @@ bin/%/$(BINARY): $(GOFILES) Makefile
 	GOOS=$* GOARCH=amd64 go build -ldflags '-X github.com/sapcc/kubernetes-operators/kube-fip-controller/cmd.BuildCommit=$(GIT_COMMIT) -X github.com/sapcc/kubernetes-operators/kube-fip-controller/cmd.BuildDate=$(BUILD_DATE)' -mod vendor -v -o bin/$*/$(BINARY) ./cmd/main.go && chmod +x bin/$*/$(BINARY)
 
 build:
-	docker build -t $(IMAGE):$(VERSION) .
+	docker build $(OPTS) -t $(IMAGE):$(VERSION) .
 
 static-check:
 	@if s="$$(gofmt -s -l *.go pkg 2>/dev/null)"                            && test -n "$$s"; then printf ' => %s\n%s\n' gofmt  "$$s"; false; fi
