@@ -1,4 +1,4 @@
-FROM alpine:3.18
+FROM alpine
 LABEL source_repository="https://github.com/sapcc/kubernetes-operators"
 
 RUN apk add --no-cache iptables
