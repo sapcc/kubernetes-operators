@@ -4,7 +4,7 @@ IMG_TAG ?= latest
 IMG ?= ${IMG_REPO}:${IMG_TAG}
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.23
+ENVTEST_K8S_VERSION = 1.28
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -54,7 +54,6 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 .PHONY: fmt
 fmt: ## Run go fmt against code.
 	go fmt ./...
-	goimports -w -local github.com/sapcc/kubernetes-operators/disco .
 
 .PHONY: vet
 vet: ## Run go vet against code.
@@ -82,7 +81,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 .PHONY: docker-build
 docker-build: GIT_COMMIT  = $(shell git rev-parse --short HEAD)
 docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG_REPO}:${GIT_COMMIT} .
+	docker build --network=host -t ${IMG_REPO}:${GIT_COMMIT} .
 
 .PHONY: docker-push-mac
 docker-push-mac: GIT_COMMIT  = $(shell git rev-parse --short HEAD)
@@ -136,8 +135,8 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v3.8.7
-CONTROLLER_TOOLS_VERSION ?= v0.8.0
+KUSTOMIZE_VERSION ?= v5.4.1
+CONTROLLER_TOOLS_VERSION ?= v0.14.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize

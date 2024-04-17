@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	discov1 "github.com/sapcc/kubernetes-operators/disco/api/v1"
 	"github.com/sapcc/kubernetes-operators/disco/pkg/clientutil"
@@ -78,7 +79,7 @@ func (r *RecordReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&discov1.Record{}).
-		WithOptions(controller.Options{Log: r.logger, MaxConcurrentReconciles: 1}).
+		WithOptions(controller.Options{LogConstructor: func(_ *reconcile.Request) logr.Logger { return r.logger }, MaxConcurrentReconciles: 1}).
 		Complete(r)
 }
 
