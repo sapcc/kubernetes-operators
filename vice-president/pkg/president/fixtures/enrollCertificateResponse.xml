@@ -1,5 +1,0 @@
-<Response xmlns:tns="http://webservices.mpki4ssl.symantec.com" xmlns="urn:symantec:api">
-<StatusCode>0x00</StatusCode>
-<Message>success</Message>
-<Transaction_ID>87d1adc3f1f262409092ec31fb09f4c7</Transaction_ID>
-</Response>
