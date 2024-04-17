@@ -1,4 +1,4 @@
-FROM golang:1.12.9-alpine3.10 as builder
+FROM golang:1.13.11-alpine3.10 as builder
 WORKDIR /go/src/github.com/sapcc/kubernetes-operators/vice-president
 RUN apk add --no-cache make dep git mercurial
 COPY . .
