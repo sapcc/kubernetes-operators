@@ -1,4 +1,4 @@
-VERSION=1.0.1
+VERSION=1.0.2
 LDFLAGS=-X github.com/sapcc/kubernetes-operators/externalip/pkg/operator.VERSION=$(VERSION)
 IMAGE   ?= keppel.eu-de-1.cloud.sap/ccloud/kube-externalip
 GOOS    ?= darwin
@@ -29,7 +29,7 @@ push:
 	docker push $(IMAGE):$(VERSION)
 
 buildx: bin/linux/externalip
-	docker buildx build --platform linux/amd64 . -t ${IMAGE}:${VERSION} --push
+	docker buildx build --provenance=false --platform linux/amd64 . -t ${IMAGE}:${VERSION} --push
 
 clean:
 	rm -rf bin/*
