@@ -19,6 +19,8 @@ package controller
 import (
 	"context"
 	"flag"
+	"slices"
+
 	"gopkg.in/yaml.v2"
 
 	"k8s.io/apimachinery/pkg/fields"
@@ -33,13 +35,14 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"fmt"
-	"github.com/getsentry/raven-go"
-	"github.com/golang/glog"
-	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/getsentry/raven-go"
+	"github.com/golang/glog"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var (
@@ -48,11 +51,11 @@ var (
 )
 
 type Options struct {
-	KubeConfig      string
-	DryRun          bool
-	InterfaceType   string
-	IgnoreNamespace string
-	OnlyNamespace   string
+	KubeConfig       string
+	DryRun           bool
+	InterfaceType    string
+	IgnoreNamespaces []string
+	OnlyNamespaces   []string
 }
 
 type SeederController struct {
@@ -210,15 +213,15 @@ func (c *SeederController) seedApply(seed *seederv1.OpenstackSeed) {
 	}
 
 	// to allow to ignore seeds from a particular namespace
-	if seed.ObjectMeta.Namespace == c.Options.IgnoreNamespace {
-		glog.Infof("Ignoring seeds from %s Namespace.", c.Options.IgnoreNamespace)
+	if slices.Contains(c.Options.IgnoreNamespaces, seed.ObjectMeta.Namespace) {
+		glog.Infof("Ignoring seeds from %s Namespace.", seed.ObjectMeta.Namespace)
 		return
 	}
 
 	// to only apply seeds from a particular namespace and ignore the rest
-	if c.Options.OnlyNamespace != "" {
-		if seed.ObjectMeta.Namespace != c.Options.OnlyNamespace {
-			glog.Infof("Ignoring seeds from %s Namespace. Only seeds from %s Namespace will be applied.", seed.ObjectMeta.Namespace, c.Options.OnlyNamespace)
+	if len(c.Options.OnlyNamespaces) > 0 {
+		if slices.Contains(c.Options.OnlyNamespaces, seed.ObjectMeta.Namespace) {
+			glog.Infof("Ignoring seeds from %s Namespace. Only seeds from %v Namespaces will be applied.", seed.ObjectMeta.Namespace, c.Options.OnlyNamespaces)
 			return
 		}
 	}
@@ -266,7 +269,7 @@ func (c *SeederController) seedApply(seed *seederv1.OpenstackSeed) {
 	cmd.Stderr = os.Stderr
 
 	if err = cmd.Start(); err != nil {
-		glog.Errorf("ERROR: could not spawn %s: ", seeder_name, err)
+		glog.Errorf("ERROR: could not spawn %s: %v", seeder_name, err)
 	}
 
 	stdin.Write(yaml_seed)
