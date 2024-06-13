@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -65,14 +66,14 @@ var (
 )
 
 type Options struct {
-	MasterURL       string
-	KubeConfig      string
-	DryRun          bool
-	InterfaceType   string
-	ResyncPeriod    time.Duration
-	IgnoreNamespace string
-	OnlyNamespace   string
-	Threadiness     int
+	MasterURL        string
+	KubeConfig       string
+	DryRun           bool
+	InterfaceType    string
+	ResyncPeriod     time.Duration
+	IgnoreNamespaces []string
+	OnlyNamespaces   []string
+	Threadiness      int
 }
 
 // Controller is the controller implementation for OpenstackSeed resources
@@ -272,6 +273,20 @@ func (c *Controller) seedHandler(key string) error {
 		return nil
 	}
 
+	// to allow to ignore seeds from a particular namespace
+	if slices.Contains(c.Options.IgnoreNamespaces, seed.ObjectMeta.Namespace) {
+		glog.Infof("Ignoring seeds from %s Namespace.", seed.ObjectMeta.Namespace)
+		return nil
+	}
+
+	// to only apply seeds from a particular namespace and ignore the rest
+	if len(c.Options.OnlyNamespaces) > 0 {
+		if slices.Contains(c.Options.OnlyNamespaces, seed.ObjectMeta.Namespace) {
+			glog.Infof("Ignoring seeds from %s Namespace. Only seeds from %v Namespaces will be applied.", seed.ObjectMeta.Namespace, c.Options.OnlyNamespaces)
+			return nil
+		}
+	}
+
 	result := &seederv1.OpenstackSeed{ObjectMeta: seed.ObjectMeta, Status: seed.Status}
 
 	err = c.resolveSeedDependencies(result, seed)
@@ -281,20 +296,6 @@ func (c *Controller) seedHandler(key string) error {
 		raven.CaptureError(msg, nil)
 		glog.Errorf("ERROR: %s", msg.Error())
 		return err
-	}
-
-	// to allow to ignore seeds from a particular namespace
-	if seed.ObjectMeta.Namespace == c.Options.IgnoreNamespace {
-		glog.Infof("Ignoring seeds from %s Namespace.", c.Options.IgnoreNamespace)
-		return nil
-	}
-
-	// to only apply seeds from a particular namespace and ignore the rest
-	if c.Options.OnlyNamespace != "" {
-		if seed.ObjectMeta.Namespace != c.Options.OnlyNamespace {
-			glog.Infof("Ignoring seeds from %s Namespace. Only seeds from %s Namespace will be applied.", seed.ObjectMeta.Namespace, c.Options.OnlyNamespace)
-			return nil
-		}
 	}
 
 	yamlSeed, err := yaml.Marshal(result.Spec)
@@ -344,7 +345,7 @@ func (c *Controller) seedHandler(key string) error {
 	cmd.Stderr = os.Stderr
 
 	if err = cmd.Start(); err != nil {
-		glog.Errorf("ERROR: could not spawn %s: ", seeder_name, err)
+		glog.Errorf("ERROR: could not spawn %s: %v", seeder_name, err)
 	}
 
 	stdin.Write(yamlSeed)
