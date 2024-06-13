@@ -31,7 +31,7 @@ OPENAPI_GEN := $(shell command -v openapi-gen 2> /dev/null)
 all: bin/$(GOOS)/$(BINARY)
 
 bin/%/$(BINARY): $(GOFILES) Makefile code-gen
-	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -i -o bin/$*/$(BINARY) ./cmd
+	GOOS=$* GOARCH=amd64 go build $(GOFLAGS) -v -o bin/$*/$(BINARY) ./cmd
 
 build:
 	docker build $(BUILD_ARGS) -t $(IMAGE):$(VERSION) .
