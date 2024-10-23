@@ -1,4 +1,4 @@
-FROM keppel.eu-de-1.cloud.sap/ccloud/ccloud-shell:latest
+FROM keppel.eu-de-1.cloud.sap/ccloud/ccloud-shell:20241014132734
 LABEL MAINTAINER="Stefan Hipfel <stefan.hipfel@sap.com>"
 LABEL source_repository="https://github.com/sapcc/kubernetes-operators"
 
