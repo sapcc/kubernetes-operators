@@ -281,7 +281,7 @@ func (c *Controller) seedHandler(key string) error {
 
 	// to only apply seeds from a particular namespace and ignore the rest
 	if len(c.Options.OnlyNamespaces) > 0 {
-		if slices.Contains(c.Options.OnlyNamespaces, seed.ObjectMeta.Namespace) {
+		if !slices.Contains(c.Options.OnlyNamespaces, seed.ObjectMeta.Namespace) {
 			glog.Infof("Ignoring seeds from %s Namespace. Only seeds from %v Namespaces will be applied.", seed.ObjectMeta.Namespace, c.Options.OnlyNamespaces)
 			return nil
 		}
