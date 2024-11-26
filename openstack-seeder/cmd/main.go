@@ -95,8 +95,8 @@ func init() {
 	pflag.BoolVar(&options.DryRun, "dry-run", false, "Only pretend to seed.")
 	pflag.StringVar(&options.InterfaceType, "interface", "internal", "Openstack service interface type to use.")
 	pflag.DurationVar(&options.ResyncPeriod, "resync", time.Hour*24, "Resync period")
-	pflag.StringSliceVar(&options.IgnoreNamespaces, "ignorenamespace", nil, "Ignore seeds from a certain k8s Namespace (can be given multiple times to ignore multiple namespaces).")
-	pflag.StringSliceVar(&options.OnlyNamespaces, "onlynamespace", nil, "Only apply seeds from a certain k8s Namespace (can be given multiple times to watch multiple namespaces).")
+	pflag.StringArrayVar(&options.IgnoreNamespaces, "ignorenamespace", nil, "Ignore seeds from a certain k8s Namespace (can be given multiple times to ignore multiple namespaces).")
+	pflag.StringArrayVar(&options.OnlyNamespaces, "onlynamespace", nil, "Only apply seeds from a certain k8s Namespace (can be given multiple times to watch multiple namespaces).")
 	pflag.IntVar(&options.Threadiness, "threadiness", 1, "Operator threadiness.")
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 }
