@@ -1,4 +1,4 @@
-FROM alpine:3.8
+FROM alpine:3.21
 MAINTAINER Fabian Ruff <fabian.ruff@sap.com> 
 LABEL source_repository="https://github.com/sapcc/kubernetes-operators"
 
