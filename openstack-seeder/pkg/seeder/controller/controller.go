@@ -421,6 +421,15 @@ func (c *Controller) resolveSeedDependencies(result *seederv1.OpenstackSeed, see
 			if namespace == "" {
 				namespace = seed.ObjectMeta.Namespace
 			}
+			if slices.Contains(c.Options.IgnoreNamespaces, namespace) {
+				return fmt.Errorf("refusing to resolve dependency '%s/%s' because its namespace is out of scope for this seeder", namespace, name)
+			}
+			if len(c.Options.OnlyNamespaces) > 0 {
+				if !slices.Contains(c.Options.OnlyNamespaces, namespace) {
+					return fmt.Errorf("refusing to resolve dependency '%s/%s' because its namespace is not in scope for this seeder", namespace, name)
+				}
+			}
+
 			spec, err = c.openstackseedsLister.OpenstackSeeds(namespace).Get(name)
 			if err != nil {
 				msg := fmt.Errorf("dependency '%s/%s' of '%s/%s' not found", namespace, name, seed.ObjectMeta.Namespace, seed.ObjectMeta.Name)
