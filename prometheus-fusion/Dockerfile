@@ -1,4 +1,4 @@
-FROM golang:1.9-alpine3.7 as builder
+FROM golang:1.11-alpine3.7 as builder
 WORKDIR /go/src/github.com/sapcc/kubernetes-operators/prometheus-fusion
 RUN apk add --no-cache make
 COPY . .
