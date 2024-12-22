@@ -23,7 +23,7 @@ github.com/emicklei/go-restful/log
 # github.com/emicklei/go-restful-swagger12 v0.0.0-20170208215640-dcef7f557305
 ## explicit
 github.com/emicklei/go-restful-swagger12
-# github.com/getsentry/raven-go v0.0.0-20180517221441-ed7bcb39ff10
+# github.com/getsentry/raven-go v0.2.0
 ## explicit
 github.com/getsentry/raven-go
 # github.com/ghodss/yaml v0.0.0-20150909031657-73d445a93680

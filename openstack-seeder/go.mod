@@ -3,7 +3,7 @@ module github.com/sapcc/kubernetes-operators/openstack-seeder
 go 1.22.0
 
 require (
-	github.com/getsentry/raven-go v0.0.0-20180517221441-ed7bcb39ff10
+	github.com/getsentry/raven-go v0.2.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/spf13/pflag v1.0.2-0.20180601132542-3ebe029320b2
 	gopkg.in/yaml.v2 v2.0.0-20170721113624-670d4cfef054
