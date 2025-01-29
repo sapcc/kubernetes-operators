@@ -84,8 +84,8 @@ github.com/opencontainers/go-digest/digestset
 # github.com/pkg/errors v0.8.1-0.20180311214515-816c9085562c
 ## explicit
 github.com/pkg/errors
-# github.com/spf13/pflag v1.0.2-0.20180601132542-3ebe029320b2
-## explicit
+# github.com/spf13/pflag v1.0.6
+## explicit; go 1.12
 github.com/spf13/pflag
 # github.com/stretchr/testify v1.9.0
 ## explicit; go 1.17
