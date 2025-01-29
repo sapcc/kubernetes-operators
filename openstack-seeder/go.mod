@@ -5,7 +5,7 @@ go 1.22.0
 require (
 	github.com/getsentry/raven-go v0.0.0-20180517221441-ed7bcb39ff10
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
-	github.com/spf13/pflag v1.0.2-0.20180601132542-3ebe029320b2
+	github.com/spf13/pflag v1.0.6
 	gopkg.in/yaml.v2 v2.0.0-20170721113624-670d4cfef054
 	k8s.io/apiextensions-apiserver v0.0.0-20180417153807-718d845dac8d
 	k8s.io/apimachinery v0.0.0-20180302183549-c44b40f648ea

@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/atlassian/go-sentry-api v0.0.0-20180801221835-72979af954a6
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/pflag v1.0.6
 	k8s.io/api v0.21.13
 	k8s.io/apiextensions-apiserver v0.21.13
 	k8s.io/apimachinery v0.21.13

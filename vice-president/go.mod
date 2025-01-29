@@ -21,7 +21,7 @@ require (
 	github.com/prometheus/client_golang v1.1.0
 	github.com/sapcc/go-vice v0.0.0-20190821082040-e4ca123d1d42
 	github.com/sapcc/kubernikus v1.5.0 // indirect
-	github.com/spf13/pflag v1.0.3
+	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.4.0
 	golang.org/x/crypto v0.0.0-20190911031432-227b76d455e7
 	golang.org/x/net v0.0.0-20190912160710-24e19bdeb0f2 // indirect
