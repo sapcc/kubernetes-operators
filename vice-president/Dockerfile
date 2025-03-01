@@ -5,7 +5,7 @@ COPY . .
 ARG VERSION
 RUN make all
 
-FROM alpine:3.10
+FROM alpine:3.21
 LABEL maintainer="Michael Schmidt <michael.schmidt02@@sap.com>, Arno Uhlig <arno.uhlig@sap.com>"
 LABEL source_repository="https://github.com/sapcc/kubernetes-operators"
 
