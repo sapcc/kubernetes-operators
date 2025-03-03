@@ -200,7 +200,7 @@ type FlavorSpec struct {
 	Name       string            `json:"name" yaml:"name"` // flavor name
 	Id         string            `json:"id,omitempty" yaml:"id,omitempty"`
 	Ram        int               `json:"ram,omitempty" yaml:"ram,omitempty"`
-	Disk       int               `json:"disk,omitempty" yaml:"disk,omitempty"`
+	Disk       int               `json:"disk" yaml:"disk"`
 	Vcpus      int               `json:"vcpus,omitempty" yaml:"vcpus,omitempty"`
 	Swap       int               `json:"swap,omitempty" yaml:"swap,omitempty"`
 	RxTxfactor float32           `json:"rxtxfactor,omitempty" yaml:"rxtxfactor,omitempty"`
