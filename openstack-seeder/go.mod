@@ -7,9 +7,9 @@ require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/spf13/pflag v1.0.2-0.20180601132542-3ebe029320b2
 	gopkg.in/yaml.v2 v2.0.0-20170721113624-670d4cfef054
-	k8s.io/apiextensions-apiserver v0.0.0-20180417153807-718d845dac8d
-	k8s.io/apimachinery v0.0.0-20180302183549-c44b40f648ea
-	k8s.io/client-go v0.0.0-20180111073159-0cdf7ac6ed10
+	k8s.io/apiextensions-apiserver v0.32.2
+	k8s.io/apimachinery v0.32.2
+	k8s.io/client-go v0.32.2
 	k8s.io/kubernetes v1.8.0-alpha.1.0.20180404102048-347f652944cc
 )
 
