@@ -41,10 +41,11 @@ require (
 	github.com/pkg/errors v0.8.1-0.20180311214515-816c9085562c // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/ugorji/go v0.0.0-20170107133203-ded73eae5db7 // indirect
-	golang.org/x/crypto v0.0.0-20161006174701-d172538b2cfc // indirect
-	golang.org/x/net v0.0.0-20170114055629-f2499483f923 // indirect
-	golang.org/x/sys v0.0.0-20160916181909-8f0908ab3b24 // indirect
-	golang.org/x/text v0.0.0-20160726164857-2910a502d2bf // indirect
+	golang.org/x/crypto v0.21.0 // indirect
+	golang.org/x/net v0.23.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/term v0.18.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/inf.v0 v0.9.0 // indirect
 	gopkg.in/yaml.v1 v1.0.0-20140924161607-9f9df34309c0 // indirect
