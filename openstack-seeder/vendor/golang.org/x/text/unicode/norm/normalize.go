@@ -2,30 +2,36 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Note: the file data_test.go that is generated should not be checked in.
 //go:generate go run maketables.go triegen.go
-//go:generate go run maketables.go triegen.go -test
+//go:generate go test -tags test
 
 // Package norm contains types and functions for normalizing Unicode strings.
 package norm // import "golang.org/x/text/unicode/norm"
 
-import "unicode/utf8"
+import (
+	"unicode/utf8"
+
+	"golang.org/x/text/transform"
+)
 
 // A Form denotes a canonical representation of Unicode code points.
 // The Unicode-defined normalization and equivalence forms are:
 //
-//   NFC   Unicode Normalization Form C
-//   NFD   Unicode Normalization Form D
-//   NFKC  Unicode Normalization Form KC
-//   NFKD  Unicode Normalization Form KD
+//	NFC   Unicode Normalization Form C
+//	NFD   Unicode Normalization Form D
+//	NFKC  Unicode Normalization Form KC
+//	NFKD  Unicode Normalization Form KD
 //
 // For a Form f, this documentation uses the notation f(x) to mean
 // the bytes or string x converted to the given form.
 // A position n in x is called a boundary if conversion to the form can
 // proceed independently on both sides:
-//   f(x) == append(f(x[0:n]), f(x[n:])...)
 //
-// References: http://unicode.org/reports/tr15/ and
-// http://unicode.org/notes/tn5/.
+//	f(x) == append(f(x[0:n]), f(x[n:])...)
+//
+// References: https://unicode.org/reports/tr15/ and
+// https://unicode.org/notes/tn5/.
 type Form int
 
 const (
@@ -263,6 +269,34 @@ func (f Form) QuickSpan(b []byte) int {
 	return n
 }
 
+// Span implements transform.SpanningTransformer. It returns a boundary n such
+// that b[0:n] == f(b[0:n]). It is not guaranteed to return the largest such n.
+func (f Form) Span(b []byte, atEOF bool) (n int, err error) {
+	n, ok := formTable[f].quickSpan(inputBytes(b), 0, len(b), atEOF)
+	if n < len(b) {
+		if !ok {
+			err = transform.ErrEndOfSpan
+		} else {
+			err = transform.ErrShortSrc
+		}
+	}
+	return n, err
+}
+
+// SpanString returns a boundary n such that s[0:n] == f(s[0:n]).
+// It is not guaranteed to return the largest such n.
+func (f Form) SpanString(s string, atEOF bool) (n int, err error) {
+	n, ok := formTable[f].quickSpan(inputString(s), 0, len(s), atEOF)
+	if n < len(s) {
+		if !ok {
+			err = transform.ErrEndOfSpan
+		} else {
+			err = transform.ErrShortSrc
+		}
+	}
+	return n, err
+}
+
 // quickSpan returns a boundary n such that src[0:n] == f(src[0:n]) and
 // whether any non-normalized parts were found. If atEOF is false, n will
 // not point past the last segment if this segment might be become
@@ -291,7 +325,6 @@ func (f *formInfo) quickSpan(src input, i, end int, atEOF bool) (n int, ok bool)
 		// have an overflow for runes that are starters (e.g. with U+FF9E).
 		switch ss.next(info) {
 		case ssStarter:
-			ss.first(info)
 			lastSegStart = i
 		case ssOverflow:
 			return lastSegStart, false
@@ -321,7 +354,7 @@ func (f *formInfo) quickSpan(src input, i, end int, atEOF bool) (n int, ok bool)
 	return lastSegStart, false
 }
 
-// QuickSpanString returns a boundary n such that b[0:n] == f(s[0:n]).
+// QuickSpanString returns a boundary n such that s[0:n] == f(s[0:n]).
 // It is not guaranteed to return the largest such n.
 func (f Form) QuickSpanString(s string) int {
 	n, _ := formTable[f].quickSpan(inputString(s), 0, len(s), true)
@@ -408,6 +441,8 @@ func (f Form) nextBoundary(src input, nsrc int, atEOF bool) int {
 			}
 			return -1
 		}
+		// TODO: Using streamSafe to determine the boundary isn't the same as
+		// using BoundaryBefore. Determine which should be used.
 		if s := ss.next(info); s != ssSuccess {
 			return i
 		}
@@ -472,15 +507,14 @@ func decomposeSegment(rb *reorderBuffer, sp int, atEOF bool) int {
 	if info.size == 0 {
 		return 0
 	}
-	if rb.nrune > 0 {
-		if s := rb.ss.next(info); s == ssStarter {
-			goto end
-		} else if s == ssOverflow {
-			rb.insertCGJ()
+	if s := rb.ss.next(info); s == ssStarter {
+		// TODO: this could be removed if we don't support merging.
+		if rb.nrune > 0 {
 			goto end
 		}
-	} else {
-		rb.ss.first(info)
+	} else if s == ssOverflow {
+		rb.insertCGJ()
+		goto end
 	}
 	if err := rb.insertFlush(rb.src, sp, info); err != iSuccess {
 		return int(err)
