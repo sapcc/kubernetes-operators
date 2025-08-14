@@ -3,7 +3,7 @@ module github.com/sapcc/kubernetes-operators/externalip
 go 1.23.1
 
 require (
-	github.com/golang/glog v1.2.2
+	github.com/golang/glog v1.2.4
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.31.0
 	k8s.io/apimachinery v0.31.0
