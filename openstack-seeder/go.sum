@@ -16,6 +16,8 @@ github.com/emicklei/go-restful-swagger12 v0.0.0-20170208215640-dcef7f557305 h1:2
 github.com/emicklei/go-restful-swagger12 v0.0.0-20170208215640-dcef7f557305/go.mod h1:qr0VowGBT4CS4Q8vFF8BSeKz34PuqKGxs/L0IAQA9DQ=
 github.com/getsentry/raven-go v0.0.0-20180517221441-ed7bcb39ff10 h1:YO10pIIBftO/kkTFdWhctH96grJ7qiy7bMdiZcIvPKs=
 github.com/getsentry/raven-go v0.0.0-20180517221441-ed7bcb39ff10/go.mod h1:KungGk8q33+aIAZUIVWZDr2OfAEBsO49PX4NzFV5kcQ=
+github.com/getsentry/raven-go v0.2.0 h1:no+xWJRb5ZI7eE8TWgIq1jLulQiIoLG0IfYxv5JYMGs=
+github.com/getsentry/raven-go v0.2.0/go.mod h1:KungGk8q33+aIAZUIVWZDr2OfAEBsO49PX4NzFV5kcQ=
 github.com/ghodss/yaml v0.0.0-20150909031657-73d445a93680 h1:ZktWZesgun21uEDrwW7iEV1zPCGQldM2atlJZ3TdvVM=
 github.com/ghodss/yaml v0.0.0-20150909031657-73d445a93680/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/go-openapi/analysis v0.0.0-20160815203709-b44dc874b601 h1:0puMfPt1Uwv6yAyiIm/kkCdxRFURsaHGLuqyBmNTaHU=
