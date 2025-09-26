@@ -17,7 +17,7 @@ setup(
         'zipp==3.0.0',
         'pyyaml>=4.2b4',
         'pyparsing==2.1.0',
-        'oslo.serialization==2.29.2',
+        'oslo.serialization==2.29.3',
         'funcsigs',
         'oslo.config==7.0.0',
         'python-dateutil>=2.7.0',
