@@ -17,6 +17,7 @@
 import argparse
 from collections import defaultdict
 import copy
+from functools import lru_cache
 import logging
 import os
 import re
@@ -2154,22 +2155,32 @@ def seed_trait(trait, args, sess):
         logging.error("Failed to seed trait %s: %s" % (trait, e))
 
 
-def _get_traits(sess, args, only_associated=False):
-    """
-    Return the list of all traits that have been set on at least one resource provider.
-    """
+def _get_available_traits(sess, args):
+    """Return the list of all traits already created in this openstack region."""
     try:
-        params = {'associated': 'true'} if only_associated else {}
-        url_params = '&'.join(f'{k}={v}' for k, v in params.items())
         ks_filter = {'service_type': 'placement', 'interface': args.interface}
         http = placementclient(
             session=sess, ks_filter=ks_filter, api_version='1.6')
-        result = http.request('GET', f'/traits?{url_params}')
+        result = http.request('GET', '/traits')
     except Exception as e:
         logging.error(
             "Failed checking for trait resource providers: {}".format(e))
-        return []
-    return result.json().get("traits", [])
+        return set()
+    return set(result.json().get("traits", []))
+
+
+@lru_cache
+def _rps_exist_with_all_required_traits(sess, args, traits) -> bool:
+    """Check for resource providers with all of the given traits"""
+    try:
+        ks_filter = {'service_type': 'placement', 'interface': args.interface}
+        http = placementclient(session=sess, ks_filter=ks_filter, api_version='1.18')
+        result = http.request('GET', f'/resource_providers?required={",".join(traits)}')
+    except Exception as e:
+        logging.error(
+            "Failed checking for resource providers with traits: {}".format(e))
+        return False
+    return bool(result.json().get("resource_providers"))
 
 
 def check_seedable_flavors_and_resourceclasses_and_traits(flavors, sess, args):
@@ -2226,33 +2237,28 @@ def check_seedable_flavors_and_resourceclasses_and_traits(flavors, sess, args):
 
         sanitized_flavors.append((flavor, required_traits))
 
-    associated_traits = set(_get_traits(sess, args, only_associated=True))
-
     seedable_flavors = []
-    unseedable_flavorids_by_trait = defaultdict(set)
+    unseedable_flavorids_by_traits = defaultdict(set)
     for flavor, required_traits in sanitized_flavors:
         if not required_traits:
             seedable_flavors.append(flavor)
             continue
 
-        missing_traits = required_traits - associated_traits
-        if not missing_traits:
+        if _rps_exist_with_all_required_traits(sess, args, required_traits):
             seedable_flavors.append(flavor)
             continue
+        unseedable_flavorids_by_traits[", ".join(required_traits)].add(flavor['id'])
 
-        for trait in missing_traits:
-            unseedable_flavorids_by_trait[trait].add(flavor['id'])
-
-    if unseedable_flavorids_by_trait:
-        for trait, flavorids in unseedable_flavorids_by_trait.items():
-            logging.warn("Flavors {} need a resource provider with trait '{}' and will"
-                         " not be seeded".format(', '.join(flavorids), trait))
+    if unseedable_flavorids_by_traits:
+        for traits_str, flavorids in unseedable_flavorids_by_traits.items():
+            logging.warn("Flavors {} need a resource provider with traits '{}' and will"
+                         " not be seeded".format(', '.join(flavorids), traits_str))
         logging.warn("You can add missing traits to resource providers with\n"
                      "    'openstack resource provider trait set --trait <TRAIT>"
                      " <RP-UUID>'\n"
                      "and then wait for the seeder to run again.")
 
-    missing_traits = list(mentioned_traits - set(_get_traits(sess, args)))
+    missing_traits = list(mentioned_traits - _get_available_traits(sess, args))
     if missing_traits:
         logging.info(
             "Found traits mentioned in flavors missing in Nova: {}".format(missing_traits))
