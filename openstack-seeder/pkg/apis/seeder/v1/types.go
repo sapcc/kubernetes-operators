@@ -59,6 +59,8 @@ type OpenstackSeedSpec struct {
 	Regions []RegionSpec `json:"regions,omitempty" yaml:"regions,omitempty"`
 	// list keystone services and their endpoints
 	Services []ServiceSpec `json:"services,omitempty" yaml:"services,omitempty"`
+	// list of traits
+	Traits []string `json:"traits,omitempty" yaml:"traits,omitempty"`
 	// list of nova flavors
 	Flavors []FlavorSpec `json:"flavors,omitempty" yaml:"flavors,omitempty"`
 	// list of Manila share types
