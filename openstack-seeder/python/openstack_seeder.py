@@ -2636,6 +2636,7 @@ def seed_config(config, args, sess):
 
     if 'traits' in config:
         traits.update(config['traits'])
+        traits -= _get_available_traits(sess, args)
 
     for trait in traits:
         logging.info("seeding trait {}".format(trait))
