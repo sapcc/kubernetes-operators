@@ -2170,10 +2170,10 @@ def _get_available_traits(sess, args):
 
 
 @lru_cache
-def _rps_exist_with_all_required_traits(sess, args, traits) -> bool:
+def _rps_exist_with_all_required_traits(sess, keystone_interface_type, traits) -> bool:
     """Check for resource providers with all of the given traits"""
     try:
-        ks_filter = {'service_type': 'placement', 'interface': args.interface}
+        ks_filter = {'service_type': 'placement', 'interface': keystone_interface_type}
         http = placementclient(session=sess, ks_filter=ks_filter, api_version='1.18')
         result = http.request('GET', f'/resource_providers?required={",".join(traits)}')
     except Exception as e:
@@ -2244,7 +2244,8 @@ def check_seedable_flavors_and_resourceclasses_and_traits(flavors, sess, args):
             seedable_flavors.append(flavor)
             continue
 
-        if _rps_exist_with_all_required_traits(sess, args, required_traits):
+        if _rps_exist_with_all_required_traits(sess, args.interface,
+                                               frozenset(required_traits)):
             seedable_flavors.append(flavor)
             continue
         unseedable_flavorids_by_traits[", ".join(required_traits)].add(flavor['id'])
