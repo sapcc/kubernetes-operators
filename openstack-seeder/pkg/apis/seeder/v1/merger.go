@@ -113,6 +113,19 @@ func (e *ServiceSpec) MergeEndpoints(service ServiceSpec) {
 	}
 }
 
+func (e *OpenstackSeedSpec) MergeTraits(trait string) {
+	if e.Traits == nil {
+		e.Traits = make([]string, 0)
+	}
+	for _, t := range e.Traits {
+		if t == trait {
+			return
+		}
+	}
+	glog.V(2).Info("append trait ", trait)
+	e.Traits = append(e.Traits, trait)
+}
+
 func (e *OpenstackSeedSpec) MergeFlavor(flavor FlavorSpec) {
 	if e.Flavors == nil {
 		e.Flavors = make([]FlavorSpec, 0)
@@ -1025,6 +1038,10 @@ func (e *OpenstackSeedSpec) MergeSpec(spec OpenstackSeedSpec) error {
 		}
 
 		e.MergeDomain(domain)
+	}
+
+	for _, trait := range spec.Traits {
+		e.MergeTraits(trait)
 	}
 
 	for _, flavor := range spec.Flavors {
