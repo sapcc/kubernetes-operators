@@ -65,8 +65,10 @@ type OpenstackSeedSpec struct {
 
 // A keystone role (see https://developer.openstack.org/api-ref/identity/v3/index.html#roles)
 type RoleSpec struct {
-	Name        string `json:"name" yaml:"name"`                                   // the role name
-	Description string `json:"description,omitempty" yaml:"description,omitempty"` // the role description
+	Name        string                 `json:"name" yaml:"name"`                                   // the role name
+	Description string                 `json:"description,omitempty" yaml:"description,omitempty"` // the role description
+	Options     map[string]interface{} `json:"options,omitempty" yaml:"options,omitempty"`         // role options (e.g. immutable)
+	Immutable   *bool                  `json:"immutable,omitempty" yaml:"immutable,omitempty"`     // whether the role is immutable (convenience alias for options.immutable; options.immutable takes precedence if both are set, and a warning is logged on conflict)
 }
 
 // A Cinder Volume Type
