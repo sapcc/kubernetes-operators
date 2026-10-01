@@ -237,6 +237,21 @@ def seed_role(role, keystone):
     """ seed a keystone role """
     logging.debug("seeding role %s" % role)
 
+    options = role.get('options', {})
+    if not isinstance(options, dict):
+        options = {}
+    else:
+        options = dict(options)
+    # options['immutable'] takes precedence over role['immutable'] if both are set
+    if 'immutable' in role:
+        if 'immutable' in options:
+            if role['immutable'] != options['immutable']:
+                logging.warning(
+                    "conflict in role '%s': 'immutable' (%s) and 'options.immutable' (%s) differ; using options.immutable"
+                    % (role.get('name'), role['immutable'], options['immutable']))
+        else:
+            options['immutable'] = role['immutable']
+
     role = sanitize(role, ('name', 'description', 'domainId'))
 
     if 'domainId' in role:
@@ -245,15 +260,46 @@ def seed_role(role, keystone):
         result = keystone.roles.list(name=role['name'])
     if not result:
         logging.info("create role '%s'" % role)
+        if options:
+            role['options'] = options
         resource = keystone.roles.create(**role)
     else:
         resource = result[0]
-        for attr in list(role.keys()):
-            if role[attr] != resource._info.get(attr, ''):
+        current_options = resource._info.get('options', {}) if hasattr(resource, '_info') else getattr(resource, 'options', {}) or {}
+        if not isinstance(current_options, dict):
+            current_options = {}
+        current_immutable = current_options.get('immutable', False)
+
+        differs = any(role[attr] != resource._info.get(attr, '') for attr in role)
+        options_differs = any(options[k] != current_options.get(k) for k in options)
+
+        if differs or options_differs:
+            target_immutable = options.get('immutable', current_immutable)
+            re_lock = current_immutable and target_immutable
+
+            if current_immutable:
                 logging.info(
-                    "%s differs. update role '%s'" % (attr, role))
+                    "temporarily unlocking immutable role '%s'" % role['name'] if re_lock
+                    else "unlocking immutable role '%s'" % role['name'])
+                keystone.roles.update(resource.id, options={'immutable': False})
+                current_options['immutable'] = False
+
+            if differs:
+                logging.info(
+                    "%s differs. update role '%s'" % (
+                        ', '.join(attr for attr in role if role[attr] != resource._info.get(attr, '')), role))
                 keystone.roles.update(resource.id, **role)
-                break
+
+            remaining_options_differ = any(options[k] != current_options.get(k) for k in options)
+            if remaining_options_differ or re_lock:
+                merged_options = dict(current_options)
+                merged_options.update(options)
+                if re_lock:
+                    merged_options['immutable'] = True
+                    logging.info("re-locking role '%s' with options=%s" % (role['name'], merged_options))
+                else:
+                    logging.info("updating options=%s on role '%s'" % (merged_options, role['name']))
+                keystone.roles.update(resource.id, options=merged_options)
 
     # todo: role.domainId ?
     role_cache[resource.name] = resource.id
