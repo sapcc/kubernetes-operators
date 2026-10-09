@@ -43,7 +43,7 @@ type Operator struct {
 	clientset         *kubernetes.Clientset
 	serviceInformer   cache.SharedIndexInformer
 	endpointsInformer cache.SharedIndexInformer
-	queue             workqueue.RateLimitingInterface
+	queue             workqueue.TypedRateLimitingInterface[bool]
 }
 
 func New(options Options) *Operator {
@@ -66,7 +66,7 @@ func New(options Options) *Operator {
 	operator := &Operator{
 		Options:           options,
 		clientset:         clientset,
-		queue:             workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		queue:             workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[bool]()),
 		serviceInformer:   informers_core_v1.NewServiceInformer(clientset, "", resyncPeriod, nil),
 		endpointsInformer: informers_core_v1.NewEndpointsInformer(clientset, "", resyncPeriod, nil),
 	}
