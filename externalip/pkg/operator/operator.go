@@ -43,7 +43,7 @@ type Operator struct {
 	clientset         *kubernetes.Clientset
 	serviceInformer   cache.SharedIndexInformer
 	endpointsInformer cache.SharedIndexInformer
-	queue             workqueue.RateLimitingInterface
+	queue             workqueue.TypedRateLimitingInterface[bool]
 }
 
 func New(options Options) *Operator {
@@ -66,7 +66,7 @@ func New(options Options) *Operator {
 	operator := &Operator{
 		Options:           options,
 		clientset:         clientset,
-		queue:             workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		queue:             workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[bool]()),
 		serviceInformer:   informers_core_v1.NewServiceInformer(clientset, "", resyncPeriod, nil),
 		endpointsInformer: informers_core_v1.NewEndpointsInformer(clientset, "", resyncPeriod, nil),
 	}
@@ -113,7 +113,7 @@ func (op *Operator) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGr
 	cache.WaitForCacheSync(stopCh, op.endpointsInformer.HasSynced)
 	glog.Info("Cache primed. Ready for operations.")
 
-	for i := 0; i < threadiness; i++ {
+	for range threadiness {
 		go wait.Until(op.runWorker, time.Second, stopCh)
 	}
 
@@ -159,7 +159,7 @@ func (op *Operator) processNextWorkItem() bool {
 	return true
 }
 
-func (op *Operator) syncHandler(_ interface{}) error {
+func (op *Operator) syncHandler(_ any) error {
 	store := op.serviceInformer.GetStore()
 	attachedIPs, err := op.existingIPs()
 	if err != nil {
@@ -224,7 +224,6 @@ func (op *Operator) syncHandler(_ interface{}) error {
 
 func (op *Operator) ignoreAddress(ipstring string) bool {
 	ip := net.ParseIP(ipstring)
-	ip.String()
 	if ip == nil {
 		glog.V(3).Infof("Ignore invalid ip: %s", ipstring)
 		return true
@@ -263,7 +262,7 @@ func (op *Operator) existingIPs() (map[string]bool, error) {
 
 }
 
-func (op *Operator) serviceAdd(obj interface{}) {
+func (op *Operator) serviceAdd(obj any) {
 	svc := obj.(*v1.Service)
 	if len(svc.Spec.ExternalIPs) == 0 {
 		return
@@ -272,7 +271,7 @@ func (op *Operator) serviceAdd(obj interface{}) {
 	op.queue.Add(true)
 }
 
-func (op *Operator) serviceDelete(obj interface{}) {
+func (op *Operator) serviceDelete(obj any) {
 	svc := obj.(*v1.Service)
 	if len(svc.Spec.ExternalIPs) == 0 {
 		return
@@ -281,7 +280,7 @@ func (op *Operator) serviceDelete(obj interface{}) {
 	op.queue.Add(true)
 }
 
-func (op *Operator) serviceUpdate(cur, old interface{}) {
+func (op *Operator) serviceUpdate(cur, old any) {
 	curSvc := cur.(*v1.Service)
 	oldSvc := old.(*v1.Service)
 
@@ -294,7 +293,7 @@ func (op *Operator) serviceUpdate(cur, old interface{}) {
 	op.queue.Add(true)
 }
 
-func (op *Operator) endpointsUpdate(cur, old interface{}) {
+func (op *Operator) endpointsUpdate(cur, old any) {
 	oldEndpoints := old.(*v1.Endpoints)
 	endpoints := cur.(*v1.Endpoints)
 
