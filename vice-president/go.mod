@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	github.com/pkg/errors v0.8.1
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.1.0
 	github.com/sapcc/go-vice v0.0.0-20190821082040-e4ca123d1d42
 	github.com/sapcc/kubernikus v1.5.0 // indirect
