@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/golang/glog v1.2.5
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
 	k8s.io/client-go v0.37.1
