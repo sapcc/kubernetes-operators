@@ -23,6 +23,24 @@ func (s *stringArrayValue) Set(val string) error {
 	return nil
 }
 
+func (s *stringArrayValue) Append(val string) error {
+	*s.value = append(*s.value, val)
+	return nil
+}
+
+func (s *stringArrayValue) Replace(val []string) error {
+	out := make([]string, len(val))
+	copy(out, val)
+	*s.value = out
+	return nil
+}
+
+func (s *stringArrayValue) GetSlice() []string {
+	out := make([]string, len(*s.value))
+	copy(out, *s.value)
+	return out
+}
+
 func (s *stringArrayValue) Type() string {
 	return "stringArray"
 }
