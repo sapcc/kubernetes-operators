@@ -184,7 +184,15 @@ func (op *Operator) handler(key *v1.SentryProject) error {
 		secret, err := op.clientset.CoreV1().Secrets(project.Namespace).Get(context.TODO(), "sentry", metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
 			glog.Infof("Creating secret %s/%s", "sentry", project.Namespace)
-			_, err := op.clientset.CoreV1().Secrets(project.Namespace).Create(context.TODO(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "sentry"}, StringData: secretData}, metav1.CreateOptions{})
+			_, err := op.clientset.CoreV1().Secrets(project.Namespace).Create(context.TODO(), &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "sentry",
+					Labels: map[string]string{
+						"app.kubernetes.io/managed-by": "sentry-operator",
+					},
+				},
+				StringData: secretData,
+			}, metav1.CreateOptions{})
 			if err != nil {
 				op.updateStatus(project, v1.SentryProjectError, err.Error())
 			}
@@ -195,6 +203,13 @@ func (op *Operator) handler(key *v1.SentryProject) error {
 			return err
 		}
 		updated := false
+		if secret.Labels["app.kubernetes.io/managed-by"] != "sentry-operator" {
+			if secret.Labels == nil {
+				secret.Labels = make(map[string]string, 1)
+			}
+			secret.Labels["app.kubernetes.io/managed-by"] = "sentry-operator"
+			updated = true
+		}
 		for key, value := range secretData {
 			if b, ok := secret.Data[key]; !ok || string(b) != value {
 				updated = true
