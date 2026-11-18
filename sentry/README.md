@@ -25,6 +25,8 @@ apiVersion: v1
 metadata:
   name: sentry
   namespace: myns
+  labels:
+    app.kubernetes.io/managed-by: sentry-operator
 data:
   projectx.DSN: aHR0cHM6Ly8wNzNiY2RmYTI5MTk0YjcwOTMyNDBkY2Y1MDBlNGQyMDo3NDY0MGYzYWNjMjY0NTE5OTdkMzM5YmMxNWY1MWFlNkBzZW50cnkuc3RhZ2luZy5jbG91ZC5zYXAvMTE1
   projectx.DSN.public: aHR0cHM6Ly8wNzNiY2RmYTI5MTk0YjcwOTMyNDBkY2Y1MDBlNGQyMEBzZW50cnkuc3RhZ2luZy5jbG91ZC5zYXAvMTE1
@@ -32,6 +34,8 @@ data:
 ```
 
 You can reference these secrets in the usual way.
+
+The operator sets this label on new and existing `sentry` secrets during reconciliation, preserving unrelated labels.
 
 
 Notable CLI flags
