@@ -177,7 +177,6 @@ func (op *Operator) handler(key *v1.SentryProject) error {
 		secretData := map[string]string{
 			fmt.Sprintf("%s.DSN", project.Spec.Name):               clientKey.DSN.Secret,
 			fmt.Sprintf("%s.DSN.public", project.Spec.Name):        clientKey.DSN.Public,
-			fmt.Sprintf("%s.DSN.python", project.Spec.Name):        fmt.Sprintf("requests+%s?verify_ssl=0", clientKey.DSN.Secret),
 			fmt.Sprintf("%s.DSN.public.python", project.Spec.Name): fmt.Sprintf("requests+%s?verify_ssl=0", clientKey.DSN.Public),
 		}
 
