@@ -92,21 +92,29 @@ github.com/spf13/pflag
 # github.com/ugorji/go v0.0.0-20170107133203-ded73eae5db7
 ## explicit
 github.com/ugorji/go/codec
-# golang.org/x/crypto v0.0.0-20161006174701-d172538b2cfc
-## explicit
+# golang.org/x/crypto v0.17.0
+## explicit; go 1.18
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20170114055629-f2499483f923
-## explicit
+# golang.org/x/net v0.10.0
+## explicit; go 1.17
+golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
-golang.org/x/net/lex/httplex
-# golang.org/x/sys v0.0.0-20160916181909-8f0908ab3b24
-## explicit
+# golang.org/x/sys v0.15.0
+## explicit; go 1.18
+golang.org/x/sys/plan9
 golang.org/x/sys/unix
-# golang.org/x/text v0.0.0-20160726164857-2910a502d2bf
-## explicit
+golang.org/x/sys/windows
+# golang.org/x/term v0.15.0
+## explicit; go 1.18
+golang.org/x/term
+# golang.org/x/text v0.14.0
+## explicit; go 1.18
 golang.org/x/text/cases
+golang.org/x/text/internal
+golang.org/x/text/internal/language
+golang.org/x/text/internal/language/compact
 golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/runes
