@@ -464,20 +464,25 @@ def seed_service(service, keystone):
         seed_endpoints(resource, endpoints, keystone)
 
 
-def seed_user(domain, user, keystone):
-    """Seed a user to Keystone"""
-    user = sanitize(user, (
-        'name', 'email', 'description', 'password', 'enabled',
-        'default_project'))
-
-    if 'name' not in user or not user['name']:
-        logging.warn(
-            "skipping user '%s/%s', since it is misconfigured" % (
-                domain.name, redact(user)))
+def _handle_user_delete(result, domain, keystone):
+    """Ensure that the user is deleted"""
+    if not result:
         return
 
-    result = keystone.users.list(domain=domain.id,
-                                 name=user['name'])
+    resource = result[0]
+    logging.info("delete user '%s/%s' (%s)",
+                 domain.name, resource.name, resource.id)
+    keystone.users.delete(user=resource)
+
+    if resource.name in user_cache.get(domain.name, {}):
+        del user_cache[domain.name][resource.name]
+
+
+def _handle_user_create_update(result, domain, user, keystone):
+    """Ensure that the user exists and is up-to-date
+
+    Does not update the password.
+    """
     if not result:
         logging.info(
             "create user '%s/%s'" % (domain.name, user['name']))
@@ -498,6 +503,28 @@ def seed_user(domain, user, keystone):
     if domain.name not in user_cache:
         user_cache[domain.name] = dict()
     user_cache[domain.name][resource.name] = resource.id
+
+
+def seed_user(domain, user, keystone):
+    """Seed a user to Keystone"""
+    should_be_deleted = user.pop('deleted', None)
+
+    user = sanitize(user, (
+        'name', 'email', 'description', 'password', 'enabled',
+        'default_project'))
+
+    if 'name' not in user or not user['name']:
+        logging.warn(
+            "skipping user '%s/%s', since it is misconfigured" % (
+                domain.name, redact(user)))
+        return
+
+    result = keystone.users.list(domain=domain.id,
+                                 name=user['name'])
+    if should_be_deleted:
+        _handle_user_delete(result, domain, keystone)
+    else:
+        _handle_user_create_update(result, domain, user, keystone)
 
 
 def seed_role_assignment(domain, ra, keystone, username=None):
@@ -531,9 +558,10 @@ def seed_users(domain, users, keystone):
     logging.debug("seeding users %s %s" % (domain.name, users))
 
     for user in users:
-        ra = None
-        if 'role_assignments' in user:
-            ra = user.pop('role_assignments')
+        ra = user.pop('role_assignments', None)
+        if user.get('deleted'):
+            # No need to fail assigning roles for a deleted user
+            ra = None
 
         if '@' not in user['name']:
             seed_user(domain, user, keystone)

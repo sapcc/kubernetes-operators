@@ -259,6 +259,7 @@ type UserSpec struct {
 	Enabled          *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`                   // boolean flag to indicate if the user is enabled
 	RoleAssignments  []RoleAssignmentSpec `json:"role_assignments,omitempty" yaml:"role_assignments,omitempty"` // list of the users role-assignments
 	DefaultProjectID string               `json:"default_project,omitempty" yaml:"default_project,omitempty"`   // default project scope for the user
+	Deleted          *bool                `json:"deleted,omitempty" yaml:"deleted,omitempty"`                   // boolean flag to indicate if the user should be deleted from Keystone
 }
 
 // A keystone group (see https://developer.openstack.org/api-ref/identity/v3/#groups)
