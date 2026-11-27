@@ -464,6 +464,68 @@ def seed_service(service, keystone):
         seed_endpoints(resource, endpoints, keystone)
 
 
+def seed_user(domain, user, keystone):
+    """Seed a user to Keystone"""
+    user = sanitize(user, (
+        'name', 'email', 'description', 'password', 'enabled',
+        'default_project'))
+
+    if 'name' not in user or not user['name']:
+        logging.warn(
+            "skipping user '%s/%s', since it is misconfigured" % (
+                domain.name, redact(user)))
+        return
+
+    result = keystone.users.list(domain=domain.id,
+                                 name=user['name'])
+    if not result:
+        logging.info(
+            "create user '%s/%s'" % (domain.name, user['name']))
+        resource = keystone.users.create(domain=domain, **user)
+    else:
+        resource = result[0]
+        for attr in list(user.keys()):
+            if attr == 'password':
+                continue
+            if user[attr] != resource._info.get(attr, ''):
+                logging.info(
+                    "%s differs. update user '%s/%s' (%s)" % (
+                        attr, domain.name, user['name'], attr))
+                keystone.users.update(resource.id, **user)
+                break
+
+    # cache the user id
+    if domain.name not in user_cache:
+        user_cache[domain.name] = dict()
+    user_cache[domain.name][resource.name] = resource.id
+
+
+def seed_role_assignment(domain, ra, keystone, username=None):
+    """seed keystone role-assignments"""
+    for role in ra:
+        assignment = dict()
+        assignment['role'] = role['role']
+        assignment['user'] = '%s@%s' % (
+            username, domain.name)
+        if 'system' in role:
+            assignment['system'] = role['system']
+        else:
+            if 'project' in role:
+                if '@' in role['project']:
+                    assignment['project'] = role['project']
+                else:
+                    assignment['project'] = '%s@%s' % (
+                        role['project'], domain.name)
+            elif 'project_id' in role:
+                assignment['project_id'] = role['project_id']
+            elif 'domain' in role:
+                assignment['domain'] = role['domain']
+            if 'inherited' in role:
+                assignment['inherited'] = role['inherited']
+
+        role_assignments.append(assignment)
+
+
 def seed_users(domain, users, keystone):
     """ seed keystone users and their role-assignments """
     logging.debug("seeding users %s %s" % (domain.name, users))
@@ -474,63 +536,11 @@ def seed_users(domain, users, keystone):
             ra = user.pop('role_assignments')
 
         if '@' not in user['name']:
-            user = sanitize(user, (
-                'name', 'email', 'description', 'password', 'enabled',
-                'default_project'))
-
-            if 'name' not in user or not user['name']:
-                logging.warn(
-                    "skipping user '%s/%s', since it is misconfigured" % (
-                        domain.name, redact(user)))
-                continue
-
-            result = keystone.users.list(domain=domain.id,
-                                         name=user['name'])
-            if not result:
-                logging.info(
-                    "create user '%s/%s'" % (domain.name, user['name']))
-                resource = keystone.users.create(domain=domain, **user)
-            else:
-                resource = result[0]
-                for attr in list(user.keys()):
-                    if attr == 'password':
-                        continue
-                    if user[attr] != resource._info.get(attr, ''):
-                        logging.info(
-                            "%s differs. update user '%s/%s' (%s)" % (
-                                attr, domain.name, user['name'], attr))
-                        keystone.users.update(resource.id, **user)
-                        break
-
-            # cache the user id
-            if domain.name not in user_cache:
-                user_cache[domain.name] = dict()
-            user_cache[domain.name][resource.name] = resource.id
+            seed_user(domain, user, keystone)
 
         # add the users role assignments to the list to be resolved later on
         if ra:
-            for role in ra:
-                assignment = dict()
-                assignment['role'] = role['role']
-                assignment['user'] = '%s@%s' % (
-                    user['name'], domain.name)
-                if 'system' in role:
-                    assignment['system'] = role['system']
-                else:
-                    if 'project' in role:
-                        if '@' in role['project']:
-                            assignment['project'] = role['project']
-                        else:
-                            assignment['project'] = '%s@%s' % (
-                                role['project'], domain.name)
-                    elif 'project_id' in role:
-                        assignment['project_id'] = role['project_id']
-                    elif 'domain' in role:
-                        assignment['domain'] = role['domain']
-                    if 'inherited' in role:
-                        assignment['inherited'] = role['inherited']
-
-                role_assignments.append(assignment)
+            seed_role_assignment(domain, ra, keystone, username=user['name'])
 
 
 def seed_groups(domain, groups, keystone):
